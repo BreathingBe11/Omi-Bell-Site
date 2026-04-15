@@ -5,202 +5,67 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Article — Omi Bell</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
-  --black: #0A0A0A;
-  --white: #F9F7F4;
-  --teal: #007B8F;
-  --teal-light: #0CB6D4;
-  --sand: #E8E0D4;
-  --sand-dark: #C9BDB0;
-  --text-muted: rgba(10,10,10,0.5);
+  --black: #0A0A0A; --white: #F9F7F4; --teal: #007B8F; --teal-light: #0CB6D4;
+  --sand: #E8E0D4; --sand-dark: #C9BDB0; --text-muted: rgba(10,10,10,0.5);
   --reading-max: 720px;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: 'DM Sans', sans-serif;
-  background: var(--white);
-  color: var(--black);
-  -webkit-font-smoothing: antialiased;
-}
+body { font-family: 'DM Sans', sans-serif; background: var(--white); color: var(--black); -webkit-font-smoothing: antialiased; }
 
-/* ── NAV ── */
-nav {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 1.2rem 3rem;
-  background: rgba(249,247,244,0.96);
-  box-shadow: 0 1px 0 var(--sand);
-  backdrop-filter: blur(8px);
-}
-.nav-logo {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1.3rem; font-weight: 400; letter-spacing: 0.05em;
-  color: var(--black); text-decoration: none;
-}
+nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 1.2rem 3rem; background: rgba(249,247,244,0.96); box-shadow: 0 1px 0 var(--sand); backdrop-filter: blur(8px); }
+.nav-logo { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 400; letter-spacing: 0.05em; color: var(--black); text-decoration: none; }
 .nav-links { display: flex; gap: 2.5rem; list-style: none; }
-.nav-links a {
-  font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase;
-  color: var(--black); text-decoration: none; font-weight: 400;
-  transition: color 0.2s;
-}
+.nav-links a { font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--black); text-decoration: none; transition: color 0.2s; }
 .nav-links a:hover { color: var(--teal); }
-.nav-cta {
-  background: var(--teal); color: var(--white) !important;
-  padding: 0.5rem 1.2rem;
-}
+.nav-cta { background: var(--teal); color: var(--white) !important; padding: 0.5rem 1.2rem; }
 .nav-cta:hover { background: var(--teal-light) !important; }
 
-/* ── BACK LINK ── */
-.back-bar {
-  padding: 5.5rem 3rem 0;
-}
-.back-link {
-  display: inline-flex; align-items: center; gap: 0.5rem;
-  font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--teal); text-decoration: none;
-  transition: gap 0.2s;
-}
+.back-bar { padding: 5.5rem 3rem 0; }
+.back-link { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); text-decoration: none; transition: gap 0.2s; }
 .back-link:hover { gap: 0.8rem; }
 .back-link::before { content: '←'; }
 
-/* ── ARTICLE HERO ── */
-.article-hero {
-  padding: 2rem 3rem;
-  max-width: calc(var(--reading-max) + 6rem);
-  margin: 0 auto;
-}
-.article-category {
-  font-size: 0.64rem; letter-spacing: 0.2em; text-transform: uppercase;
-  color: var(--teal); margin-bottom: 1rem; font-weight: 500;
-}
-.article-title {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(2rem, 4.5vw, 3.4rem);
-  font-weight: 400; line-height: 1.12; letter-spacing: -0.01em;
-  margin-bottom: 1.2rem;
-}
-.article-title em { font-style: italic; }
-.article-excerpt {
-  font-size: 1.05rem; color: var(--text-muted);
-  line-height: 1.65; margin-bottom: 1.5rem;
-  max-width: 600px;
-}
-.article-meta {
-  display: flex; align-items: center; gap: 1rem;
-  font-size: 0.72rem; letter-spacing: 0.08em; color: var(--sand-dark);
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--sand);
-}
+.article-hero { padding: 2rem 3rem; max-width: calc(var(--reading-max) + 6rem); margin: 0 auto; }
+.article-category { font-size: 0.64rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--teal); margin-bottom: 1rem; font-weight: 500; }
+.article-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(2rem, 4.5vw, 3.4rem); font-weight: 400; line-height: 1.12; margin-bottom: 1.2rem; }
+.article-excerpt { font-size: 1.05rem; color: var(--text-muted); line-height: 1.65; margin-bottom: 1.5rem; max-width: 600px; }
+.article-meta { display: flex; align-items: center; gap: 1rem; font-size: 0.72rem; letter-spacing: 0.08em; color: var(--sand-dark); padding-bottom: 1.5rem; border-bottom: 1px solid var(--sand); }
 .article-meta-divider { width: 1px; height: 12px; background: var(--sand); }
 
-/* ── COVER IMAGE ── */
-.article-cover {
-  max-width: calc(var(--reading-max) + 6rem);
-  margin: 0 auto;
-  padding: 0 3rem 2rem;
-}
-.article-cover img {
-  width: 100%;
-  max-height: 520px;
-  object-fit: cover;
-  display: block;
-}
+.article-cover { max-width: calc(var(--reading-max) + 6rem); margin: 0 auto; padding: 0 3rem 2rem; }
+.article-cover img { width: 100%; max-height: 520px; object-fit: cover; display: block; }
 
-/* ── ARTICLE BODY ── */
-.article-body {
-  max-width: var(--reading-max);
-  margin: 0 auto;
-  padding: 2rem 3rem 5rem;
-  font-size: 1.05rem;
-  line-height: 1.8;
-}
-
-/* Rich text content styles */
-.article-body h1, .article-body h2, .article-body h3 {
-  font-family: 'Cormorant Garamond', serif;
-  font-weight: 400; margin: 2rem 0 0.8rem; line-height: 1.2;
-}
-.article-body h1 { font-size: 2rem; }
-.article-body h2 { font-size: 1.6rem; }
-.article-body h3 { font-size: 1.3rem; }
+.article-body { max-width: var(--reading-max); margin: 0 auto; padding: 2rem 3rem 5rem; font-size: 1.05rem; line-height: 1.8; }
+.article-body h1, .article-body h2, .article-body h3 { font-family: 'Cormorant Garamond', serif; font-weight: 400; margin: 2rem 0 0.8rem; line-height: 1.2; }
+.article-body h1 { font-size: 2rem; } .article-body h2 { font-size: 1.6rem; } .article-body h3 { font-size: 1.3rem; }
 .article-body p { margin-bottom: 1.4rem; }
-.article-body strong { font-weight: 500; }
-.article-body em { font-style: italic; }
-.article-body u { text-decoration: underline; text-underline-offset: 3px; }
 .article-body a { color: var(--teal); text-decoration: none; border-bottom: 1px solid var(--teal-light); }
-.article-body a:hover { color: var(--teal-light); }
 .article-body ul, .article-body ol { margin: 1rem 0 1.4rem 1.5rem; }
 .article-body li { margin-bottom: 0.5rem; }
-.article-body blockquote {
-  margin: 2rem 0; padding: 1.5rem 2rem;
-  border-left: 3px solid var(--teal);
-  background: rgba(0,123,143,0.04);
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1.2rem; font-style: italic;
-  color: rgba(10,10,10,0.8);
-}
-.article-body img {
-  max-width: 100%; height: auto;
-  margin: 1.5rem 0; display: block;
-}
-.article-body hr {
-  border: none; border-top: 1px solid var(--sand);
-  margin: 2.5rem 0;
-}
+.article-body blockquote { margin: 2rem 0; padding: 1.5rem 2rem; border-left: 3px solid var(--teal); background: rgba(0,123,143,0.04); font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; font-style: italic; }
+.article-body img { max-width: 100%; height: auto; margin: 1.5rem 0; display: block; }
+.article-body hr { border: none; border-top: 1px solid var(--sand); margin: 2.5rem 0; }
 
-/* ── LOADING ── */
-.article-loading {
-  text-align: center; padding: 8rem 0;
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1.2rem; color: var(--text-muted); font-style: italic;
-}
+.article-loading { text-align: center; padding: 8rem 0; font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; color: var(--text-muted); font-style: italic; }
 
-/* ── END OF ARTICLE ── */
-.article-end {
-  max-width: var(--reading-max);
-  margin: 0 auto 4rem;
-  padding: 2rem 3rem;
-  border-top: 1px solid var(--sand);
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 1rem; flex-wrap: wrap;
-}
-.end-rule {
-  font-size: 0.7rem; letter-spacing: 0.16em; text-transform: uppercase;
-  color: var(--text-muted);
-}
-.end-cta {
-  display: inline-block;
-  padding: 0.7rem 1.6rem;
-  background: var(--teal); color: var(--white);
-  font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase;
-  text-decoration: none;
-  transition: background 0.2s;
-}
+.article-end { max-width: var(--reading-max); margin: 0 auto 4rem; padding: 2rem 3rem; border-top: 1px solid var(--sand); display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.end-rule { font-size: 0.7rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-muted); }
+.end-cta { display: inline-block; padding: 0.7rem 1.6rem; background: var(--teal); color: var(--white); font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase; text-decoration: none; transition: background 0.2s; }
 .end-cta:hover { background: var(--teal-light); }
 
-/* ── FOOTER ── */
-footer {
-  background: var(--black); color: var(--white);
-  padding: 2rem 3rem;
-  display: flex; align-items: center; justify-content: space-between;
-}
-.footer-logo {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1.1rem; letter-spacing: 0.08em;
-}
-.footer-copy { font-size: 0.72rem; letter-spacing: 0.08em; color: rgba(249,247,244,0.4); }
+footer { background: var(--black); color: var(--white); padding: 2rem 3rem; display: flex; align-items: center; justify-content: space-between; }
+.footer-logo { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; letter-spacing: 0.08em; }
+.footer-copy { font-size: 0.72rem; color: rgba(249,247,244,0.4); }
 
-/* ── RESPONSIVE ── */
-@media (max-width: 768px) {
-  nav { padding: 1rem 1.5rem; }
-  .nav-links { display: none; }
-  .back-bar { padding: 5rem 1.5rem 0; }
-  .article-hero, .article-cover, .article-body, .article-end { padding-left: 1.5rem; padding-right: 1.5rem; }
-  .article-title { font-size: 2rem; }
-  footer { flex-direction: column; gap: 0.5rem; text-align: center; }
+@media(max-width:768px){
+  nav{padding:1rem 1.5rem} .nav-links{display:none}
+  .back-bar{padding:5rem 1.5rem 0}
+  .article-hero,.article-cover,.article-body,.article-end{padding-left:1.5rem;padding-right:1.5rem}
+  .article-title{font-size:2rem}
+  footer{flex-direction:column;gap:0.5rem;text-align:center}
 }
 </style>
 </head>
@@ -232,88 +97,44 @@ footer {
 </footer>
 
 <script>
-// ============================================================
-// FIREBASE CONFIG — must match blog.html and admin.html
-// ============================================================
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
-// ============================================================
+const db = supabase.createClient(
+  'https://mfevhwdtpftmlsksrgdi.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mZXZod2R0cGZ0bWxza3NyZ2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNzg1MTQsImV4cCI6MjA5MTg1NDUxNH0.tjWrwpoL24y2WhlkexWLHxYeHw_Yu9qfHM4Qj1VE6XA'
+);
 
-function isConfigured() {
-  return firebaseConfig.apiKey !== "YOUR_API_KEY";
-}
-
-function formatDate(ts) {
-  if (!ts) return '';
-  const d = ts.toDate ? ts.toDate() : new Date(ts);
-  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+function formatDate(str) {
+  if (!str) return '';
+  return new Date(str).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
 async function loadArticle() {
-  const params = new URLSearchParams(window.location.search);
-  const postId = params.get('id');
-
-  if (!postId) {
-    showError('No article found.');
-    return;
-  }
-
-  if (!isConfigured()) {
-    showError('Firebase not configured yet.');
-    return;
-  }
-
+  const id = new URLSearchParams(window.location.search).get('id');
+  if (!id) { showError('No article found.'); return; }
   try {
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const doc = await db.collection('posts').doc(postId).get();
-
-    if (!doc.exists || !doc.data().published) {
-      showError('This article is not available.');
-      return;
-    }
-
-    const post = { id: doc.id, ...doc.data() };
-    renderArticle(post);
-    document.title = `${post.title} — Omi Bell`;
-  } catch(e) {
-    showError('Could not load article: ' + e.message);
-  }
+    const { data, error } = await db.from('posts').select('*').eq('id', id).single();
+    if (error || !data || !data.published) { showError('This article is not available.'); return; }
+    renderArticle(data);
+    document.title = `${data.title} — Omi Bell`;
+  } catch(e) { showError('Could not load article.'); }
 }
 
-function renderArticle(post) {
-  const el = document.getElementById('articleContent');
-  el.innerHTML = `
+function renderArticle(p) {
+  document.getElementById('articleContent').innerHTML = `
     <div class="article-hero">
-      <p class="article-category">${post.category || 'Journal'}</p>
-      <h1 class="article-title">${post.title || ''}</h1>
-      ${post.excerpt ? `<p class="article-excerpt">${post.excerpt}</p>` : ''}
+      <p class="article-category">${p.category||'Journal'}</p>
+      <h1 class="article-title">${p.title||''}</h1>
+      ${p.excerpt ? `<p class="article-excerpt">${p.excerpt}</p>` : ''}
       <div class="article-meta">
-        <span>${formatDate(post.date)}</span>
-        ${post.readTime ? `<span class="article-meta-divider"></span><span>${post.readTime} min read</span>` : ''}
+        <span>${formatDate(p.date)}</span>
+        ${p.read_time ? `<span class="article-meta-divider"></span><span>${p.read_time} min read</span>` : ''}
       </div>
     </div>
-
-    ${post.coverImage ? `
-    <div class="article-cover">
-      <img src="${post.coverImage}" alt="${post.title}" onerror="this.parentElement.style.display='none'">
-    </div>` : ''}
-
-    <div class="article-body">
-      ${post.content || ''}
-    </div>
-
+    ${p.cover_image ? `<div class="article-cover"><img src="${p.cover_image}" alt="${p.title}" onerror="this.parentElement.style.display='none'"></div>` : ''}
+    <div class="article-body">${p.content||''}</div>
     <div class="article-end">
       <span class="end-rule">End of Article</span>
       <a href="blog.html" class="end-cta">More from the Journal →</a>
-    </div>
-  `;
+    </div>`;
 }
 
 function showError(msg) {

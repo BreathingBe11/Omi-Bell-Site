@@ -5,398 +5,151 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Journal Admin — Omi Bell</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
-  --black: #0A0A0A;
-  --white: #F9F7F4;
-  --teal: #007B8F;
-  --teal-light: #0CB6D4;
-  --sand: #E8E0D4;
-  --sand-dark: #C9BDB0;
-  --admin-bg: #111;
-  --admin-surface: #1a1a1a;
-  --admin-border: #2a2a2a;
-  --admin-text: #e8e0d4;
-  --admin-muted: rgba(232,224,212,0.4);
-  --danger: #c0392b;
+  --black: #0A0A0A; --white: #F9F7F4; --teal: #007B8F; --teal-light: #0CB6D4;
+  --sand: #E8E0D4; --sand-dark: #C9BDB0;
+  --bg: #111; --surface: #1a1a1a; --border: #2a2a2a;
+  --text: #e8e0d4; --muted: rgba(232,224,212,0.4); --danger: #c0392b;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'DM Sans', sans-serif; background: var(--admin-bg); color: var(--admin-text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
 
-/* ── LOGIN SCREEN ── */
-#loginScreen {
-  display: flex; align-items: center; justify-content: center;
-  min-height: 100vh; flex-direction: column; gap: 2rem;
-  padding: 2rem;
-}
-.login-logo {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1.8rem; font-weight: 300; letter-spacing: 0.1em;
-  color: var(--white);
-}
-.login-card {
-  background: var(--admin-surface);
-  border: 1px solid var(--admin-border);
-  padding: 2.5rem 3rem;
-  width: 100%; max-width: 400px;
-  text-align: center;
-}
-.login-title {
-  font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase;
-  color: var(--teal); margin-bottom: 1.5rem;
-}
-.login-input {
-  width: 100%; padding: 0.8rem 1rem;
-  background: var(--admin-bg); border: 1px solid var(--admin-border);
-  color: var(--admin-text); font-family: 'DM Sans', sans-serif; font-size: 1rem;
-  margin-bottom: 1rem; outline: none;
-  transition: border-color 0.2s;
-}
+/* LOGIN */
+#loginScreen { display: flex; align-items: center; justify-content: center; min-height: 100vh; flex-direction: column; gap: 2rem; padding: 2rem; }
+.login-logo { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 300; letter-spacing: 0.1em; }
+.login-card { background: var(--surface); border: 1px solid var(--border); padding: 2.5rem 3rem; width: 100%; max-width: 380px; }
+.login-label { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--teal); display: block; margin-bottom: 1.2rem; text-align: center; }
+.login-input { width: 100%; padding: 0.8rem 1rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 1rem; margin-bottom: 1rem; outline: none; transition: border-color 0.2s; }
 .login-input:focus { border-color: var(--teal); }
-.login-input::placeholder { color: var(--admin-muted); }
-.login-btn {
-  width: 100%; padding: 0.8rem;
-  background: var(--teal); color: var(--white);
-  border: none; cursor: pointer;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase;
-  transition: background 0.2s;
-}
+.login-input::placeholder { color: var(--muted); }
+.login-btn { width: 100%; padding: 0.8rem; background: var(--teal); color: var(--white); border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; transition: background 0.2s; }
 .login-btn:hover { background: var(--teal-light); }
-.login-error {
-  color: #e74c3c; font-size: 0.82rem; margin-top: 0.8rem;
-  display: none;
-}
-.login-setup-note {
-  font-size: 0.75rem; color: var(--admin-muted); text-align: center;
-  max-width: 400px; line-height: 1.6; padding: 1rem;
-  border: 1px solid var(--admin-border);
-}
-.setup-badge {
-  display: inline-block; padding: 0.2rem 0.6rem;
-  background: rgba(0,123,143,0.2); color: var(--teal);
-  font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase;
-  margin-bottom: 0.6rem;
-}
+.login-error { color: #e74c3c; font-size: 0.82rem; margin-top: 0.6rem; text-align: center; display: none; }
 
-/* ── ADMIN SHELL ── */
+/* SHELL */
 #adminShell { display: none; min-height: 100vh; }
-.admin-top {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 1rem 2rem;
-  background: var(--admin-surface);
-  border-bottom: 1px solid var(--admin-border);
-  position: sticky; top: 0; z-index: 50;
-}
-.admin-brand {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1.1rem; letter-spacing: 0.08em; color: var(--white);
-}
+.admin-top { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; }
+.admin-brand { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; letter-spacing: 0.08em; }
 .admin-brand span { color: var(--teal); }
 .top-actions { display: flex; gap: 0.8rem; align-items: center; }
-.btn-sm {
-  padding: 0.45rem 1rem;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
-  border: none; cursor: pointer; transition: all 0.2s;
-}
-.btn-sm-teal { background: var(--teal); color: var(--white); }
-.btn-sm-teal:hover { background: var(--teal-light); }
-.btn-sm-ghost { background: transparent; color: var(--admin-muted); border: 1px solid var(--admin-border); }
-.btn-sm-ghost:hover { color: var(--white); border-color: rgba(232,224,212,0.3); }
-.btn-sm-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
-.btn-sm-danger:hover { background: var(--danger); color: var(--white); }
-.admin-view-link {
-  color: var(--admin-muted); font-size: 0.72rem; text-decoration: none;
-  letter-spacing: 0.08em;
-}
-.admin-view-link:hover { color: var(--teal-light); }
+.btn-sm { padding: 0.45rem 1rem; font-family: 'DM Sans', sans-serif; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; border: none; cursor: pointer; transition: all 0.2s; }
+.btn-teal { background: var(--teal); color: var(--white); }
+.btn-teal:hover { background: var(--teal-light); }
+.btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border) !important; }
+.btn-ghost:hover { color: var(--text); }
+.view-link { color: var(--muted); font-size: 0.72rem; text-decoration: none; }
+.view-link:hover { color: var(--teal-light); }
 
-/* ── MAIN LAYOUT ── */
 .admin-body { display: flex; min-height: calc(100vh - 54px); }
 
-/* ── POSTS LIST ── */
-.posts-panel {
-  width: 340px; flex-shrink: 0;
-  border-right: 1px solid var(--admin-border);
-  overflow-y: auto;
-  max-height: calc(100vh - 54px);
-  position: sticky; top: 54px;
-}
-.posts-panel-header {
-  padding: 1.2rem 1.5rem;
-  border-bottom: 1px solid var(--admin-border);
-  display: flex; align-items: center; justify-content: space-between;
-}
-.posts-panel-title {
-  font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase;
-  color: var(--admin-muted);
-}
-.post-item {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--admin-border);
-  cursor: pointer; transition: background 0.15s;
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 0.8rem;
-}
+/* POSTS LIST */
+.posts-panel { width: 320px; flex-shrink: 0; border-right: 1px solid var(--border); overflow-y: auto; max-height: calc(100vh - 54px); position: sticky; top: 54px; }
+.panel-head { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.panel-title { font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+.post-item { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem; }
 .post-item:hover { background: rgba(255,255,255,0.03); }
-.post-item.selected { background: rgba(0,123,143,0.1); border-left: 2px solid var(--teal); }
-.post-item-info { flex: 1; min-width: 0; }
-.post-item-title {
-  font-size: 0.88rem; line-height: 1.3;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  margin-bottom: 0.3rem;
-}
-.post-item-meta { font-size: 0.68rem; color: var(--admin-muted); }
-.post-status {
-  display: inline-block; padding: 0.15rem 0.5rem;
-  font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase;
-  flex-shrink: 0; margin-top: 0.1rem;
-}
-.status-published { background: rgba(0,123,143,0.2); color: var(--teal-light); }
-.status-draft { background: rgba(232,224,212,0.1); color: var(--admin-muted); }
+.post-item.selected { background: rgba(0,123,143,0.1); border-left: 2px solid var(--teal); padding-left: calc(1.5rem - 2px); }
+.post-item-title { font-size: 0.88rem; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0.25rem; }
+.post-item-date { font-size: 0.68rem; color: var(--muted); }
+.status { display: inline-block; padding: 0.15rem 0.5rem; font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; flex-shrink: 0; margin-top: 0.1rem; }
+.status-live { background: rgba(0,123,143,0.2); color: var(--teal-light); }
+.status-draft { background: rgba(232,224,212,0.08); color: var(--muted); }
+.posts-empty { padding: 2rem 1.5rem; text-align: center; font-size: 0.82rem; color: var(--muted); font-style: italic; }
 
-.posts-empty {
-  padding: 2rem 1.5rem; text-align: center;
-  font-size: 0.82rem; color: var(--admin-muted); font-style: italic;
-}
+/* EDITOR */
+.editor-panel { flex: 1; overflow-y: auto; padding: 2rem 2.5rem; max-height: calc(100vh - 54px); }
+.editor-welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; text-align: center; color: var(--muted); }
+.editor-welcome h3 { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; font-weight: 300; margin-bottom: 0.5rem; color: var(--text); }
 
-/* ── EDITOR PANEL ── */
-.editor-panel {
-  flex: 1; overflow-y: auto;
-  padding: 2rem 2.5rem;
-  max-height: calc(100vh - 54px);
-}
-.editor-welcome {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  min-height: 60vh; text-align: center;
-  color: var(--admin-muted);
-}
-.editor-welcome h3 {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1.6rem; font-weight: 300; margin-bottom: 0.5rem;
-  color: var(--admin-text);
-}
-.editor-welcome p { font-size: 0.85rem; line-height: 1.6; }
-
-/* ── FORM ── */
 .field-group { margin-bottom: 1.5rem; }
-.field-label {
-  display: block; font-size: 0.65rem; letter-spacing: 0.16em;
-  text-transform: uppercase; color: var(--admin-muted); margin-bottom: 0.5rem;
-}
-.field-input {
-  width: 100%; padding: 0.7rem 0.9rem;
-  background: var(--admin-surface); border: 1px solid var(--admin-border);
-  color: var(--admin-text); font-family: 'DM Sans', sans-serif; font-size: 0.92rem;
-  outline: none; transition: border-color 0.2s;
-  resize: vertical;
-}
+.field-label { display: block; font-size: 0.62rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+.field-input { width: 100%; padding: 0.7rem 0.9rem; background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.92rem; outline: none; transition: border-color 0.2s; resize: vertical; }
 .field-input:focus { border-color: var(--teal); }
-.field-input::placeholder { color: var(--admin-muted); }
-
-.field-title-input {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1.4rem; font-weight: 300;
-}
-
+.field-input::placeholder { color: var(--muted); }
+.title-input { font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; font-weight: 300; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 
-/* ── IMAGE UPLOAD ── */
-.image-field { display: flex; flex-direction: column; gap: 0.6rem; }
-.image-preview {
-  height: 140px;
-  background: var(--admin-surface);
-  border: 1px dashed var(--admin-border);
-  display: flex; align-items: center; justify-content: center;
-  overflow: hidden; position: relative;
-}
-.image-preview img { width: 100%; height: 100%; object-fit: cover; }
-.image-preview-empty {
-  font-size: 0.75rem; color: var(--admin-muted); text-align: center;
-}
-.image-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
-.image-file-input { display: none; }
-.img-btn {
-  padding: 0.4rem 0.8rem;
-  background: transparent; color: var(--teal); border: 1px solid var(--teal);
-  font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
-  cursor: pointer; transition: all 0.2s;
-}
+/* IMAGE */
+.img-preview { height: 130px; background: var(--surface); border: 1px dashed var(--border); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 0.6rem; }
+.img-preview img { width: 100%; height: 100%; object-fit: cover; }
+.img-preview-empty { font-size: 0.75rem; color: var(--muted); }
+.img-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+.img-btn { padding: 0.35rem 0.8rem; background: transparent; color: var(--teal); border: 1px solid var(--teal); font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: all 0.2s; }
 .img-btn:hover { background: var(--teal); color: var(--white); }
-.img-size-note { font-size: 0.66rem; color: var(--admin-muted); }
+.img-btn-muted { color: var(--muted); border-color: var(--border); }
+.img-btn-muted:hover { background: transparent; color: var(--text); border-color: rgba(232,224,212,0.3); }
+.img-note { font-size: 0.65rem; color: var(--muted); }
 
-/* ── RICH TEXT EDITOR ── */
-.rte-container {
-  border: 1px solid var(--admin-border);
-  background: var(--admin-surface);
-}
-.rte-toolbar {
-  display: flex; flex-wrap: wrap; gap: 2px; padding: 0.5rem;
-  border-bottom: 1px solid var(--admin-border);
-  background: rgba(0,0,0,0.2);
-}
-.rte-btn {
-  padding: 0.3rem 0.5rem; min-width: 32px; height: 30px;
-  background: transparent; border: none; color: var(--admin-text);
-  font-family: 'DM Sans', sans-serif; font-size: 0.82rem;
-  cursor: pointer; transition: background 0.15s;
-  display: flex; align-items: center; justify-content: center;
-}
+/* RICH TEXT */
+.rte-wrap { border: 1px solid var(--border); }
+.rte-toolbar { display: flex; flex-wrap: wrap; gap: 2px; padding: 0.5rem; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.2); }
+.rte-btn { padding: 0.28rem 0.5rem; min-width: 30px; height: 28px; background: transparent; border: none; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.8rem; cursor: pointer; transition: background 0.15s; display: flex; align-items: center; justify-content: center; }
 .rte-btn:hover { background: rgba(255,255,255,0.08); }
-.rte-btn.active { background: var(--teal); color: var(--white); }
-.rte-sep {
-  width: 1px; background: var(--admin-border); margin: 0 4px; self-align: stretch;
-  height: 28px; align-self: center;
-}
-.rte-select {
-  height: 30px; padding: 0 0.4rem;
-  background: var(--admin-bg); border: 1px solid var(--admin-border);
-  color: var(--admin-text); font-family: 'DM Sans', sans-serif; font-size: 0.78rem;
-  cursor: pointer; outline: none;
-}
-.rte-color {
-  width: 32px; height: 30px; padding: 0;
-  background: transparent; border: 1px solid var(--admin-border);
-  cursor: pointer; overflow: hidden; position: relative;
-}
-.rte-color input[type="color"] {
-  position: absolute; top: -4px; left: -4px;
-  width: calc(100% + 8px); height: calc(100% + 8px);
-  border: none; cursor: pointer; opacity: 0;
-}
-.rte-color-swatch {
-  width: 100%; height: 100%; pointer-events: none;
-  background: #000;
-}
-.rte-editor {
-  min-height: 320px; padding: 1.2rem;
-  outline: none; line-height: 1.75;
-  color: var(--admin-text);
-  font-size: 0.95rem;
-}
-.rte-editor:empty::before {
-  content: attr(data-placeholder);
-  color: var(--admin-muted); pointer-events: none;
-}
-.rte-editor h1, .rte-editor h2, .rte-editor h3 {
-  font-family: 'Cormorant Garamond', serif;
-  font-weight: 400; margin: 1rem 0 0.5rem;
-}
-.rte-editor ul, .rte-editor ol { margin-left: 1.5rem; }
-.rte-editor blockquote {
-  border-left: 3px solid var(--teal); padding-left: 1rem;
-  color: var(--admin-muted); font-style: italic; margin: 1rem 0;
-}
+.rte-btn.on { background: var(--teal); color: var(--white); }
+.rte-sep { width: 1px; background: var(--border); margin: 0 3px; height: 26px; align-self: center; }
+.rte-select { height: 28px; padding: 0 0.4rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.76rem; cursor: pointer; outline: none; }
+.rte-color-wrap { width: 30px; height: 28px; border: 1px solid var(--border); position: relative; overflow: hidden; cursor: pointer; }
+.rte-color-swatch { width: 100%; height: 100%; pointer-events: none; background: #e8e0d4; }
+.rte-color-wrap input[type="color"] { position: absolute; top: -4px; left: -4px; width: calc(100% + 8px); height: calc(100% + 8px); border: none; opacity: 0; cursor: pointer; }
+.rte-editor { min-height: 300px; padding: 1.2rem; outline: none; line-height: 1.75; color: var(--text); font-size: 0.95rem; }
+.rte-editor:empty::before { content: attr(data-placeholder); color: var(--muted); pointer-events: none; }
+.rte-editor h2,.rte-editor h3 { font-family: 'Cormorant Garamond', serif; font-weight: 400; margin: 1rem 0 0.5rem; }
+.rte-editor ul,.rte-editor ol { margin-left: 1.5rem; }
+.rte-editor blockquote { border-left: 3px solid var(--teal); padding-left: 1rem; color: var(--muted); font-style: italic; margin: 1rem 0; }
 
-/* ── ACTION BAR ── */
-.editor-actions {
-  display: flex; align-items: center; gap: 1rem; margin-top: 2rem;
-  padding-top: 1.5rem; border-top: 1px solid var(--admin-border);
-  flex-wrap: wrap;
-}
-.btn-publish {
-  padding: 0.7rem 1.8rem;
-  background: var(--teal); color: var(--white); border: none;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase;
-  cursor: pointer; transition: background 0.2s;
-}
+/* ACTIONS */
+.editor-actions { display: flex; align-items: center; gap: 1rem; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.btn-publish { padding: 0.7rem 1.8rem; background: var(--teal); color: var(--white); border: none; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: background 0.2s; }
 .btn-publish:hover { background: var(--teal-light); }
-.btn-draft {
-  padding: 0.7rem 1.8rem;
-  background: transparent; color: var(--admin-text);
-  border: 1px solid var(--admin-border);
-  font-family: 'DM Sans', sans-serif;
-  font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase;
-  cursor: pointer; transition: all 0.2s;
-}
-.btn-draft:hover { border-color: var(--admin-text); }
-.btn-delete {
-  padding: 0.7rem 1rem;
-  background: transparent; color: var(--danger);
-  border: 1px solid transparent;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
-  cursor: pointer; margin-left: auto;
-  transition: all 0.2s;
-}
+.btn-draft { padding: 0.7rem 1.8rem; background: transparent; color: var(--text); border: 1px solid var(--border); font-family: 'DM Sans', sans-serif; font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: all 0.2s; }
+.btn-draft:hover { border-color: var(--text); }
+.btn-delete { padding: 0.7rem 1rem; background: transparent; color: var(--danger); border: 1px solid transparent; font-family: 'DM Sans', sans-serif; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; margin-left: auto; transition: all 0.2s; }
 .btn-delete:hover { border-color: var(--danger); }
 
-/* ── TOAST ── */
-#toast {
-  position: fixed; bottom: 2rem; right: 2rem; z-index: 1000;
-  padding: 0.8rem 1.5rem;
-  background: var(--teal); color: var(--white);
-  font-size: 0.82rem; letter-spacing: 0.06em;
-  transform: translateY(100px); opacity: 0;
-  transition: all 0.3s;
-}
+/* TOAST */
+#toast { position: fixed; bottom: 2rem; right: 2rem; z-index: 1000; padding: 0.8rem 1.5rem; background: var(--teal); color: var(--white); font-size: 0.82rem; transform: translateY(100px); opacity: 0; transition: all 0.3s; }
 #toast.show { transform: translateY(0); opacity: 1; }
-#toast.error { background: var(--danger); }
+#toast.err { background: var(--danger); }
 
-/* ── FIREBASE SETUP WARNING ── */
-.setup-warning {
-  background: rgba(0,123,143,0.08);
-  border: 1px solid rgba(0,123,143,0.3);
-  padding: 1rem 1.5rem; margin-bottom: 1.5rem;
-  font-size: 0.8rem; line-height: 1.7;
-  display: none;
-}
-.setup-warning strong { color: var(--teal); }
-
-/* ── RESPONSIVE ── */
-@media (max-width: 768px) {
-  .admin-body { flex-direction: column; }
-  .posts-panel { width: 100%; max-height: 40vh; position: static; }
-  .editor-panel { padding: 1.5rem; }
-  .field-row { grid-template-columns: 1fr; }
+@media(max-width:768px){
+  .admin-body{flex-direction:column} .posts-panel{width:100%;max-height:40vh;position:static}
+  .editor-panel{padding:1.5rem} .field-row{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 
-<!-- LOGIN SCREEN -->
 <div id="loginScreen">
-  <div class="login-logo">Omi Bell · Admin</div>
-
-  <div id="setupWarning" class="login-setup-note" style="display:none;">
-    <div class="setup-badge">Setup Required</div>
-    <p>Firebase is not configured yet. Open <strong>admin.html</strong>, <strong>blog.html</strong>, and <strong>article.html</strong> and fill in your Firebase config values at the top of each file. Get them free at <strong>console.firebase.google.com</strong>.</p>
-  </div>
-
+  <div class="login-logo">Omi Bell</div>
   <div class="login-card">
-    <p class="login-title">Journal Admin</p>
-    <input type="password" id="pwInput" class="login-input" placeholder="Enter password" onkeydown="if(event.key==='Enter')login()">
+    <span class="login-label">Journal Admin</span>
+    <input type="password" id="pwInput" class="login-input" placeholder="Password" onkeydown="if(event.key==='Enter')login()">
     <button class="login-btn" onclick="login()">Enter</button>
-    <p class="login-error" id="loginError">Incorrect password.</p>
+    <p class="login-error" id="loginErr">Incorrect password.</p>
   </div>
 </div>
 
-<!-- ADMIN SHELL -->
 <div id="adminShell">
   <div class="admin-top">
-    <div class="admin-brand">Omi Bell · <span>Journal Admin</span></div>
+    <div class="admin-brand">Omi Bell · <span>Journal</span></div>
     <div class="top-actions">
-      <a href="blog.html" target="_blank" class="admin-view-link">View Blog ↗</a>
-      <button class="btn-sm btn-sm-teal" onclick="newPost()">+ New Post</button>
-      <button class="btn-sm btn-sm-ghost" onclick="logout()">Log Out</button>
+      <a href="blog.html" target="_blank" class="view-link">View Blog ↗</a>
+      <button class="btn-sm btn-teal" onclick="newPost()">+ New Post</button>
+      <button class="btn-sm btn-ghost" onclick="logout()">Log Out</button>
     </div>
   </div>
 
   <div class="admin-body">
-    <!-- POST LIST -->
     <div class="posts-panel">
-      <div class="posts-panel-header">
-        <span class="posts-panel-title">All Posts</span>
-        <span id="postCount" style="font-size:0.7rem;color:var(--admin-muted);">—</span>
+      <div class="panel-head">
+        <span class="panel-title">All Posts</span>
+        <span id="postCount" style="font-size:0.68rem;color:var(--muted);">—</span>
       </div>
       <div id="postList"></div>
     </div>
 
-    <!-- EDITOR -->
     <div class="editor-panel" id="editorPanel">
       <div class="editor-welcome" id="editorWelcome">
         <h3>Your Journal</h3>
@@ -404,28 +157,18 @@ body { font-family: 'DM Sans', sans-serif; background: var(--admin-bg); color: v
       </div>
 
       <div id="editorForm" style="display:none;">
-
-        <div class="setup-warning" id="editorSetupWarning">
-          <strong>⚠ Firebase not configured.</strong> Posts will not be saved until you add your Firebase config. See comments at the top of each HTML file.
-        </div>
-
-        <!-- TITLE -->
         <div class="field-group">
           <label class="field-label">Title</label>
-          <input type="text" id="fTitle" class="field-input field-title-input" placeholder="Write your title here…">
+          <input type="text" id="fTitle" class="field-input title-input" placeholder="Write your title here…">
         </div>
-
-        <!-- EXCERPT -->
         <div class="field-group">
-          <label class="field-label">Excerpt / Summary</label>
-          <textarea id="fExcerpt" class="field-input" rows="2" placeholder="A short description shown on the blog listing page…"></textarea>
+          <label class="field-label">Excerpt</label>
+          <textarea id="fExcerpt" class="field-input" rows="2" placeholder="Short description shown on the blog listing…"></textarea>
         </div>
-
-        <!-- META ROW -->
         <div class="field-row">
           <div class="field-group">
             <label class="field-label">Category</label>
-            <input type="text" id="fCategory" class="field-input" placeholder="e.g. Wellness, Leadership, Rest…">
+            <input type="text" id="fCategory" class="field-input" placeholder="e.g. Wellness, Rest, Leadership…">
           </div>
           <div class="field-group">
             <label class="field-label">Read Time (min)</label>
@@ -436,105 +179,68 @@ body { font-family: 'DM Sans', sans-serif; background: var(--admin-bg); color: v
         <!-- COVER IMAGE -->
         <div class="field-group">
           <label class="field-label">Cover Image</label>
-          <div class="image-field">
-            <div class="image-preview" id="imgPreview">
-              <div class="image-preview-empty">No image selected</div>
-            </div>
-            <div class="image-actions">
-              <label class="img-btn" for="imgFileInput">↑ Upload Image</label>
-              <input type="file" id="imgFileInput" class="image-file-input" accept="image/*" onchange="handleImageUpload(event)">
-              <button class="img-btn" onclick="promptImageUrl()">Or Paste URL</button>
-              <button class="img-btn" style="color:var(--admin-muted);border-color:var(--admin-border);" onclick="clearImage()">Remove</button>
-            </div>
-            <p class="img-size-note">Recommended: under 1MB. For larger images, paste a URL (e.g. from Cloudinary or your CDN).</p>
-            <input type="hidden" id="fCoverImage">
+          <div class="img-preview" id="imgPreview"><div class="img-preview-empty">No image selected</div></div>
+          <div class="img-actions">
+            <label class="img-btn" for="imgFile">↑ Upload</label>
+            <input type="file" id="imgFile" style="display:none" accept="image/*" onchange="handleImg(event)">
+            <button class="img-btn" onclick="pasteUrl()">Paste URL</button>
+            <button class="img-btn img-btn-muted" onclick="clearImg()">Remove</button>
           </div>
+          <p class="img-note">Keep under 1MB for uploads. For larger images, use a URL from Cloudinary or any image host.</p>
+          <input type="hidden" id="fCoverImage">
         </div>
 
         <!-- RICH TEXT EDITOR -->
         <div class="field-group">
           <label class="field-label">Article Content</label>
-          <div class="rte-container">
-            <!-- TOOLBAR -->
-            <div class="rte-toolbar" id="rteToolbar">
-
-              <!-- Font family -->
-              <select class="rte-select" onchange="execCmd('fontName', this.value); this.blur();" title="Font">
-                <option value="'DM Sans', sans-serif">DM Sans</option>
-                <option value="'Cormorant Garamond', serif">Garamond</option>
-                <option value="Georgia, serif">Georgia</option>
-                <option value="'Times New Roman', serif">Times New Roman</option>
-                <option value="'Courier New', monospace">Courier</option>
+          <div class="rte-wrap">
+            <div class="rte-toolbar">
+              <select class="rte-select" onchange="cmd('fontName',this.value);this.blur()" title="Font">
+                <option value="'DM Sans',sans-serif">DM Sans</option>
+                <option value="'Cormorant Garamond',serif">Garamond</option>
+                <option value="Georgia,serif">Georgia</option>
+                <option value="'Times New Roman',serif">Times New Roman</option>
+                <option value="'Courier New',monospace">Courier</option>
               </select>
-
-              <!-- Font size -->
-              <select class="rte-select" onchange="setFontSize(this.value); this.blur();" title="Size">
+              <select class="rte-select" onchange="setSize(this.value);this.blur()" title="Size">
                 <option value="">Size</option>
                 <option value="small">Small</option>
-                <option value="normal" selected>Normal</option>
+                <option value="normal">Normal</option>
                 <option value="large">Large</option>
                 <option value="huge">Huge</option>
               </select>
-
               <div class="rte-sep"></div>
-
-              <!-- B / I / U -->
-              <button class="rte-btn" onclick="execCmd('bold')" title="Bold"><strong>B</strong></button>
-              <button class="rte-btn" onclick="execCmd('italic')" title="Italic"><em>I</em></button>
-              <button class="rte-btn" onclick="execCmd('underline')" title="Underline"><u>U</u></button>
-
+              <button class="rte-btn" id="btnBold" onclick="cmd('bold')" title="Bold"><strong>B</strong></button>
+              <button class="rte-btn" id="btnItalic" onclick="cmd('italic')" title="Italic"><em>I</em></button>
+              <button class="rte-btn" id="btnUnder" onclick="cmd('underline')" title="Underline"><u>U</u></button>
               <div class="rte-sep"></div>
-
-              <!-- Text color -->
-              <div class="rte-color" title="Text color">
+              <div class="rte-color-wrap" title="Text color">
                 <div class="rte-color-swatch" id="colorSwatch"></div>
-                <input type="color" id="textColorPicker" value="#e8e0d4" oninput="execCmd('foreColor', this.value); document.getElementById('colorSwatch').style.background = this.value;">
+                <input type="color" value="#e8e0d4" oninput="cmd('foreColor',this.value);document.getElementById('colorSwatch').style.background=this.value">
               </div>
-
               <div class="rte-sep"></div>
-
-              <!-- Alignment -->
-              <button class="rte-btn" onclick="execCmd('justifyLeft')" title="Align left">⬤◻◻</button>
-              <button class="rte-btn" onclick="execCmd('justifyCenter')" title="Center">◻⬤◻</button>
-              <button class="rte-btn" onclick="execCmd('justifyRight')" title="Align right">◻◻⬤</button>
-
+              <button class="rte-btn" onclick="cmd('justifyLeft')" title="Left">≡</button>
+              <button class="rte-btn" onclick="cmd('justifyCenter')" title="Center">≡</button>
+              <button class="rte-btn" onclick="cmd('justifyRight')" title="Right">≡</button>
               <div class="rte-sep"></div>
-
-              <!-- Lists -->
-              <button class="rte-btn" onclick="execCmd('insertUnorderedList')" title="Bullet list">• —</button>
-              <button class="rte-btn" onclick="execCmd('insertOrderedList')" title="Numbered list">1. —</button>
-
+              <button class="rte-btn" onclick="cmd('insertUnorderedList')" title="Bullets">• —</button>
+              <button class="rte-btn" onclick="cmd('insertOrderedList')" title="Numbers">1. —</button>
               <div class="rte-sep"></div>
-
-              <!-- Heading / quote / HR -->
-              <button class="rte-btn" onclick="execCmd('formatBlock', 'h2')" title="Heading">H2</button>
-              <button class="rte-btn" onclick="execCmd('formatBlock', 'h3')" title="Subheading">H3</button>
-              <button class="rte-btn" onclick="execCmd('formatBlock', 'blockquote')" title="Quote">"</button>
-              <button class="rte-btn" onclick="execCmd('formatBlock', 'p')" title="Normal text">¶</button>
-              <button class="rte-btn" onclick="execCmd('insertHorizontalRule')" title="Divider">—</button>
-
+              <button class="rte-btn" onclick="cmd('formatBlock','h2')" title="Heading">H2</button>
+              <button class="rte-btn" onclick="cmd('formatBlock','h3')" title="Subheading">H3</button>
+              <button class="rte-btn" onclick="cmd('formatBlock','blockquote')" title="Quote">"</button>
+              <button class="rte-btn" onclick="cmd('formatBlock','p')" title="Normal">¶</button>
+              <button class="rte-btn" onclick="cmd('insertHorizontalRule')" title="Divider">—</button>
             </div>
-
-            <!-- EDITABLE AREA -->
-            <div
-              class="rte-editor"
-              id="rteEditor"
-              contenteditable="true"
-              data-placeholder="Start writing your article here…"
-              oninput="updateToolbar()"
-              onkeyup="updateToolbar()"
-              onmouseup="updateToolbar()"
-            ></div>
+            <div class="rte-editor" id="rteEditor" contenteditable="true" data-placeholder="Start writing your article here…" onmouseup="syncToolbar()" onkeyup="syncToolbar()"></div>
           </div>
         </div>
 
-        <!-- ACTION BAR -->
         <div class="editor-actions">
           <button class="btn-publish" onclick="savePost(true)">Publish</button>
-          <button class="btn-draft" onclick="savePost(false)">Save as Draft</button>
-          <button class="btn-delete" onclick="deletePost()" id="btnDelete" style="display:none;">Delete Post</button>
+          <button class="btn-draft" onclick="savePost(false)">Save Draft</button>
+          <button class="btn-delete" id="btnDelete" style="display:none" onclick="deletePost()">Delete Post</button>
         </div>
-
       </div>
     </div>
   </div>
@@ -543,280 +249,184 @@ body { font-family: 'DM Sans', sans-serif; background: var(--admin-bg); color: v
 <div id="toast"></div>
 
 <script>
-// ============================================================
-// FIREBASE CONFIG — must match blog.html and article.html
-// ============================================================
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
+// ── CONFIG ────────────────────────────────────────────────
+const ADMIN_PASSWORD = 'omibell2025'; // ← change this!
+const db = supabase.createClient(
+  'https://mfevhwdtpftmlsksrgdi.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mZXZod2R0cGZ0bWxza3NyZ2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNzg1MTQsImV4cCI6MjA5MTg1NDUxNH0.tjWrwpoL24y2WhlkexWLHxYeHw_Yu9qfHM4Qj1VE6XA'
+);
+// ─────────────────────────────────────────────────────────
 
-// ============================================================
-// ADMIN PASSWORD — change this to something secure!
-// ============================================================
-const ADMIN_PASSWORD = "omibell2025";
-// ============================================================
-
-let db = null;
-let currentPostId = null;
 let posts = [];
-const SESSION_KEY = 'ob_admin_auth';
-const SIZE_MAP = { small: '2', normal: '3', large: '5', huge: '7' };
+let currentId = null;
 
-// ── AUTH ──────────────────────────────────────────────────
-function isConfigured() { return firebaseConfig.apiKey !== "YOUR_API_KEY"; }
-
-window.onload = () => {
-  if (!isConfigured()) {
-    document.getElementById('setupWarning').style.display = 'block';
-  }
-  if (sessionStorage.getItem(SESSION_KEY) === 'yes') {
-    showAdmin();
-  }
-};
-
+// AUTH
+window.onload = () => { if (sessionStorage.getItem('ob_auth') === 'yes') showAdmin(); };
 function login() {
-  const pw = document.getElementById('pwInput').value;
-  const errEl = document.getElementById('loginError');
-  if (pw === ADMIN_PASSWORD) {
-    sessionStorage.setItem(SESSION_KEY, 'yes');
-    errEl.style.display = 'none';
+  if (document.getElementById('pwInput').value === ADMIN_PASSWORD) {
+    sessionStorage.setItem('ob_auth', 'yes');
+    document.getElementById('loginErr').style.display = 'none';
     showAdmin();
   } else {
-    errEl.style.display = 'block';
+    document.getElementById('loginErr').style.display = 'block';
     document.getElementById('pwInput').value = '';
     document.getElementById('pwInput').focus();
   }
 }
-
-function logout() {
-  sessionStorage.removeItem(SESSION_KEY);
-  location.reload();
-}
+function logout() { sessionStorage.removeItem('ob_auth'); location.reload(); }
 
 async function showAdmin() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('adminShell').style.display = 'block';
-
-  if (!isConfigured()) {
-    document.getElementById('editorSetupWarning').style.display = 'block';
-    document.getElementById('postList').innerHTML = '<div class="posts-empty">Firebase not configured yet.</div>';
-    document.getElementById('postCount').textContent = '0';
-    return;
-  }
-
-  try {
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    db = firebase.firestore();
-    loadPostList();
-  } catch(e) {
-    toast('Firebase error: ' + e.message, true);
-  }
+  loadList();
 }
 
-// ── POST LIST ─────────────────────────────────────────────
-async function loadPostList() {
-  const listEl = document.getElementById('postList');
-  listEl.innerHTML = '<div class="posts-empty">Loading…</div>';
-  try {
-    const snap = await db.collection('posts').orderBy('date', 'desc').get();
-    posts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    document.getElementById('postCount').textContent = posts.length;
-    if (posts.length === 0) {
-      listEl.innerHTML = '<div class="posts-empty">No posts yet.<br>Create your first.</div>';
-      return;
-    }
-    listEl.innerHTML = '';
-    posts.forEach(p => {
-      const div = document.createElement('div');
-      div.className = 'post-item' + (p.id === currentPostId ? ' selected' : '');
-      div.dataset.id = p.id;
-      div.onclick = () => openPost(p.id);
-      div.innerHTML = `
-        <div class="post-item-info">
-          <div class="post-item-title">${p.title || '(Untitled)'}</div>
-          <div class="post-item-meta">${formatDate(p.date)}</div>
-        </div>
-        <span class="post-status ${p.published ? 'status-published' : 'status-draft'}">${p.published ? 'Live' : 'Draft'}</span>`;
-      listEl.appendChild(div);
-    });
-  } catch(e) {
-    listEl.innerHTML = `<div class="posts-empty">Error: ${e.message}</div>`;
-  }
+// POST LIST
+async function loadList() {
+  const el = document.getElementById('postList');
+  el.innerHTML = '<div class="posts-empty">Loading…</div>';
+  const { data, error } = await db.from('posts').select('id,title,date,published').order('date', { ascending: false });
+  if (error) { el.innerHTML = `<div class="posts-empty">${error.message}</div>`; return; }
+  posts = data || [];
+  document.getElementById('postCount').textContent = posts.length;
+  if (!posts.length) { el.innerHTML = '<div class="posts-empty">No posts yet.</div>'; return; }
+  el.innerHTML = '';
+  posts.forEach(p => {
+    const d = document.createElement('div');
+    d.className = 'post-item' + (p.id === currentId ? ' selected' : '');
+    d.dataset.id = p.id;
+    d.onclick = () => openPost(p.id);
+    d.innerHTML = `
+      <div style="flex:1;min-width:0">
+        <div class="post-item-title">${p.title || '(Untitled)'}</div>
+        <div class="post-item-date">${fmtDate(p.date)}</div>
+      </div>
+      <span class="status ${p.published ? 'status-live' : 'status-draft'}">${p.published ? 'Live' : 'Draft'}</span>`;
+    el.appendChild(d);
+  });
 }
 
-// ── OPEN / NEW ────────────────────────────────────────────
+// NEW / OPEN
 function newPost() {
-  currentPostId = null;
-  document.getElementById('editorWelcome').style.display = 'none';
-  document.getElementById('editorForm').style.display = 'block';
+  currentId = null;
+  showForm();
   document.getElementById('btnDelete').style.display = 'none';
-  document.getElementById('fTitle').value = '';
-  document.getElementById('fExcerpt').value = '';
-  document.getElementById('fCategory').value = '';
-  document.getElementById('fReadTime').value = '';
-  document.getElementById('fCoverImage').value = '';
-  document.getElementById('rteEditor').innerHTML = '';
-  setImagePreview('');
-  document.querySelectorAll('.post-item').forEach(el => el.classList.remove('selected'));
+  clearForm();
   document.getElementById('fTitle').focus();
+  document.querySelectorAll('.post-item').forEach(e => e.classList.remove('selected'));
 }
 
-function openPost(id) {
-  const post = posts.find(p => p.id === id);
-  if (!post) return;
-  currentPostId = id;
-  document.getElementById('editorWelcome').style.display = 'none';
-  document.getElementById('editorForm').style.display = 'block';
+async function openPost(id) {
+  const { data, error } = await db.from('posts').select('*').eq('id', id).single();
+  if (error || !data) { toast('Could not load post.', true); return; }
+  currentId = id;
+  showForm();
   document.getElementById('btnDelete').style.display = 'inline-block';
-  document.getElementById('fTitle').value = post.title || '';
-  document.getElementById('fExcerpt').value = post.excerpt || '';
-  document.getElementById('fCategory').value = post.category || '';
-  document.getElementById('fReadTime').value = post.readTime || '';
-  document.getElementById('fCoverImage').value = post.coverImage || '';
-  document.getElementById('rteEditor').innerHTML = post.content || '';
-  setImagePreview(post.coverImage || '');
-  document.querySelectorAll('.post-item').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
+  document.getElementById('fTitle').value = data.title || '';
+  document.getElementById('fExcerpt').value = data.excerpt || '';
+  document.getElementById('fCategory').value = data.category || '';
+  document.getElementById('fReadTime').value = data.read_time || '';
+  document.getElementById('fCoverImage').value = data.cover_image || '';
+  document.getElementById('rteEditor').innerHTML = data.content || '';
+  setImgPreview(data.cover_image || '');
+  document.querySelectorAll('.post-item').forEach(e => e.classList.toggle('selected', e.dataset.id === id));
   document.getElementById('editorPanel').scrollTop = 0;
 }
 
-// ── SAVE ──────────────────────────────────────────────────
+function showForm() {
+  document.getElementById('editorWelcome').style.display = 'none';
+  document.getElementById('editorForm').style.display = 'block';
+}
+function clearForm() {
+  ['fTitle','fExcerpt','fCategory','fReadTime','fCoverImage'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('rteEditor').innerHTML = '';
+  setImgPreview('');
+}
+
+// SAVE / DELETE
 async function savePost(publish) {
-  if (!isConfigured()) { toast('Configure Firebase first.', true); return; }
   const title = document.getElementById('fTitle').value.trim();
   if (!title) { toast('Please enter a title.', true); return; }
-
-  const data = {
+  const payload = {
     title,
     excerpt: document.getElementById('fExcerpt').value.trim(),
     category: document.getElementById('fCategory').value.trim(),
-    readTime: parseInt(document.getElementById('fReadTime').value) || null,
-    coverImage: document.getElementById('fCoverImage').value,
+    read_time: parseInt(document.getElementById('fReadTime').value) || null,
+    cover_image: document.getElementById('fCoverImage').value || null,
     content: document.getElementById('rteEditor').innerHTML,
     published: publish,
-    date: currentPostId ? (posts.find(p => p.id === currentPostId)?.date || firebase.firestore.FieldValue.serverTimestamp()) : firebase.firestore.FieldValue.serverTimestamp(),
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    updated_at: new Date().toISOString()
   };
-
-  try {
-    if (currentPostId) {
-      await db.collection('posts').doc(currentPostId).update(data);
-    } else {
-      const ref = await db.collection('posts').add(data);
-      currentPostId = ref.id;
-    }
-    toast(publish ? 'Published!' : 'Saved as draft.');
-    loadPostList();
-  } catch(e) {
-    toast('Error: ' + e.message, true);
-  }
-}
-
-// ── DELETE ────────────────────────────────────────────────
-async function deletePost() {
-  if (!currentPostId) return;
-  if (!confirm('Delete this post? This cannot be undone.')) return;
-  try {
-    await db.collection('posts').doc(currentPostId).delete();
-    currentPostId = null;
-    document.getElementById('editorForm').style.display = 'none';
-    document.getElementById('editorWelcome').style.display = 'flex';
-    toast('Post deleted.');
-    loadPostList();
-  } catch(e) {
-    toast('Error: ' + e.message, true);
-  }
-}
-
-// ── IMAGE HANDLING ────────────────────────────────────────
-function handleImageUpload(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  if (file.size > 1.2 * 1024 * 1024) {
-    toast('Image is over 1MB. Please use a URL instead for large images.', true);
-    e.target.value = '';
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = ev => {
-    document.getElementById('fCoverImage').value = ev.target.result;
-    setImagePreview(ev.target.result);
-    toast('Image loaded.');
-  };
-  reader.readAsDataURL(file);
-}
-
-function promptImageUrl() {
-  const url = prompt('Paste image URL:');
-  if (url && url.startsWith('http')) {
-    document.getElementById('fCoverImage').value = url;
-    setImagePreview(url);
-  }
-}
-
-function clearImage() {
-  document.getElementById('fCoverImage').value = '';
-  setImagePreview('');
-  document.getElementById('imgFileInput').value = '';
-}
-
-function setImagePreview(src) {
-  const el = document.getElementById('imgPreview');
-  if (src) {
-    el.innerHTML = `<img src="${src}" onerror="this.parentElement.innerHTML='<div class=image-preview-empty>Could not load image</div>'">`;
+  let error;
+  if (currentId) {
+    ({ error } = await db.from('posts').update(payload).eq('id', currentId));
   } else {
-    el.innerHTML = '<div class="image-preview-empty">No image selected</div>';
+    payload.date = new Date().toISOString();
+    const res = await db.from('posts').insert(payload).select('id').single();
+    error = res.error;
+    if (!error) currentId = res.data.id;
   }
+  if (error) { toast('Error: ' + error.message, true); return; }
+  toast(publish ? 'Published!' : 'Saved as draft.');
+  loadList();
 }
 
-// ── RICH TEXT EDITOR ──────────────────────────────────────
-function execCmd(cmd, val = null) {
-  document.getElementById('rteEditor').focus();
-  document.execCommand(cmd, false, val);
-  updateToolbar();
+async function deletePost() {
+  if (!currentId || !confirm('Delete this post permanently?')) return;
+  const { error } = await db.from('posts').delete().eq('id', currentId);
+  if (error) { toast('Error: ' + error.message, true); return; }
+  currentId = null;
+  document.getElementById('editorForm').style.display = 'none';
+  document.getElementById('editorWelcome').style.display = 'flex';
+  toast('Post deleted.');
+  loadList();
 }
 
-function setFontSize(size) {
-  if (!size || size === '') return;
-  const px = { small: '14px', normal: '16px', large: '20px', huge: '30px' }[size];
+// IMAGE
+function handleImg(e) {
+  const file = e.target.files[0]; if (!file) return;
+  if (file.size > 1.2 * 1024 * 1024) { toast('Image over 1MB — please use a URL instead.', true); e.target.value = ''; return; }
+  const r = new FileReader();
+  r.onload = ev => { document.getElementById('fCoverImage').value = ev.target.result; setImgPreview(ev.target.result); };
+  r.readAsDataURL(file);
+}
+function pasteUrl() {
+  const url = prompt('Paste image URL:');
+  if (url && url.startsWith('http')) { document.getElementById('fCoverImage').value = url; setImgPreview(url); }
+}
+function clearImg() { document.getElementById('fCoverImage').value = ''; setImgPreview(''); document.getElementById('imgFile').value = ''; }
+function setImgPreview(src) {
+  document.getElementById('imgPreview').innerHTML = src
+    ? `<img src="${src}" onerror="this.parentElement.innerHTML='<div class=img-preview-empty>Could not load</div>'">`
+    : '<div class="img-preview-empty">No image selected</div>';
+}
+
+// RICH TEXT
+function cmd(c, v = null) { document.getElementById('rteEditor').focus(); document.execCommand(c, false, v); syncToolbar(); }
+function setSize(s) {
+  if (!s) return;
+  const px = { small:'14px', normal:'16px', large:'22px', huge:'32px' }[s];
   const sel = window.getSelection();
   if (!sel || sel.isCollapsed) return;
   const range = sel.getRangeAt(0);
   const span = document.createElement('span');
   span.style.fontSize = px;
-  range.surroundContents(span);
-  updateToolbar();
+  try { range.surroundContents(span); } catch(e) {}
+}
+function syncToolbar() {
+  document.getElementById('btnBold').classList.toggle('on', document.queryCommandState('bold'));
+  document.getElementById('btnItalic').classList.toggle('on', document.queryCommandState('italic'));
+  document.getElementById('btnUnder').classList.toggle('on', document.queryCommandState('underline'));
 }
 
-function updateToolbar() {
-  const cmds = ['bold', 'italic', 'underline', 'justifyLeft', 'justifyCenter', 'justifyRight', 'insertUnorderedList', 'insertOrderedList'];
-  const map = { bold: 'B', italic: 'I', underline: 'U' };
-  document.querySelectorAll('.rte-btn').forEach(btn => {
-    const title = btn.title;
-    if (title === 'Bold') btn.classList.toggle('active', document.queryCommandState('bold'));
-    if (title === 'Italic') btn.classList.toggle('active', document.queryCommandState('italic'));
-    if (title === 'Underline') btn.classList.toggle('active', document.queryCommandState('underline'));
-  });
-}
-
-// ── UTILS ─────────────────────────────────────────────────
-function formatDate(ts) {
-  if (!ts) return 'Draft';
-  const d = ts.toDate ? ts.toDate() : new Date(ts);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
+// UTILS
+function fmtDate(s) { return s ? new Date(s).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'; }
 let toastTimer;
-function toast(msg, isError = false) {
+function toast(msg, isErr = false) {
   const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'show' + (isError ? ' error' : '');
+  el.textContent = msg; el.className = 'show' + (isErr ? ' err' : '');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+  toastTimer = setTimeout(() => el.className = '', 3000);
 }
 </script>
 </body>
