@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contact — Omi Bell</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0A0A0A;
+    --white: #F9F7F4;
+    --teal: #007B8F;
+    --teal-light: #00A5C3;
+    --sand: #E8E0D4;
+    --sand-dark: #C9BDB0;
+    --text-body: #2A2A2A;
+  }
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--white);
+    color: var(--text-body);
+    overflow-x: hidden;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 1rem; left: 50%; transform: translateX(-50%);
+    z-index: 100;
+    padding: 0.9rem 2.5rem;
+    display: flex; justify-content: space-between; align-items: center;
+    background: rgba(10,10,10,0.88);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0,123,143,0.2);
+    border-radius: 40px;
+    width: calc(100% - 4rem);
+    max-width: 1100px;
+    transition: box-shadow 0.3s ease;
+  }
+  nav.scrolled {
+    box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+    border-color: rgba(0,123,143,0.35);
+  }
+  .nav-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.4rem;
+    font-weight: 300;
+    color: var(--white);
+    letter-spacing: 0.08em;
+    text-decoration: none;
+  }
+  .nav-links { display: flex; gap: 2.5rem; list-style: none; }
+  .nav-links a {
+    color: rgba(249,247,244,0.75);
+    text-decoration: none;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 400;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--teal-light); }
+  .nav-cta {
+    background: var(--teal);
+    color: var(--white) !important;
+    padding: 0.55rem 1.4rem !important;
+    border-radius: 2px;
+    letter-spacing: 0.1em !important;
+    transition: background 0.2s !important;
+  }
+  .nav-cta:hover { background: var(--teal-light) !important; }
+
+  /* HERO STRIP */
+  .contact-hero {
+    background: var(--black);
+    padding: 10rem 4rem 5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .contact-hero::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    right: -10%;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,123,143,0.18) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .contact-hero-inner {
+    max-width: 800px;
+    margin: 0 auto;
+    position: relative;
+  }
+  .section-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--teal-light);
+    font-weight: 400;
+    margin-bottom: 1.5rem;
+    display: block;
+  }
+  .contact-hero h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(2.8rem, 6vw, 5rem);
+    font-weight: 300;
+    color: var(--white);
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    margin-bottom: 1.5rem;
+  }
+  .contact-hero h1 em {
+    font-style: italic;
+    color: var(--teal-light);
+  }
+  .contact-hero p {
+    font-size: 1rem;
+    color: rgba(249,247,244,0.6);
+    line-height: 1.75;
+    max-width: 520px;
+    font-weight: 300;
+  }
+  .hairline {
+    width: 40px;
+    height: 1px;
+    background: var(--teal);
+    margin: 2rem 0;
+  }
+
+  /* FORM SECTION */
+  .contact-body {
+    padding: 6rem 4rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .inquiry-prompt {
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--sand-dark);
+    font-weight: 400;
+    margin-bottom: 1rem;
+  }
+
+  .inquiry-tabs {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 3.5rem;
+  }
+  .inquiry-tab {
+    appearance: none;
+    cursor: pointer;
+    padding: 0.6rem 1.4rem;
+    border: 1px solid var(--sand-dark);
+    border-radius: 2px;
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-body);
+    transition: all 0.2s;
+  }
+  .inquiry-tab:hover {
+    border-color: var(--teal);
+    color: var(--teal);
+  }
+  .inquiry-tab.active {
+    background: var(--black);
+    border-color: var(--black);
+    color: var(--white);
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+  }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .form-group.full { grid-column: 1 / -1; }
+
+  label {
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--sand-dark);
+    font-weight: 400;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  textarea {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--sand-dark);
+    padding: 0.75rem 0;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    color: var(--text-body);
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+    resize: none;
+  }
+  input[type="text"]:focus,
+  input[type="email"]:focus,
+  textarea:focus {
+    border-color: var(--teal);
+  }
+  input::placeholder, textarea::placeholder {
+    color: rgba(42,42,42,0.3);
+    font-weight: 300;
+  }
+
+  textarea { min-height: 120px; }
+  .hidden-field { display: none; }
+
+  .form-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 3.5rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--sand);
+    flex-wrap: wrap;
+    gap: 1.5rem;
+  }
+  .form-note {
+    font-size: 0.82rem;
+    color: var(--sand-dark);
+    font-weight: 300;
+    line-height: 1.6;
+    max-width: 340px;
+  }
+  .btn-submit {
+    background: var(--teal);
+    color: var(--white);
+    border: none;
+    padding: 1rem 2.5rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.82rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-submit:hover { background: var(--teal-light); }
+
+  .success-message {
+    display: none;
+    text-align: center;
+    padding: 4rem 2rem;
+  }
+  .success-message h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.8rem;
+    font-weight: 300;
+    margin-bottom: 1rem;
+    color: var(--black);
+  }
+  .success-message p {
+    color: var(--sand-dark);
+    font-weight: 300;
+    line-height: 1.7;
+  }
+
+  /* SOCIAL BAR */
+  .social-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    padding: 1.5rem 2rem;
+    background: var(--black);
+  }
+  .social-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(249,247,244,0.4);
+  }
+  .social-divider {
+    width: 40px; height: 1px;
+    background: rgba(249,247,244,0.15);
+  }
+  .social-link {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px;
+    color: rgba(249,247,244,0.5);
+    transition: color 0.2s;
+    text-decoration: none;
+  }
+  .social-link:hover { color: var(--teal-light); }
+  .social-link svg { width: 16px; height: 16px; fill: currentColor; }
+
+  /* FOOTER */
+  footer {
+    background: var(--black);
+    border-top: 1px solid rgba(249,247,244,0.07);
+    padding: 2.5rem 4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+  }
+  .footer-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.3rem;
+    font-weight: 300;
+    color: var(--white);
+    letter-spacing: 0.08em;
+    margin-bottom: 0.3rem;
+  }
+  .footer-tagline {
+    font-size: 0.78rem;
+    color: rgba(249,247,244,0.35);
+    font-style: italic;
+    font-weight: 300;
+  }
+  .footer-links {
+    display: flex; gap: 2rem; list-style: none; flex-wrap: wrap;
+  }
+  .footer-links a {
+    color: rgba(249,247,244,0.45);
+    text-decoration: none;
+    font-size: 0.78rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+  .footer-links a:hover { color: var(--teal-light); }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .contact-hero { padding: 8rem 1.5rem 4rem; }
+    .contact-body { padding: 4rem 1.5rem; }
+    .form-grid { grid-template-columns: 1fr; }
+    .form-group.full { grid-column: 1; }
+    nav { width: calc(100% - 2rem); padding: 0.8rem 1.5rem; }
+    .nav-links { display: none; }
+    footer { padding: 2rem 1.5rem; flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="navbar">
+  <a href="/" class="nav-logo">Omi Bell</a>
+  <ul class="nav-links">
+    <li><a href="/#about">About</a></li>
+    <li><a href="/#services">Sessions</a></li>
+    <li><a href="/#media">Media</a></li>
+    <li><a href="/contact" class="nav-cta">Contact</a></li>
+  </ul>
+</nav>
+
+<!-- HERO STRIP -->
+<section class="contact-hero">
+  <div class="contact-hero-inner">
+    <span class="section-label">Get in touch</span>
+    <h1>Let's make<br><em>something move.</em></h1>
+    <div class="hairline"></div>
+    <p>Whether you're pitching a partnership, booking a speaking engagement, or reaching out for the podcast — the first step is the same. Say hello.</p>
+  </div>
+</section>
+
+<!-- FORM -->
+<section class="contact-body">
+
+  <form
+    id="contactForm"
+    name="contact"
+    method="POST"
+    data-netlify="true"
+    netlify-honeypot="bot-field"
+  >
+    <input type="hidden" name="form-name" value="contact" />
+    <input class="hidden-field" name="bot-field" />
+    <input type="hidden" name="inquiry-type" id="inquiryTypeInput" value="Podcast Guest" />
+
+    <p class="inquiry-prompt">What are you reaching out about?</p>
+    <div class="inquiry-tabs" role="group" aria-label="Inquiry type">
+      <button type="button" class="inquiry-tab active" data-type="Podcast Guest">Podcast Guest</button>
+      <button type="button" class="inquiry-tab" data-type="Breathwork">Breathwork</button>
+      <button type="button" class="inquiry-tab" data-type="Coaching">Coaching</button>
+      <button type="button" class="inquiry-tab" data-type="Speaking & Media">Speaking &amp; Media</button>
+      <button type="button" class="inquiry-tab" data-type="Partnership & Investment">Partnership &amp; Investment</button>
+      <button type="button" class="inquiry-tab" data-type="General">General</button>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="firstName">First Name</label>
+        <input type="text" id="firstName" name="first-name" placeholder="Your first name" required />
+      </div>
+      <div class="form-group">
+        <label for="lastName">Last Name</label>
+        <input type="text" id="lastName" name="last-name" placeholder="Your last name" required />
+      </div>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="your@email.com" required />
+      </div>
+      <div class="form-group">
+        <label for="company">Company / Organization</label>
+        <input type="text" id="company" name="company" placeholder="Optional" />
+      </div>
+      <div class="form-group full">
+        <label for="message">Message</label>
+        <textarea id="message" name="message" placeholder="Tell me what's on your mind…" required></textarea>
+      </div>
+    </div>
+
+    <div class="form-footer">
+      <p class="form-note">I read every message personally. Expect a response within 3–5 business days.</p>
+      <button type="submit" class="btn-submit">Send Message →</button>
+    </div>
+  </form>
+
+  <div class="success-message" id="successMsg">
+    <h2>Message received.</h2>
+    <p>I'll be in touch within 3–5 business days.<br>In the meantime — rest like you mean it.</p>
+  </div>
+
+</section>
+
+<!-- SOCIAL BAR -->
+<div class="social-bar">
+  <span class="social-label">Find me</span>
+  <div class="social-divider"></div>
+  <a href="https://www.youtube.com/@theomishow" target="_blank" class="social-link" aria-label="YouTube">
+    <svg viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+  </a>
+  <a href="https://www.tiktok.com/@omibell" target="_blank" class="social-link" aria-label="TikTok">
+    <svg viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.75a4.85 4.85 0 0 1-1.01-.06z"/></svg>
+  </a>
+  <a href="https://www.instagram.com/omibell/" target="_blank" class="social-link" aria-label="Instagram">
+    <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
+  </a>
+  <a href="https://www.facebook.com/theomibell" target="_blank" class="social-link" aria-label="Facebook">
+    <svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+  </a>
+  <div class="social-divider"></div>
+  <span class="social-label">@omibell</span>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div>
+    <p class="footer-logo">Omi Bell</p>
+    <p class="footer-tagline">"You're not just building something. You are something."</p>
+  </div>
+  <ul class="footer-links">
+    <li><a href="/#about">About</a></li>
+    <li><a href="/#services">Sessions</a></li>
+    <li><a href="/#media">Media</a></li>
+    <li><a href="/contact">Contact</a></li>
+  </ul>
+</footer>
+
+<script>
+  const navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', () => {
+    navbar.classList.toggle('scrolled', window.scrollY > 60);
+  });
+
+  const tabs = document.querySelectorAll('.inquiry-tab');
+  const inquiryInput = document.getElementById('inquiryTypeInput');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      inquiryInput.value = tab.dataset.type;
+    });
+  });
+
+  if (window.location.search.includes('success=true')) {
+    document.getElementById('contactForm').style.display = 'none';
+    document.getElementById('successMsg').style.display = 'block';
+  }
+</script>
+</body>
+</html>

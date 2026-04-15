@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Journal — Omi Bell</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<!-- ============================================================
+  FIREBASE CONFIGURATION
+  1. Go to console.firebase.google.com
+  2. Create a free project → Add a Web App
+  3. Copy your config values below
+  4. In Firestore, go to Rules and set: allow read: if true; allow write: if false;
+     (Admin writes happen from admin.html which has the password check)
+  ============================================================ -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<style>
+:root {
+  --black: #0A0A0A;
+  --white: #F9F7F4;
+  --teal: #007B8F;
+  --teal-light: #0CB6D4;
+  --sand: #E8E0D4;
+  --sand-dark: #C9BDB0;
+  --card-bg: #FFFFFF;
+  --text-muted: rgba(10,10,10,0.5);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--white);
+  color: var(--black);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── NAV ── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.2rem 3rem;
+  background: transparent;
+  transition: background 0.4s, box-shadow 0.4s;
+}
+nav.scrolled {
+  background: rgba(249,247,244,0.96);
+  box-shadow: 0 1px 0 var(--sand);
+  backdrop-filter: blur(8px);
+}
+.nav-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.3rem; font-weight: 400; letter-spacing: 0.05em;
+  color: var(--black); text-decoration: none;
+}
+.nav-links { display: flex; gap: 2.5rem; list-style: none; }
+.nav-links a {
+  font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--black); text-decoration: none; font-weight: 400;
+  transition: color 0.2s;
+}
+.nav-links a:hover, .nav-links a.active { color: var(--teal); }
+.nav-cta {
+  background: var(--teal); color: var(--white) !important;
+  padding: 0.5rem 1.2rem; border-radius: 0;
+  transition: background 0.2s !important;
+}
+.nav-cta:hover { background: var(--teal-light) !important; }
+
+/* ── JOURNAL HEADER ── */
+.journal-header {
+  padding: 9rem 3rem 3rem;
+  border-bottom: 1px solid var(--sand);
+  display: flex; align-items: flex-end; justify-content: space-between;
+}
+.journal-header-left {}
+.journal-eyebrow {
+  font-size: 0.68rem; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--teal); margin-bottom: 0.6rem;
+}
+.journal-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(2.8rem, 5vw, 4.5rem);
+  font-weight: 300; line-height: 1.05; letter-spacing: -0.01em;
+}
+.journal-title em { font-style: italic; }
+.journal-rule {
+  width: 60px; height: 1px; background: var(--teal); margin-top: 1.5rem;
+}
+.journal-tagline {
+  font-size: 0.9rem; color: var(--text-muted); max-width: 280px;
+  text-align: right; line-height: 1.6;
+}
+
+/* ── MAIN GRID ── */
+.blog-main { padding: 3rem; max-width: 1400px; margin: 0 auto; }
+
+.blog-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+/* ── FEATURED CARD ── */
+.card-featured {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  background: var(--card-bg);
+  border: 1px solid var(--sand);
+  cursor: pointer;
+  transition: box-shadow 0.3s, transform 0.3s;
+  text-decoration: none; color: inherit;
+  min-height: 380px;
+}
+.card-featured:hover {
+  box-shadow: 0 12px 40px rgba(10,10,10,0.1);
+  transform: translateY(-2px);
+}
+.card-featured .card-img {
+  overflow: hidden; position: relative;
+}
+.card-featured .card-img img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+.card-featured:hover .card-img img { transform: scale(1.03); }
+.card-featured .card-body {
+  padding: 2.5rem;
+  display: flex; flex-direction: column; justify-content: center;
+  border-left: none;
+  position: relative;
+}
+.card-featured .card-body::before {
+  content: '';
+  position: absolute; top: 0; left: 0;
+  width: 3px; height: 60px;
+  background: var(--teal);
+}
+
+/* ── REGULAR CARD ── */
+.card-regular {
+  background: var(--card-bg);
+  border: 1px solid var(--sand);
+  cursor: pointer;
+  transition: box-shadow 0.3s, transform 0.3s;
+  text-decoration: none; color: inherit;
+  display: flex; flex-direction: column;
+}
+.card-regular:hover {
+  box-shadow: 0 8px 28px rgba(10,10,10,0.09);
+  transform: translateY(-2px);
+}
+.card-regular .card-img {
+  overflow: hidden; aspect-ratio: 16/9; position: relative;
+}
+.card-regular .card-img img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform 0.6s ease;
+}
+.card-regular:hover .card-img img { transform: scale(1.04); }
+.card-regular .card-body {
+  padding: 1.5rem 1.5rem 1.8rem;
+  flex: 1; display: flex; flex-direction: column;
+  border-top: 2px solid var(--teal);
+}
+
+/* ── CARD TYPOGRAPHY ── */
+.card-category {
+  font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--teal); margin-bottom: 0.6rem; font-weight: 500;
+}
+.card-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 400; line-height: 1.2; margin-bottom: 0.8rem;
+}
+.card-featured .card-title { font-size: clamp(1.6rem, 2.5vw, 2.2rem); }
+.card-regular .card-title { font-size: 1.3rem; }
+
+.card-excerpt {
+  font-size: 0.87rem; color: var(--text-muted);
+  line-height: 1.65; flex: 1;
+}
+.card-featured .card-excerpt { font-size: 0.95rem; max-width: 420px; }
+
+.card-meta {
+  display: flex; align-items: center; gap: 0.6rem;
+  margin-top: 1.5rem;
+  font-size: 0.72rem; letter-spacing: 0.06em; color: var(--sand-dark);
+}
+.card-meta::before {
+  content: '';
+  display: block; width: 20px; height: 1px; background: var(--sand-dark);
+}
+
+/* ── NO-IMAGE FALLBACK ── */
+.card-img-placeholder {
+  background: var(--sand);
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+}
+.card-img-placeholder svg { opacity: 0.3; }
+
+/* ── LOADING STATE ── */
+.loading-state {
+  grid-column: 1 / -1; text-align: center;
+  padding: 4rem 0; color: var(--text-muted);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.2rem; font-style: italic;
+}
+.loading-dot {
+  display: inline-block; width: 6px; height: 6px;
+  border-radius: 50%; background: var(--teal);
+  animation: pulse 1.4s ease-in-out infinite;
+  margin: 0 2px;
+}
+.loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.loading-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes pulse { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+
+.empty-state {
+  grid-column: 1 / -1; text-align: center;
+  padding: 5rem 0;
+}
+.empty-state h3 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.8rem; font-weight: 300; margin-bottom: 0.5rem;
+}
+.empty-state p { color: var(--text-muted); font-size: 0.9rem; }
+
+/* ── PAGINATION ── */
+.pagination {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0.4rem; padding: 2rem 0 4rem;
+  border-top: 1px solid var(--sand);
+}
+.page-btn {
+  min-width: 40px; height: 40px; padding: 0 0.8rem;
+  border: 1px solid var(--sand);
+  background: transparent; color: var(--black);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem; letter-spacing: 0.05em;
+  cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center;
+}
+.page-btn:hover { background: var(--teal); color: var(--white); border-color: var(--teal); }
+.page-btn.active { background: var(--black); color: var(--white); border-color: var(--black); }
+.page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.page-btn:disabled:hover { background: transparent; color: var(--black); border-color: var(--sand); }
+.page-ellipsis { color: var(--text-muted); font-size: 0.8rem; padding: 0 0.3rem; }
+
+/* ── FOOTER ── */
+footer {
+  background: var(--black); color: var(--white);
+  padding: 2rem 3rem;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.footer-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.1rem; letter-spacing: 0.08em;
+}
+.footer-copy {
+  font-size: 0.72rem; letter-spacing: 0.08em; color: rgba(249,247,244,0.4);
+}
+
+/* ── CARD ENTRY ANIMATION ── */
+.card-featured, .card-regular {
+  animation: cardIn 0.5s ease both;
+}
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.blog-grid > *:nth-child(1) { animation-delay: 0.05s; }
+.blog-grid > *:nth-child(2) { animation-delay: 0.1s; }
+.blog-grid > *:nth-child(3) { animation-delay: 0.15s; }
+.blog-grid > *:nth-child(4) { animation-delay: 0.2s; }
+.blog-grid > *:nth-child(5) { animation-delay: 0.25s; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  nav { padding: 1rem 1.5rem; }
+  .nav-links { display: none; }
+  .journal-header { padding: 7rem 1.5rem 2rem; flex-direction: column; gap: 1rem; }
+  .journal-tagline { text-align: left; }
+  .blog-main { padding: 2rem 1.5rem; }
+  .blog-grid { grid-template-columns: 1fr; }
+  .card-featured { grid-column: 1; grid-template-columns: 1fr; min-height: auto; }
+  .card-featured .card-img { aspect-ratio: 16/9; }
+  .card-featured .card-body::before { top: 0; left: 0; width: 100%; height: 2px; }
+  footer { flex-direction: column; gap: 0.5rem; text-align: center; }
+}
+@media (min-width: 901px) and (max-width: 1100px) {
+  .blog-grid { grid-template-columns: repeat(2, 1fr); }
+  .card-featured { grid-template-columns: 1fr; min-height: auto; }
+  .card-featured .card-img { aspect-ratio: 16/7; }
+}
+</style>
+</head>
+<body>
+
+<nav id="navbar">
+  <a href="index.html" class="nav-logo">Omi Bell</a>
+  <ul class="nav-links">
+    <li><a href="index.html#about">About</a></li>
+    <li><a href="index.html#services">Work With Me</a></li>
+    <li><a href="blog.html" class="active">Blog</a></li>
+    <li><a href="https://my.community.com/omibell" target="_blank">Community</a></li>
+    <li><a href="index.html#media">Media</a></li>
+    <li><a href="https://calendly.com/omitheintuitive/claritysession" target="_blank" class="nav-cta">Book a Session</a></li>
+  </ul>
+</nav>
+
+<header class="journal-header">
+  <div class="journal-header-left">
+    <p class="journal-eyebrow">Omi Bell</p>
+    <h1 class="journal-title">The <em>Journal</em></h1>
+    <div class="journal-rule"></div>
+  </div>
+  <p class="journal-tagline">Thoughts on rest, performance, and the body as strategy.</p>
+</header>
+
+<main class="blog-main">
+  <div class="blog-grid" id="blogGrid">
+    <div class="loading-state">
+      <span class="loading-dot"></span>
+      <span class="loading-dot"></span>
+      <span class="loading-dot"></span>
+    </div>
+  </div>
+  <div class="pagination" id="pagination" style="display:none;"></div>
+</main>
+
+<footer>
+  <div class="footer-logo">Omi Bell</div>
+  <div class="footer-copy">© 2025 Omi Bell · All rights reserved</div>
+</footer>
+
+<script>
+// ============================================================
+// FIREBASE CONFIG — paste your values here
+// ============================================================
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+// ============================================================
+
+const POSTS_PER_PAGE = 10;
+let allPosts = [];
+let currentPage = 1;
+let db = null;
+
+function isConfigured() {
+  return firebaseConfig.apiKey !== "YOUR_API_KEY";
+}
+
+async function initFirebase() {
+  if (!isConfigured()) return false;
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    return true;
+  } catch(e) { console.error(e); return false; }
+}
+
+async function loadPosts() {
+  const grid = document.getElementById('blogGrid');
+  const ok = await initFirebase();
+
+  if (!ok) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <h3>Journal coming soon</h3>
+        <p>Check back for new writing.</p>
+      </div>`;
+    return;
+  }
+
+  try {
+    const snap = await db.collection('posts')
+      .where('published', '==', true)
+      .orderBy('date', 'desc')
+      .get();
+    allPosts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderPage(1);
+  } catch(e) {
+    grid.innerHTML = `<div class="empty-state"><h3>Could not load posts</h3><p>${e.message}</p></div>`;
+  }
+}
+
+function formatDate(ts) {
+  if (!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function renderPage(page) {
+  currentPage = page;
+  const start = (page - 1) * POSTS_PER_PAGE;
+  const pagePosts = allPosts.slice(start, start + POSTS_PER_PAGE);
+
+  const grid = document.getElementById('blogGrid');
+
+  if (pagePosts.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <h3>No posts yet</h3>
+        <p>New writing will appear here.</p>
+      </div>`;
+    document.getElementById('pagination').style.display = 'none';
+    return;
+  }
+
+  grid.innerHTML = '';
+  pagePosts.forEach((post, i) => {
+    const el = i === 0 ? renderFeatured(post) : renderCard(post);
+    grid.appendChild(el);
+  });
+
+  renderPagination();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function imgOrPlaceholder(url, alt) {
+  if (url) return `<img src="${url}" alt="${alt || ''}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=card-img-placeholder><svg width=40 height=40 viewBox=0 0 24 24 fill=none stroke=%23C9BDB0 stroke-width=1><rect x=3 y=3 width=18 height=18 rx=1/><circle cx=8.5 cy=8.5 r=1.5/><polyline points=21 15 16 10 5 21/></svg></div>'">`;
+  return `<div class="card-img-placeholder"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#C9BDB0" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="1"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`;
+}
+
+function renderFeatured(post) {
+  const a = document.createElement('a');
+  a.className = 'card-featured';
+  a.href = `article.html?id=${post.id}`;
+  a.innerHTML = `
+    <div class="card-img">${imgOrPlaceholder(post.coverImage, post.title)}</div>
+    <div class="card-body">
+      <p class="card-category">${post.category || 'Journal'}</p>
+      <h2 class="card-title">${post.title || ''}</h2>
+      <p class="card-excerpt">${post.excerpt || ''}</p>
+      <div class="card-meta">${formatDate(post.date)}</div>
+    </div>`;
+  return a;
+}
+
+function renderCard(post) {
+  const a = document.createElement('a');
+  a.className = 'card-regular';
+  a.href = `article.html?id=${post.id}`;
+  a.innerHTML = `
+    <div class="card-img">${imgOrPlaceholder(post.coverImage, post.title)}</div>
+    <div class="card-body">
+      <p class="card-category">${post.category || 'Journal'}</p>
+      <h3 class="card-title">${post.title || ''}</h3>
+      <p class="card-excerpt">${post.excerpt || ''}</p>
+      <div class="card-meta">${formatDate(post.date)}</div>
+    </div>`;
+  return a;
+}
+
+function renderPagination() {
+  const totalPages = Math.ceil(allPosts.length / POSTS_PER_PAGE);
+  const el = document.getElementById('pagination');
+  if (totalPages <= 1) { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+
+  let html = '';
+  // Prev
+  html += `<button class="page-btn" onclick="renderPage(${currentPage-1})" ${currentPage===1?'disabled':''}>← Prev</button>`;
+
+  // Page numbers
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || Math.abs(i - currentPage) <= 1) {
+      html += `<button class="page-btn ${i===currentPage?'active':''}" onclick="renderPage(${i})">${i}</button>`;
+    } else if (Math.abs(i - currentPage) === 2) {
+      html += `<span class="page-ellipsis">…</span>`;
+    }
+  }
+
+  // Next
+  html += `<button class="page-btn" onclick="renderPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>Next →</button>`;
+  el.innerHTML = html;
+}
+
+// Navbar scroll
+const nav = document.getElementById('navbar');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 30);
+}, { passive: true });
+
+// Init
+loadPosts();
+</script>
+</body>
+</html>

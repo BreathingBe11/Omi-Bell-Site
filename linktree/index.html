@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Omi Bell — Link in Bio</title>
+  <meta name="description" content="Entrepreneur, Wellness Practitioner, Curator of The 3B Society. Connect with Omi Bell.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --dark: #111720;
+      --teal: #2AB5C5;
+      --cream: #F5EFE6;
+      --plum: #4A2040;
+      --sage: #8AA68C;
+      --rose: #C9968A;
+      --gold: #C9A84C;
+    }
+
+    body {
+      font-family: 'Jost', sans-serif;
+      font-weight: 300;
+      background-color: var(--dark);
+      color: var(--cream);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      overflow-x: hidden;
+    }
+
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 0%, rgba(74,32,64,0.45) 0%, transparent 70%),
+        radial-gradient(circle 400px at 15% 90%, rgba(42,181,197,0.15) 0%, transparent 70%),
+        radial-gradient(circle 400px at 85% 90%, rgba(138,166,140,0.15) 0%, transparent 70%),
+        var(--dark);
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 480px;
+      padding: 48px 20px 40px;
+    }
+
+    /* Fade-up animation */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .fade-up.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Profile */
+    .profile { text-align: center; margin-bottom: 36px; }
+
+    .avatar {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: conic-gradient(var(--teal), var(--plum), var(--gold), var(--teal));
+      padding: 3px;
+    }
+    .avatar-inner {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: var(--dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 32px;
+      font-weight: 600;
+      color: var(--teal);
+    }
+
+    .profile-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--cream);
+      margin-bottom: 6px;
+    }
+
+    .profile-handle {
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 10px;
+    }
+
+    .profile-bio {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 15px;
+      color: rgba(245,239,230,0.55);
+    }
+
+    /* Email card */
+    .email-card {
+      position: relative;
+      border-radius: 14px;
+      padding: 2px;
+      margin-bottom: 32px;
+      background: linear-gradient(135deg, var(--plum), var(--teal));
+    }
+    .email-card-inner {
+      background: var(--dark);
+      border-radius: 12px;
+      padding: 28px 22px;
+    }
+
+    .email-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 8px;
+    }
+
+    .email-heading {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--cream);
+      margin-bottom: 6px;
+    }
+
+    .email-sub {
+      font-size: 13px;
+      color: rgba(245,239,230,0.5);
+      margin-bottom: 18px;
+      line-height: 1.5;
+    }
+
+    .email-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .email-input {
+      flex: 1;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-family: 'Jost', sans-serif;
+      font-size: 14px;
+      font-weight: 300;
+      color: var(--cream);
+      outline: none;
+      transition: border-color 0.3s;
+    }
+    .email-input::placeholder { color: rgba(245,239,230,0.3); }
+    .email-input:focus { border-color: var(--teal); }
+    .email-input.invalid { border-color: var(--rose); }
+
+    .email-btn {
+      background: var(--teal);
+      color: var(--dark);
+      border: none;
+      border-radius: 8px;
+      padding: 12px 22px;
+      font-family: 'Jost', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.3s;
+      white-space: nowrap;
+    }
+    .email-btn:hover { opacity: 0.85; }
+
+    .email-success {
+      display: none;
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 16px;
+      color: var(--teal);
+      text-align: center;
+      padding: 8px 0;
+    }
+
+    /* Link buttons */
+    .links { display: flex; flex-direction: column; gap: 14px; margin-bottom: 40px; }
+
+    .link-btn {
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+      color: var(--cream);
+      background: rgba(255,255,255,0.03);
+      border-radius: 12px;
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.3s ease, background 0.3s ease;
+    }
+    .link-btn::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0;
+      border-radius: 12px 0 0 12px;
+      transition: width 0.3s ease;
+    }
+    .link-btn:hover {
+      transform: translateX(3px);
+      background: rgba(255,255,255,0.05);
+    }
+    .link-btn:hover::before { width: 4px; }
+
+    .link-btn[data-color="teal"]::before { background: var(--teal); }
+    .link-btn[data-color="rose"]::before { background: var(--rose); }
+    .link-btn[data-color="sage"]::before { background: var(--sage); }
+    .link-btn[data-color="gold"]::before { background: var(--gold); }
+
+    .link-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+      margin-right: 14px;
+    }
+    .link-btn[data-color="teal"] .link-icon { background: rgba(42,181,197,0.12); }
+    .link-btn[data-color="rose"] .link-icon { background: rgba(201,150,138,0.12); }
+    .link-btn[data-color="sage"] .link-icon { background: rgba(138,166,140,0.12); }
+    .link-btn[data-color="gold"] .link-icon { background: rgba(201,168,76,0.12); }
+
+    .link-text { flex: 1; min-width: 0; }
+    .link-title {
+      font-size: 15px;
+      font-weight: 400;
+      margin-bottom: 2px;
+    }
+    .link-subtitle {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 13px;
+      color: rgba(245,239,230,0.45);
+    }
+
+    .link-arrow {
+      font-size: 18px;
+      color: rgba(245,239,230,0.25);
+      margin-left: 10px;
+      flex-shrink: 0;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 14px;
+      color: rgba(245,239,230,0.35);
+      padding-bottom: 24px;
+    }
+    .footer span { color: var(--teal); }
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="container">
+
+    <!-- Profile -->
+    <div class="profile fade-up">
+      <div class="avatar">
+        <div class="avatar-inner">OB</div>
+      </div>
+      <div class="profile-name">Omi Bell</div>
+      <div class="profile-bio">Entrepreneur &middot; Wellness Practitioner &middot; Curator of The 3B Society</div>
+    </div>
+
+    <!-- Email Capture -->
+    <div class="email-card fade-up">
+      <div class="email-card-inner">
+        <div class="email-label">Stay Connected</div>
+        <div class="email-heading">Join the inner circle.</div>
+        <div class="email-sub">Insights on body, business &amp; belonging &mdash; delivered to your inbox.</div>
+        <form id="email-form" name="email-signup" method="POST" data-netlify="true" netlify-honeypot="bot-field">
+          <input type="hidden" name="form-name" value="email-signup">
+          <p style="display:none"><label>Don't fill this out: <input name="bot-field"></label></p>
+          <div class="email-row">
+            <input type="email" name="email" class="email-input" placeholder="Your email" required>
+            <button type="submit" class="email-btn">Join</button>
+          </div>
+        </form>
+        <div class="email-success">You're in. Welcome to the room. &#x1F514;</div>
+      </div>
+    </div>
+
+    <!-- Links -->
+    <div class="links">
+      <a href="https://omibell.com" target="_blank" rel="noopener" class="link-btn fade-up" data-color="teal">
+        <div class="link-icon">&#x1F310;</div>
+        <div class="link-text">
+          <div class="link-title">omibell.com</div>
+          <div class="link-subtitle">My world &mdash; start here</div>
+        </div>
+        <div class="link-arrow">&rsaquo;</div>
+      </a>
+      <a href="https://omibell.com/3bsociety" target="_blank" rel="noopener" class="link-btn fade-up" data-color="rose">
+        <div class="link-icon">&#x1F514;</div>
+        <div class="link-text">
+          <div class="link-title">The 3B Society</div>
+          <div class="link-subtitle">Body &middot; Business &middot; Belonging &mdash; join the community</div>
+        </div>
+        <div class="link-arrow">&rsaquo;</div>
+      </a>
+      <a href="https://www.thebreathingbell.com" target="_blank" rel="noopener" class="link-btn fade-up" data-color="teal">
+        <div class="link-icon">&#x1FAC1;</div>
+        <div class="link-text">
+          <div class="link-title">The Breathing Bell</div>
+          <div class="link-subtitle">Your nervous system called. Breathe now &mdash; no download required</div>
+        </div>
+        <div class="link-arrow">&rsaquo;</div>
+      </a>
+      <a href="https://www.youtube.com/@theomishow" target="_blank" rel="noopener" class="link-btn fade-up" data-color="sage">
+        <div class="link-icon">&#x25B6;</div>
+        <div class="link-text">
+          <div class="link-title">The Omi Show &middot; YouTube</div>
+          <div class="link-subtitle">Watch &mdash; subscribe &mdash; belong</div>
+        </div>
+        <div class="link-arrow">&rsaquo;</div>
+      </a>
+      <a href="https://www.eventbrite.com/o/omis-world-media-109581138821" target="_blank" rel="noopener" class="link-btn fade-up" data-color="gold">
+        <div class="link-icon">&#x1F4C5;</div>
+        <div class="link-text">
+          <div class="link-title">Upcoming Events</div>
+          <div class="link-subtitle">Live experiences &mdash; find your next moment</div>
+        </div>
+        <div class="link-arrow">&rsaquo;</div>
+      </a>
+      <a href="https://www.amazon.com/dp/1119900549?ref_=cm_sw_r_apin_dp_EMYR8PEQQZ63XDM84N6G" target="_blank" rel="noopener" class="link-btn fade-up" data-color="gold">
+        <div class="link-icon">&#x1F4D6;</div>
+        <div class="link-text">
+          <div class="link-title">My Book</div>
+          <div class="link-subtitle">Originate, Motivate, Innovate: 7 Steps for Building a Billion Dollar Network</div>
+        </div>
+        <div class="link-arrow">&rsaquo;</div>
+      </a>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer fade-up">
+      <span>Body</span> &middot; <span>Business</span> &middot; <span>Belonging</span>
+    </div>
+
+  </div>
+
+  <script>
+    // Staggered fade-up on load
+    document.addEventListener('DOMContentLoaded', function() {
+      var items = document.querySelectorAll('.fade-up');
+      items.forEach(function(el, i) {
+        setTimeout(function() {
+          el.classList.add('visible');
+        }, 120 * i);
+      });
+    });
+
+    // Email form handling
+    (function() {
+      var form = document.getElementById('email-form');
+      var input = form.querySelector('.email-input');
+      var success = document.querySelector('.email-success');
+
+      function submitForm() {
+        input.classList.remove('invalid');
+        if (!input.value || !input.validity.valid) {
+          input.classList.add('invalid');
+          return;
+        }
+        fetch('/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ 'form-name': 'email-signup', email: input.value }).toString()
+        }).then(function() {
+          form.style.display = 'none';
+          success.style.display = 'block';
+        });
+      }
+
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitForm();
+      });
+
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          submitForm();
+        }
+      });
+
+      input.addEventListener('input', function() {
+        input.classList.remove('invalid');
+      });
+    })();
+  </script>
+</body>
+</html>
