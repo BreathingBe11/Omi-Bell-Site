@@ -4,6 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Article — Omi Bell</title>
+<meta name="description" id="metaDesc" content="Thoughts on rest, performance, and the body as strategy — Omi Bell">
+<meta name="author" content="Omi Bell">
+<link rel="canonical" id="metaCanonical" href="https://omibell.com/article.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Omi Bell">
+<meta property="og:title" id="ogTitle" content="Omi Bell — The Journal">
+<meta property="og:description" id="ogDesc" content="Thoughts on rest, performance, and the body as strategy.">
+<meta property="og:image" id="ogImage" content="https://omibell.com/og-default.jpg">
+<meta property="og:url" id="ogUrl" content="https://omibell.com/article.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" id="twTitle" content="Omi Bell — The Journal">
+<meta name="twitter:description" id="twDesc" content="Thoughts on rest, performance, and the body as strategy.">
+<meta name="twitter:image" id="twImage" content="https://omibell.com/og-default.jpg">
+<script type="application/ld+json" id="schemaData"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -118,7 +132,37 @@ async function loadArticle() {
   } catch(e) { showError('Could not load article.'); }
 }
 
+function populateSEO(p) {
+  const url = `https://omibell.com/article.html?id=${p.id}`;
+  const desc = p.excerpt || 'Thoughts on rest, performance, and the body as strategy.';
+  const img = p.cover_image || 'https://omibell.com/og-default.jpg';
+  const title = `${p.title} — Omi Bell`;
+  document.title = title;
+  document.getElementById('metaDesc').setAttribute('content', desc);
+  document.getElementById('metaCanonical').setAttribute('href', url);
+  document.getElementById('ogTitle').setAttribute('content', title);
+  document.getElementById('ogDesc').setAttribute('content', desc);
+  document.getElementById('ogImage').setAttribute('content', img);
+  document.getElementById('ogUrl').setAttribute('content', url);
+  document.getElementById('twTitle').setAttribute('content', title);
+  document.getElementById('twDesc').setAttribute('content', desc);
+  document.getElementById('twImage').setAttribute('content', img);
+  document.getElementById('schemaData').textContent = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": p.title,
+    "description": desc,
+    "image": img,
+    "datePublished": p.date,
+    "dateModified": p.updated_at || p.date,
+    "author": {"@type":"Person","name":"Omi Bell","url":"https://omibell.com"},
+    "publisher": {"@type":"Person","name":"Omi Bell","url":"https://omibell.com"},
+    "mainEntityOfPage": {"@type":"WebPage","@id": url}
+  });
+}
+
 function renderArticle(p) {
+  populateSEO(p);
   document.getElementById('articleContent').innerHTML = `
     <div class="article-hero">
       <p class="article-category">${p.category||'Journal'}</p>
