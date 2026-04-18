@@ -22,69 +22,67 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
-  --black: #0A0A0A; --white: #F9F7F4; --teal: #007B8F; --teal-light: #0CB6D4;
-  --sand: #E8E0D4; --sand-dark: #C9BDB0; --text-muted: rgba(10,10,10,0.5);
-  --reading-max: 720px;
+  --black:#0A0A0A;--white:#F9F7F4;--teal:#007B8F;--teal-light:#0CB6D4;
+  --sand:#E8E0D4;--sand-dark:#C9BDB0;--text-muted:rgba(10,10,10,0.5);
+  --reading-max:720px;
 }
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'DM Sans', sans-serif; background: var(--white); color: var(--black); -webkit-font-smoothing: antialiased; }
-
-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 1.2rem 3rem; background: rgba(249,247,244,0.96); box-shadow: 0 1px 0 var(--sand); backdrop-filter: blur(8px); }
-.nav-logo { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 400; letter-spacing: 0.05em; color: var(--black); text-decoration: none; }
-.nav-links { display: flex; gap: 2.5rem; list-style: none; }
-.nav-links a { font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--black); text-decoration: none; transition: color 0.2s; }
-.nav-links a:hover { color: var(--teal); }
-.nav-cta { background: var(--teal); color: var(--white) !important; padding: 0.5rem 1.2rem; }
-.nav-cta:hover { background: var(--teal-light) !important; }
-
-.back-bar { padding: 5.5rem 3rem 0; }
-.back-link { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); text-decoration: none; transition: gap 0.2s; }
-.back-link:hover { gap: 0.8rem; }
-.back-link::before { content: '←'; }
-
-.article-hero { padding: 2rem 3rem; max-width: calc(var(--reading-max) + 6rem); margin: 0 auto; }
-.article-category { font-size: 0.64rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--teal); margin-bottom: 1rem; font-weight: 500; }
-.article-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(2rem, 4.5vw, 3.4rem); font-weight: 400; line-height: 1.12; margin-bottom: 1.2rem; }
-.article-excerpt { font-size: 1.05rem; color: var(--text-muted); line-height: 1.65; margin-bottom: 1.5rem; max-width: 600px; }
-.article-meta { display: flex; align-items: center; gap: 1rem; font-size: 0.72rem; letter-spacing: 0.08em; color: var(--sand-dark); padding-bottom: 1.5rem; border-bottom: 1px solid var(--sand); }
-.article-meta-divider { width: 1px; height: 12px; background: var(--sand); }
-
-.article-cover { max-width: calc(var(--reading-max) + 6rem); margin: 0 auto; padding: 0 3rem 2rem; }
-.article-cover img { width: 100%; max-height: 520px; object-fit: cover; display: block; }
-
-.article-body { max-width: var(--reading-max); margin: 0 auto; padding: 2rem 3rem 5rem; font-size: 1.05rem; line-height: 1.8; }
-.article-body h1, .article-body h2, .article-body h3 { font-family: 'Cormorant Garamond', serif; font-weight: 400; margin: 2rem 0 0.8rem; line-height: 1.2; }
-.article-body h1 { font-size: 2rem; } .article-body h2 { font-size: 1.6rem; } .article-body h3 { font-size: 1.3rem; }
-.article-body p { margin-bottom: 1.4rem; }
-.article-body a { color: var(--teal); text-decoration: none; border-bottom: 1px solid var(--teal-light); }
-.article-body ul, .article-body ol { margin: 1rem 0 1.4rem 1.5rem; }
-.article-body li { margin-bottom: 0.5rem; }
-.article-body blockquote { margin: 2rem 0; padding: 1.5rem 2rem; border-left: 3px solid var(--teal); background: rgba(0,123,143,0.04); font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; font-style: italic; }
-.article-body img { max-width: 100%; height: auto; margin: 1.5rem 0; display: block; }
-.article-body hr { border: none; border-top: 1px solid var(--sand); margin: 2.5rem 0; }
-
-.article-loading { text-align: center; padding: 8rem 0; font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; color: var(--text-muted); font-style: italic; }
-
-.article-end { max-width: var(--reading-max); margin: 0 auto 4rem; padding: 2rem 3rem; border-top: 1px solid var(--sand); display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-.end-rule { font-size: 0.7rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-muted); }
-.end-cta { display: inline-block; padding: 0.7rem 1.6rem; background: var(--teal); color: var(--white); font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase; text-decoration: none; transition: background 0.2s; }
-.end-cta:hover { background: var(--teal-light); }
-
-footer { background: var(--black); color: var(--white); padding: 2rem 3rem; display: flex; align-items: center; justify-content: space-between; }
-.footer-logo { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; letter-spacing: 0.08em; }
-.footer-copy { font-size: 0.72rem; color: rgba(249,247,244,0.4); }
-
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--white);color:var(--black);-webkit-font-smoothing:antialiased;}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:1.2rem 3rem;background:rgba(249,247,244,0.96);box-shadow:0 1px 0 var(--sand);backdrop-filter:blur(8px);}
+.nav-logo{font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:400;letter-spacing:0.05em;color:var(--black);text-decoration:none;}
+.nav-links{display:flex;gap:2.5rem;list-style:none;}
+.nav-links a{font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--black);text-decoration:none;transition:color 0.2s;}
+.nav-links a:hover{color:var(--teal);}
+.nav-cta{background:var(--teal);color:var(--white)!important;padding:0.5rem 1.2rem;}
+.nav-cta:hover{background:var(--teal-light)!important;}
+.back-bar{padding:5.5rem 3rem 0;}
+.back-link{display:inline-flex;align-items:center;gap:0.5rem;font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--teal);text-decoration:none;transition:gap 0.2s;}
+.back-link:hover{gap:0.8rem;}
+.back-link::before{content:'←';}
+.article-hero{padding:2rem 3rem;max-width:calc(var(--reading-max) + 6rem);margin:0 auto;}
+.article-category{font-size:0.64rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--teal);margin-bottom:1rem;font-weight:500;}
+.article-title{font-family:'Cormorant Garamond',serif;font-size:clamp(2rem,4.5vw,3.4rem);font-weight:400;line-height:1.12;margin-bottom:1.2rem;}
+.article-excerpt{font-size:1.05rem;color:var(--text-muted);line-height:1.65;margin-bottom:1.5rem;max-width:600px;}
+.article-meta{display:flex;align-items:center;gap:1rem;font-size:0.72rem;letter-spacing:0.08em;color:var(--sand-dark);padding-bottom:1.5rem;border-bottom:1px solid var(--sand);flex-wrap:wrap;}
+.article-meta-divider{width:1px;height:12px;background:var(--sand);}
+.article-meta-author{color:var(--teal);font-weight:500;}
+.article-cover{max-width:calc(var(--reading-max) + 6rem);margin:0 auto;padding:0 3rem 2rem;}
+.article-cover img{width:100%;max-height:520px;object-fit:cover;display:block;}
+.article-body{max-width:var(--reading-max);margin:0 auto;padding:2rem 3rem 3rem;font-size:1.05rem;line-height:1.8;}
+.article-body h1,.article-body h2,.article-body h3{font-family:'Cormorant Garamond',serif;font-weight:400;margin:2rem 0 0.8rem;line-height:1.2;}
+.article-body h1{font-size:2rem;}.article-body h2{font-size:1.6rem;}.article-body h3{font-size:1.3rem;}
+.article-body p{margin-bottom:1.4rem;}
+.article-body a{color:var(--teal);text-decoration:none;border-bottom:1px solid var(--teal-light);}
+.article-body ul,.article-body ol{margin:1rem 0 1.4rem 1.5rem;}
+.article-body li{margin-bottom:0.5rem;}
+.article-body blockquote{margin:2rem 0;padding:1.5rem 2rem;border-left:3px solid var(--teal);background:rgba(0,123,143,0.04);font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-style:italic;}
+.article-body img{max-width:100%;height:auto;margin:1.5rem 0;display:block;}
+.article-body hr{border:none;border-top:1px solid var(--sand);margin:2.5rem 0;}
+.author-box{max-width:var(--reading-max);margin:0 auto;padding:1.5rem 3rem;border-top:1px solid var(--sand);display:flex;align-items:flex-start;gap:1.2rem;}
+.author-box-left{flex-shrink:0;}
+.author-avatar{width:48px;height:48px;border-radius:50%;background:var(--sand);display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:1.2rem;color:var(--teal);font-weight:400;}
+.author-box-right{}
+.author-box-label{font-size:0.6rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.3rem;}
+.author-box-name{font-size:0.95rem;font-weight:500;margin-bottom:0.3rem;}
+.author-box-bio{font-size:0.82rem;color:var(--text-muted);line-height:1.6;}
+.article-end{max-width:var(--reading-max);margin:0 auto 4rem;padding:1.5rem 3rem;border-top:1px solid var(--sand);display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
+.end-rule{font-size:0.7rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-muted);}
+.end-cta{display:inline-block;padding:0.7rem 1.6rem;background:var(--teal);color:var(--white);font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;transition:background 0.2s;}
+.end-cta:hover{background:var(--teal-light);}
+.article-loading{text-align:center;padding:8rem 0;font-family:'Cormorant Garamond',serif;font-size:1.2rem;color:var(--text-muted);font-style:italic;}
+footer{background:var(--black);color:var(--white);padding:2rem 3rem;display:flex;align-items:center;justify-content:space-between;}
+.footer-logo{font-family:'Cormorant Garamond',serif;font-size:1.1rem;letter-spacing:0.08em;}
+.footer-copy{font-size:0.72rem;color:rgba(249,247,244,0.4);}
 @media(max-width:768px){
-  nav{padding:1rem 1.5rem} .nav-links{display:none}
+  nav{padding:1rem 1.5rem}.nav-links{display:none}
   .back-bar{padding:5rem 1.5rem 0}
-  .article-hero,.article-cover,.article-body,.article-end{padding-left:1.5rem;padding-right:1.5rem}
+  .article-hero,.article-cover,.article-body,.author-box,.article-end{padding-left:1.5rem;padding-right:1.5rem}
   .article-title{font-size:2rem}
   footer{flex-direction:column;gap:0.5rem;text-align:center}
 }
 </style>
 </head>
 <body>
-
 <nav>
   <a href="index.html" class="nav-logo">Omi Bell</a>
   <ul class="nav-links">
@@ -93,102 +91,101 @@ footer { background: var(--black); color: var(--white); padding: 2rem 3rem; disp
     <li><a href="blog.html">Blog</a></li>
     <li><a href="https://my.community.com/omibell" target="_blank">Community</a></li>
     <li><a href="index.html#media">Media</a></li>
-    <li><a href="https://calendly.com/omitheintuitive/claritysession" target="_blank" class="nav-cta">Book a Session</a></li>
+    <li><a href="contact.html" class="nav-cta">Contact</a></li>
   </ul>
 </nav>
-
-<div class="back-bar">
-  <a href="blog.html" class="back-link">Back to Journal</a>
-</div>
-
-<div id="articleContent">
-  <div class="article-loading">Loading…</div>
-</div>
-
+<div class="back-bar"><a href="blog.html" class="back-link">Back to Journal</a></div>
+<div id="articleContent"><div class="article-loading">Loading…</div></div>
 <footer>
   <div class="footer-logo">Omi Bell</div>
   <div class="footer-copy">© 2025 Omi Bell · All rights reserved</div>
 </footer>
-
 <script>
 const db = supabase.createClient(
   'https://mfevhwdtpftmlsksrgdi.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mZXZod2R0cGZ0bWxza3NyZ2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNzg1MTQsImV4cCI6MjA5MTg1NDUxNH0.tjWrwpoL24y2WhlkexWLHxYeHw_Yu9qfHM4Qj1VE6XA'
 );
+function formatDate(str){if(!str)return'';return new Date(str).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});}
+function initials(name){return(name||'').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
 
-function formatDate(str) {
-  if (!str) return '';
-  return new Date(str).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-}
-
-async function loadArticle() {
-  const id = new URLSearchParams(window.location.search).get('id');
-  if (!id) { showError('No article found.'); return; }
-  try {
-    const { data, error } = await db.from('posts').select('*').eq('id', id).single();
-    if (error || !data || !data.published) { showError('This article is not available.'); return; }
-    renderArticle(data);
-    document.title = `${data.title} — Omi Bell`;
-  } catch(e) { showError('Could not load article.'); }
-}
-
-function populateSEO(p) {
-  const url = `https://omibell.com/article.html?id=${p.id}`;
-  const desc = p.excerpt || 'Thoughts on rest, performance, and the body as strategy.';
-  const img = p.cover_image || 'https://omibell.com/og-default.jpg';
-  const title = `${p.title} — Omi Bell`;
-  document.title = title;
-  document.getElementById('metaDesc').setAttribute('content', desc);
-  document.getElementById('metaCanonical').setAttribute('href', url);
-  document.getElementById('ogTitle').setAttribute('content', title);
-  document.getElementById('ogDesc').setAttribute('content', desc);
-  document.getElementById('ogImage').setAttribute('content', img);
-  document.getElementById('ogUrl').setAttribute('content', url);
-  document.getElementById('twTitle').setAttribute('content', title);
-  document.getElementById('twDesc').setAttribute('content', desc);
-  document.getElementById('twImage').setAttribute('content', img);
-  document.getElementById('schemaData').textContent = JSON.stringify({
-    "@context": "https://schema.org",
-    "@type": "Article",
-    "headline": p.title,
-    "description": desc,
-    "image": img,
-    "datePublished": p.date,
-    "dateModified": p.updated_at || p.date,
-    "author": {"@type":"Person","name":"Omi Bell","url":"https://omibell.com"},
-    "publisher": {"@type":"Person","name":"Omi Bell","url":"https://omibell.com"},
-    "mainEntityOfPage": {"@type":"WebPage","@id": url}
+function populateSEO(p){
+  const url=`https://omibell.com/article.html?id=${p.id}`;
+  const desc=p.excerpt||'Thoughts on rest, performance, and the body as strategy.';
+  const img=p.cover_image||'https://omibell.com/og-default.jpg';
+  const title=`${p.title} — Omi Bell`;
+  document.title=title;
+  document.getElementById('metaDesc').setAttribute('content',desc);
+  document.getElementById('metaCanonical').setAttribute('href',url);
+  document.getElementById('ogTitle').setAttribute('content',title);
+  document.getElementById('ogDesc').setAttribute('content',desc);
+  document.getElementById('ogImage').setAttribute('content',img);
+  document.getElementById('ogUrl').setAttribute('content',url);
+  document.getElementById('twTitle').setAttribute('content',title);
+  document.getElementById('twDesc').setAttribute('content',desc);
+  document.getElementById('twImage').setAttribute('content',img);
+  document.getElementById('schemaData').textContent=JSON.stringify({
+    "@context":"https://schema.org","@type":"Article",
+    "headline":p.title,"description":desc,"image":img,
+    "datePublished":p.date,"dateModified":p.updated_at||p.date,
+    "author":{"@type":"Person","name":p.author_name||"Omi Bell","url":"https://omibell.com"},
+    "publisher":{"@type":"Person","name":"Omi Bell","url":"https://omibell.com"},
+    "mainEntityOfPage":{"@type":"WebPage","@id":url}
   });
 }
 
-function renderArticle(p) {
-  populateSEO(p);
-  document.getElementById('articleContent').innerHTML = `
+async function loadArticle(){
+  const id=new URLSearchParams(window.location.search).get('id');
+  if(!id){showError('No article found.');return;}
+  try{
+    const{data,error}=await db.from('posts').select('*').eq('id',id).single();
+    const isScheduled=data&&data.published&&new Date(data.date)>new Date();
+    if(error||!data||!data.published||isScheduled){showError('This article is not available.');return;}
+    populateSEO(data);
+    renderArticle(data);
+  }catch(e){showError('Could not load article.');}
+}
+
+function renderArticle(p){
+  const authorName=p.author_name||'Omi Bell';
+  const authorBio=p.author_bio||null;
+  document.getElementById('articleContent').innerHTML=`
     <div class="article-hero">
       <p class="article-category">${p.category||'Journal'}</p>
       <h1 class="article-title">${p.title||''}</h1>
-      ${p.excerpt ? `<p class="article-excerpt">${p.excerpt}</p>` : ''}
+      ${p.excerpt?`<p class="article-excerpt">${p.excerpt}</p>`:''}
       <div class="article-meta">
+        <span class="article-meta-author">${authorName}</span>
+        <span class="article-meta-divider"></span>
         <span>${formatDate(p.date)}</span>
-        ${p.read_time ? `<span class="article-meta-divider"></span><span>${p.read_time} min read</span>` : ''}
+        ${p.read_time?`<span class="article-meta-divider"></span><span>${p.read_time} min read</span>`:''}
       </div>
     </div>
-    ${p.cover_image ? `<div class="article-cover"><img src="${p.cover_image}" alt="${p.title}" onerror="this.parentElement.style.display='none'"></div>` : ''}
+    ${p.cover_image?`<div class="article-cover"><img src="${p.cover_image}" alt="${p.title}" onerror="this.parentElement.style.display='none'"></div>`:''}
     <div class="article-body">${p.content||''}</div>
+    ${authorBio?`
+    <div class="author-box">
+      <div class="author-box-left">
+        <div class="author-avatar">${initials(authorName)}</div>
+      </div>
+      <div class="author-box-right">
+        <div class="author-box-label">About the Author</div>
+        <div class="author-box-name">${authorName}</div>
+        <div class="author-box-bio">${authorBio}</div>
+      </div>
+    </div>` : ''}
     <div class="article-end">
       <span class="end-rule">End of Article</span>
       <a href="blog.html" class="end-cta">More from the Journal →</a>
     </div>`;
 }
 
-function showError(msg) {
-  document.getElementById('articleContent').innerHTML = `
+function showError(msg){
+  document.getElementById('articleContent').innerHTML=`
     <div style="text-align:center;padding:8rem 2rem;">
       <h2 style="font-family:'Cormorant Garamond',serif;font-weight:300;font-size:2rem;margin-bottom:1rem;">${msg}</h2>
       <a href="blog.html" style="color:var(--teal);font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;">← Back to Journal</a>
     </div>`;
 }
-
 loadArticle();
 </script>
 </body>

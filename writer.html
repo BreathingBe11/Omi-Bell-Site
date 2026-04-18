@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Writer Portal — Omi Bell Journal</title>
+<meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --black:#0A0A0A;--white:#F9F7F4;--teal:#007B8F;--teal-light:#0CB6D4;
+  --sand:#E8E0D4;--sand-dark:#C9BDB0;
+  --bg:#F9F7F4;--surface:#FFFFFF;--border:#E8E0D4;
+  --text:#0A0A0A;--muted:rgba(10,10,10,0.45);--danger:#c0392b;
+  --amber:#B45309;--amber-bg:#FEF3C7;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+
+/* LOGIN */
+#loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:2rem;padding:2rem;}
+.login-logo{font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:300;letter-spacing:0.1em;}
+.login-sub{font-size:0.78rem;color:var(--muted);letter-spacing:0.06em;margin-top:-1rem;}
+.login-card{background:var(--surface);border:1px solid var(--border);padding:2.5rem 3rem;width:100%;max-width:380px;box-shadow:0 4px 20px rgba(0,0,0,0.06);}
+.login-label{font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--teal);display:block;margin-bottom:1.2rem;text-align:center;}
+.login-input{width:100%;padding:0.8rem 1rem;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'DM Sans',sans-serif;font-size:1rem;margin-bottom:1rem;outline:none;transition:border-color 0.2s;}
+.login-input:focus{border-color:var(--teal);}
+.login-input::placeholder{color:var(--muted);}
+.login-btn{width:100%;padding:0.8rem;background:var(--teal);color:var(--white);border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:0.78rem;letter-spacing:0.14em;text-transform:uppercase;transition:background 0.2s;}
+.login-btn:hover{background:var(--teal-light);}
+.login-error{color:var(--danger);font-size:0.82rem;margin-top:0.6rem;text-align:center;display:none;}
+
+/* SHELL */
+#writerShell{display:none;min-height:100vh;}
+.writer-top{display:flex;align-items:center;justify-content:space-between;padding:0.9rem 2rem;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;}
+.writer-brand{font-family:'Cormorant Garamond',serif;font-size:1.1rem;letter-spacing:0.08em;}
+.writer-brand span{color:var(--teal);}
+.writer-name-badge{font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-left:0.8rem;}
+.top-actions{display:flex;gap:0.8rem;align-items:center;}
+.btn-sm{padding:0.45rem 1rem;font-family:'DM Sans',sans-serif;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;border:none;}
+.btn-teal{background:var(--teal);color:var(--white);}
+.btn-teal:hover{background:var(--teal-light);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)!important;}
+.btn-ghost:hover{color:var(--text);}
+
+.writer-body{display:flex;min-height:calc(100vh - 55px);}
+
+/* LEFT PANEL */
+.left-panel{width:280px;flex-shrink:0;border-right:1px solid var(--border);overflow-y:auto;max-height:calc(100vh - 55px);position:sticky;top:55px;background:var(--surface);}
+.panel-head{padding:1rem 1.2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.panel-title{font-size:0.62rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);}
+.post-item{padding:0.85rem 1.2rem;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.15s;}
+.post-item:hover{background:rgba(0,123,143,0.04);}
+.post-item.selected{background:rgba(0,123,143,0.08);border-left:2px solid var(--teal);padding-left:calc(1.2rem - 2px);}
+.post-item-title{font-size:0.84rem;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:0.25rem;}
+.post-item-meta{font-size:0.64rem;color:var(--muted);}
+.status-pill{display:inline-block;padding:0.1rem 0.45rem;font-size:0.56rem;letter-spacing:0.1em;text-transform:uppercase;}
+.s-draft{background:rgba(10,10,10,0.07);color:var(--muted);}
+.s-submitted{background:var(--amber-bg);color:var(--amber);}
+.s-live{background:rgba(0,123,143,0.12);color:var(--teal);}
+.s-scheduled{background:#EFF6FF;color:#0369a1;}
+.posts-empty{padding:2rem 1.2rem;text-align:center;font-size:0.82rem;color:var(--muted);font-style:italic;}
+
+/* EDITOR */
+.editor-panel{flex:1;overflow-y:auto;padding:2rem 2.5rem;max-height:calc(100vh - 55px);}
+.editor-welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;color:var(--muted);gap:0.5rem;}
+.editor-welcome h3{font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:300;color:var(--text);}
+.editor-welcome p{font-size:0.85rem;line-height:1.6;max-width:360px;}
+
+/* Status banners */
+.status-banner{padding:0.9rem 1.2rem;margin-bottom:1.5rem;border-left:4px solid var(--teal);background:rgba(0,123,143,0.05);font-size:0.82rem;}
+.status-banner.submitted{border-left-color:var(--amber);background:var(--amber-bg);color:rgba(180,83,9,0.9);}
+.status-banner.live{border-left-color:var(--teal);background:rgba(0,123,143,0.06);color:var(--teal);}
+.status-banner-title{font-size:0.68rem;letter-spacing:0.12em;text-transform:uppercase;font-weight:500;margin-bottom:0.2rem;}
+
+/* Published post view */
+.published-view{background:var(--surface);border:1px solid var(--border);padding:2rem;}
+.published-view h2{font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:300;margin-bottom:1rem;}
+.published-body{font-size:0.95rem;line-height:1.8;color:var(--text);}
+.published-body h2,.published-body h3{font-family:'Cormorant Garamond',serif;font-weight:400;margin:1.5rem 0 0.5rem;}
+.published-body blockquote{border-left:3px solid var(--teal);padding-left:1rem;font-style:italic;color:var(--muted);margin:1rem 0;}
+.published-link{display:inline-block;margin-top:1.5rem;padding:0.6rem 1.2rem;background:var(--teal);color:var(--white);text-decoration:none;font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;transition:background 0.2s;}
+.published-link:hover{background:var(--teal-light);}
+
+/* Author field */
+.author-badge{display:flex;align-items:center;gap:0.8rem;padding:0.7rem 1rem;background:rgba(0,123,143,0.05);border:1px solid rgba(0,123,143,0.15);margin-bottom:1.5rem;}
+.author-badge-label{font-size:0.62rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);}
+.author-badge-name{font-size:0.9rem;color:var(--teal);font-weight:500;}
+
+/* Form */
+.field-group{margin-bottom:1.5rem;}
+.field-label{display:block;font-size:0.62rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem;}
+.field-input{width:100%;padding:0.7rem 0.9rem;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.92rem;outline:none;transition:border-color 0.2s;resize:vertical;}
+.field-input:focus{border-color:var(--teal);}
+.field-input::placeholder{color:var(--muted);}
+.title-input{font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:300;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.img-preview{height:130px;background:var(--bg);border:1px dashed var(--sand-dark);display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:0.6rem;}
+.img-preview img{width:100%;height:100%;object-fit:cover;}
+.img-preview-empty{font-size:0.75rem;color:var(--muted);}
+.img-actions{display:flex;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.4rem;}
+.img-btn{padding:0.35rem 0.8rem;background:transparent;color:var(--teal);border:1px solid var(--teal);font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;}
+.img-btn:hover{background:var(--teal);color:var(--white);}
+.img-btn-muted{color:var(--muted);border-color:var(--border);}
+.img-btn-muted:hover{background:transparent;color:var(--text);border-color:var(--sand-dark);}
+.img-note{font-size:0.65rem;color:var(--muted);}
+.rte-wrap{border:1px solid var(--border);}
+.rte-toolbar{display:flex;flex-wrap:wrap;gap:2px;padding:0.5rem;border-bottom:1px solid var(--border);background:#F0EBE4;}
+.rte-btn{padding:0.28rem 0.5rem;min-width:30px;height:28px;background:transparent;border:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.8rem;cursor:pointer;transition:background 0.15s;display:flex;align-items:center;justify-content:center;}
+.rte-btn:hover{background:rgba(0,123,143,0.1);}
+.rte-btn.on{background:var(--teal);color:var(--white);}
+.rte-sep{width:1px;background:var(--border);margin:0 3px;height:26px;align-self:center;}
+.rte-select{height:28px;padding:0 0.4rem;background:var(--white);border:1px solid var(--border);color:var(--black);font-family:'DM Sans',sans-serif;font-size:0.76rem;cursor:pointer;outline:none;}
+.rte-color-wrap{width:30px;height:28px;border:1px solid var(--border);position:relative;overflow:hidden;cursor:pointer;}
+.rte-color-swatch{width:100%;height:100%;pointer-events:none;background:#0A0A0A;}
+.rte-color-wrap input[type="color"]{position:absolute;top:-4px;left:-4px;width:calc(100% + 8px);height:calc(100% + 8px);border:none;opacity:0;cursor:pointer;}
+.rte-editor{min-height:300px;padding:1.2rem;outline:none;line-height:1.8;color:var(--black);font-size:0.95rem;background:var(--white);}
+.rte-editor:empty::before{content:attr(data-placeholder);color:var(--muted);pointer-events:none;}
+.rte-editor h2,.rte-editor h3{font-family:'Cormorant Garamond',serif;font-weight:400;margin:1rem 0 0.5rem;}
+.rte-editor ul,.rte-editor ol{margin-left:1.5rem;}
+.rte-editor blockquote{border-left:3px solid var(--teal);padding-left:1rem;color:var(--muted);font-style:italic;margin:1rem 0;}
+.editor-actions{display:flex;align-items:center;gap:0.8rem;margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border);flex-wrap:wrap;}
+.btn-submit{padding:0.7rem 1.8rem;background:var(--teal);color:var(--white);border:none;font-family:'DM Sans',sans-serif;font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background 0.2s;}
+.btn-submit:hover{background:var(--teal-light);}
+.btn-draft-w{padding:0.7rem 1.4rem;background:transparent;color:var(--text);border:1px solid var(--border);font-family:'DM Sans',sans-serif;font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;}
+.btn-draft-w:hover{border-color:var(--sand-dark);}
+.submit-note{font-size:0.72rem;color:var(--muted);line-height:1.5;padding:0.8rem 1rem;background:rgba(0,123,143,0.04);border:1px solid rgba(0,123,143,0.1);margin-top:0.5rem;}
+#toast{position:fixed;bottom:2rem;right:2rem;z-index:1000;padding:0.8rem 1.5rem;background:var(--teal);color:var(--white);font-size:0.82rem;transform:translateY(100px);opacity:0;transition:all 0.3s;}
+#toast.show{transform:translateY(0);opacity:1;}
+#toast.err{background:var(--danger);}
+@media(max-width:768px){.writer-body{flex-direction:column}.left-panel{width:100%;max-height:35vh;position:static}.editor-panel{padding:1.5rem}.field-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-logo">Omi Bell</div>
+  <p class="login-sub">The Journal · Writer Portal</p>
+  <div class="login-card">
+    <span class="login-label">Writer Login</span>
+    <input type="text" id="wNameInput" class="login-input" placeholder="Your name" autocomplete="name">
+    <input type="password" id="wPwInput" class="login-input" placeholder="Password" onkeydown="if(event.key==='Enter')writerLogin()">
+    <button class="login-btn" onclick="writerLogin()">Enter</button>
+    <p class="login-error" id="loginErr">Name or password not found. Contact Omi to get access.</p>
+  </div>
+</div>
+
+<div id="writerShell">
+  <div class="writer-top">
+    <div>
+      <span class="writer-brand">Omi Bell · <span>Journal</span></span>
+      <span class="writer-name-badge" id="writerNameBadge"></span>
+    </div>
+    <div class="top-actions">
+      <button class="btn-sm btn-teal" onclick="newPost()">+ New Post</button>
+      <button class="btn-sm btn-ghost" onclick="writerLogout()">Log Out</button>
+    </div>
+  </div>
+
+  <div class="writer-body">
+    <div class="left-panel">
+      <div class="panel-head">
+        <span class="panel-title">My Posts</span>
+        <span id="myPostCount" style="font-size:0.68rem;color:var(--muted)">—</span>
+      </div>
+      <div id="myPostList"><div class="posts-empty">Loading…</div></div>
+    </div>
+
+    <div class="editor-panel" id="editorPanel">
+      <div class="editor-welcome" id="editorWelcome">
+        <h3>Welcome, <span id="welcomeName"></span></h3>
+        <p>Write a new post or select one from your list.<br>When you're ready, submit it to Omi for review and publishing.</p>
+      </div>
+
+      <div id="editorForm" style="display:none">
+
+        <!-- STATUS BANNERS -->
+        <div id="statusBanner" style="display:none" class="status-banner">
+          <div class="status-banner-title" id="statusBannerTitle"></div>
+          <div id="statusBannerBody"></div>
+        </div>
+
+        <!-- AUTHOR BADGE -->
+        <div class="author-badge">
+          <span class="author-badge-label">Writing as</span>
+          <span class="author-badge-name" id="authorName"></span>
+        </div>
+
+        <!-- PUBLISHED VIEW -->
+        <div id="publishedView" style="display:none">
+          <div class="published-view">
+            <h2 id="pubTitle"></h2>
+            <div class="published-body" id="pubBody"></div>
+            <a id="pubLink" href="#" target="_blank" class="published-link">Read live on the blog →</a>
+          </div>
+        </div>
+
+        <!-- EDIT FORM -->
+        <div id="editableForm">
+          <div class="field-group">
+            <label class="field-label">Title</label>
+            <input type="text" id="fTitle" class="field-input title-input" placeholder="Write your title here…">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Excerpt</label>
+            <textarea id="fExcerpt" class="field-input" rows="2" placeholder="A short description of your article…"></textarea>
+          </div>
+          <div class="field-row">
+            <div class="field-group">
+              <label class="field-label">Category</label>
+              <input type="text" id="fCategory" class="field-input" placeholder="e.g. Wellness, Rest…">
+            </div>
+            <div class="field-group">
+              <label class="field-label">Read Time (min)</label>
+              <input type="number" id="fReadTime" class="field-input" placeholder="5" min="1">
+            </div>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Cover Image</label>
+            <div class="img-preview" id="imgPreview"><div class="img-preview-empty">No image selected</div></div>
+            <div class="img-actions">
+              <label class="img-btn" for="imgFile">↑ Upload</label>
+              <input type="file" id="imgFile" style="display:none" accept="image/*" onchange="handleImg(event)">
+              <button class="img-btn" onclick="pasteUrl()">Paste URL</button>
+              <button class="img-btn img-btn-muted" onclick="clearImg()">Remove</button>
+            </div>
+            <p class="img-note">Keep under 1MB for uploads. For larger images, paste a URL.</p>
+            <input type="hidden" id="fCoverImage">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Article Content</label>
+            <div class="rte-wrap">
+              <div class="rte-toolbar">
+                <select class="rte-select" onchange="cmd('fontName',this.value);this.blur()">
+                  <option value="'DM Sans',sans-serif">DM Sans</option>
+                  <option value="'Cormorant Garamond',serif">Garamond</option>
+                  <option value="Georgia,serif">Georgia</option>
+                  <option value="'Times New Roman',serif">Times New Roman</option>
+                  <option value="'Courier New',monospace">Courier</option>
+                </select>
+                <select class="rte-select" onchange="setSize(this.value);this.blur()">
+                  <option value="">Size</option>
+                  <option value="small">Small</option>
+                  <option value="normal">Normal</option>
+                  <option value="large">Large</option>
+                  <option value="huge">Huge</option>
+                </select>
+                <div class="rte-sep"></div>
+                <button class="rte-btn" id="btnBold" onclick="cmd('bold')"><strong>B</strong></button>
+                <button class="rte-btn" id="btnItalic" onclick="cmd('italic')"><em>I</em></button>
+                <button class="rte-btn" id="btnUnder" onclick="cmd('underline')"><u>U</u></button>
+                <div class="rte-sep"></div>
+                <div class="rte-color-wrap"><div class="rte-color-swatch" id="colorSwatch"></div><input type="color" value="#0A0A0A" oninput="cmd('foreColor',this.value);document.getElementById('colorSwatch').style.background=this.value"></div>
+                <div class="rte-sep"></div>
+                <button class="rte-btn" onclick="cmd('justifyLeft')">⬤◻◻</button>
+                <button class="rte-btn" onclick="cmd('justifyCenter')">◻⬤◻</button>
+                <button class="rte-btn" onclick="cmd('justifyRight')">◻◻⬤</button>
+                <div class="rte-sep"></div>
+                <button class="rte-btn" onclick="cmd('insertUnorderedList')">• —</button>
+                <button class="rte-btn" onclick="cmd('insertOrderedList')">1. —</button>
+                <div class="rte-sep"></div>
+                <button class="rte-btn" onclick="cmd('formatBlock','h2')">H2</button>
+                <button class="rte-btn" onclick="cmd('formatBlock','h3')">H3</button>
+                <button class="rte-btn" onclick="cmd('formatBlock','blockquote')">"</button>
+                <button class="rte-btn" onclick="cmd('formatBlock','p')">¶</button>
+                <button class="rte-btn" onclick="cmd('insertHorizontalRule')">—</button>
+              </div>
+              <div class="rte-editor" id="rteEditor" contenteditable="true" data-placeholder="Start writing your article here…" onmouseup="syncToolbar()" onkeyup="syncToolbar()"></div>
+            </div>
+          </div>
+
+          <div class="editor-actions">
+            <button class="btn-submit" id="btnSubmit" onclick="submitPost()">Submit for Review</button>
+            <button class="btn-draft-w" id="btnDraft" onclick="saveDraft()">Save Draft</button>
+          </div>
+          <div class="submit-note">
+            <strong>Submit for Review</strong> sends your post to Omi for editing and publishing. You can still save as a draft to keep working on it first.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const db = supabase.createClient(
+  'https://mfevhwdtpftmlsksrgdi.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mZXZod2R0cGZ0bWxza3NyZ2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNzg1MTQsImV4cCI6MjA5MTg1NDUxNH0.tjWrwpoL24y2WhlkexWLHxYeHw_Yu9qfHM4Qj1VE6XA'
+);
+
+let currentWriter = null; // { id, name, bio }
+let myPosts = [];
+let currentId = null;
+
+window.onload = () => {
+  const saved = sessionStorage.getItem('ob_writer');
+  if (saved) { currentWriter = JSON.parse(saved); showWriterShell(); }
+};
+
+async function writerLogin() {
+  const name = document.getElementById('wNameInput').value.trim();
+  const pw = document.getElementById('wPwInput').value.trim();
+  if (!name || !pw) { showLoginError('Please enter your name and password.'); return; }
+  const { data, error } = await db.from('writers')
+    .select('*').eq('active', true)
+    .ilike('name', name).eq('password', pw).single();
+  if (error || !data) { showLoginError('Name or password not found. Contact Omi to get access.'); return; }
+  currentWriter = { id: data.id, name: data.name, bio: data.bio };
+  sessionStorage.setItem('ob_writer', JSON.stringify(currentWriter));
+  document.getElementById('loginErr').style.display = 'none';
+  showWriterShell();
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('loginErr');
+  el.textContent = msg; el.style.display = 'block';
+  document.getElementById('wPwInput').value = '';
+}
+
+function writerLogout() { sessionStorage.removeItem('ob_writer'); location.reload(); }
+
+async function showWriterShell() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('writerShell').style.display = 'block';
+  document.getElementById('writerNameBadge').textContent = currentWriter.name;
+  document.getElementById('welcomeName').textContent = currentWriter.name.split(' ')[0];
+  document.getElementById('authorName').textContent = currentWriter.name;
+  loadMyPosts();
+}
+
+async function loadMyPosts() {
+  const el = document.getElementById('myPostList');
+  const { data, error } = await db.from('posts')
+    .select('id,title,date,published,status')
+    .eq('author_id', currentWriter.id)
+    .order('updated_at', { ascending: false });
+  if (error) { el.innerHTML = `<div class="posts-empty">${error.message}</div>`; return; }
+  myPosts = data || [];
+  document.getElementById('myPostCount').textContent = myPosts.length;
+  if (!myPosts.length) { el.innerHTML = '<div class="posts-empty">No posts yet.<br>Create your first!</div>'; return; }
+  el.innerHTML = '';
+  myPosts.forEach(p => {
+    const st = getStatus(p);
+    const d = document.createElement('div');
+    d.className = `post-item${p.id === currentId ? ' selected' : ''}`;
+    d.dataset.id = p.id; d.onclick = () => openPost(p.id);
+    d.innerHTML = `
+      <div class="post-item-title">${p.title || '(Untitled)'}</div>
+      <div class="post-item-meta"><span class="status-pill ${st.cls}">${st.label}</span> ${fmtDate(p.date)}</div>`;
+    el.appendChild(d);
+  });
+}
+
+function getStatus(p) {
+  if (p.status === 'submitted') return { cls: 's-submitted', label: 'Under Review' };
+  if (p.published && new Date(p.date) > new Date()) return { cls: 's-scheduled', label: 'Scheduled' };
+  if (p.published) return { cls: 's-live', label: 'Published' };
+  return { cls: 's-draft', label: 'Draft' };
+}
+
+function newPost() {
+  currentId = null; showForm(); clearForm();
+  document.getElementById('statusBanner').style.display = 'none';
+  document.getElementById('publishedView').style.display = 'none';
+  document.getElementById('editableForm').style.display = 'block';
+  document.getElementById('btnSubmit').style.display = '';
+  document.getElementById('btnDraft').style.display = '';
+  document.querySelectorAll('.post-item').forEach(e => e.classList.remove('selected'));
+  document.getElementById('fTitle').focus();
+}
+
+async function openPost(id) {
+  const { data, error } = await db.from('posts').select('*').eq('id', id).single();
+  if (error || !data) { toast('Could not load post.', true); return; }
+  currentId = id; showForm();
+  document.getElementById('fTitle').value = data.title || '';
+  document.getElementById('fExcerpt').value = data.excerpt || '';
+  document.getElementById('fCategory').value = data.category || '';
+  document.getElementById('fReadTime').value = data.read_time || '';
+  document.getElementById('fCoverImage').value = data.cover_image || '';
+  document.getElementById('rteEditor').innerHTML = data.content || '';
+  setImgPreview(data.cover_image || '');
+  document.querySelectorAll('.post-item').forEach(e => e.classList.toggle('selected', e.dataset.id === id));
+
+  const st = getStatus(data);
+  const banner = document.getElementById('statusBanner');
+  const pubView = document.getElementById('publishedView');
+  const editForm = document.getElementById('editableForm');
+
+  if (data.published && new Date(data.date) <= new Date()) {
+    // PUBLISHED — show read-only view
+    banner.className = 'status-banner live'; banner.style.display = 'block';
+    document.getElementById('statusBannerTitle').textContent = '✓ Published';
+    document.getElementById('statusBannerBody').textContent = `Your article went live on ${fmtDate(data.date)}.`;
+    pubView.style.display = 'block';
+    document.getElementById('pubTitle').textContent = data.title;
+    document.getElementById('pubBody').innerHTML = data.content;
+    document.getElementById('pubLink').href = `article.html?id=${data.id}`;
+    editForm.style.display = 'none';
+  } else if (data.published && new Date(data.date) > new Date()) {
+    // SCHEDULED
+    banner.className = 'status-banner live'; banner.style.display = 'block';
+    document.getElementById('statusBannerTitle').textContent = '⏱ Scheduled';
+    document.getElementById('statusBannerBody').textContent = `Set to publish on ${fmtDate(data.date)}.`;
+    pubView.style.display = 'none'; editForm.style.display = 'block';
+    document.getElementById('btnSubmit').style.display = 'none';
+    document.getElementById('btnDraft').style.display = 'none';
+  } else if (data.status === 'submitted') {
+    // UNDER REVIEW
+    banner.className = 'status-banner submitted'; banner.style.display = 'block';
+    document.getElementById('statusBannerTitle').textContent = '⚑ Under Review';
+    document.getElementById('statusBannerBody').textContent = 'Submitted to Omi for editing and publishing. You\'ll see it go live here once published.';
+    pubView.style.display = 'none'; editForm.style.display = 'block';
+    document.getElementById('btnSubmit').style.display = 'none';
+    document.getElementById('btnDraft').style.display = 'none';
+  } else {
+    // DRAFT
+    banner.style.display = 'none';
+    pubView.style.display = 'none'; editForm.style.display = 'block';
+    document.getElementById('btnSubmit').style.display = '';
+    document.getElementById('btnDraft').style.display = '';
+  }
+
+  document.getElementById('editorPanel').scrollTop = 0;
+}
+
+function showForm() {
+  document.getElementById('editorWelcome').style.display = 'none';
+  document.getElementById('editorForm').style.display = 'block';
+}
+function clearForm() {
+  ['fTitle','fExcerpt','fCategory','fReadTime','fCoverImage'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('rteEditor').innerHTML = '';
+  setImgPreview('');
+}
+
+async function saveDraft() {
+  const title = document.getElementById('fTitle').value.trim() || '(Untitled)';
+  const payload = {
+    title, excerpt: document.getElementById('fExcerpt').value.trim(),
+    category: document.getElementById('fCategory').value.trim(),
+    read_time: parseInt(document.getElementById('fReadTime').value) || null,
+    cover_image: document.getElementById('fCoverImage').value || null,
+    content: document.getElementById('rteEditor').innerHTML,
+    published: false, status: 'draft',
+    author_name: currentWriter.name, author_id: currentWriter.id,
+    author_bio: currentWriter.bio || null,
+    updated_at: new Date().toISOString()
+  };
+  let error;
+  if (currentId) {
+    ({ error } = await db.from('posts').update(payload).eq('id', currentId));
+  } else {
+    payload.date = new Date().toISOString();
+    const res = await db.from('posts').insert(payload).select('id').single();
+    error = res.error; if (!error) currentId = res.data.id;
+  }
+  if (error) { toast('Error: ' + error.message, true); return; }
+  toast('Draft saved.'); loadMyPosts();
+}
+
+async function submitPost() {
+  const title = document.getElementById('fTitle').value.trim();
+  if (!title) { toast('Please add a title before submitting.', true); return; }
+  const content = document.getElementById('rteEditor').innerHTML.replace(/<[^>]*>/g, '').trim();
+  if (!content) { toast('Please add some content before submitting.', true); return; }
+  const payload = {
+    title, excerpt: document.getElementById('fExcerpt').value.trim(),
+    category: document.getElementById('fCategory').value.trim(),
+    read_time: parseInt(document.getElementById('fReadTime').value) || null,
+    cover_image: document.getElementById('fCoverImage').value || null,
+    content: document.getElementById('rteEditor').innerHTML,
+    published: false, status: 'submitted',
+    author_name: currentWriter.name, author_id: currentWriter.id,
+    author_bio: currentWriter.bio || null,
+    updated_at: new Date().toISOString()
+  };
+  let error;
+  if (currentId) {
+    ({ error } = await db.from('posts').update(payload).eq('id', currentId));
+  } else {
+    payload.date = new Date().toISOString();
+    const res = await db.from('posts').insert(payload).select('id').single();
+    error = res.error; if (!error) currentId = res.data.id;
+  }
+  if (error) { toast('Error: ' + error.message, true); return; }
+  toast('Submitted! Omi will review and publish your post.');
+  loadMyPosts();
+  // Refresh the open post to show submitted state
+  if (currentId) openPost(currentId);
+}
+
+function handleImg(e) {
+  const file = e.target.files[0]; if (!file) return;
+  if (file.size > 1.2*1024*1024) { toast('Image over 1MB — please use a URL instead.', true); e.target.value=''; return; }
+  const r = new FileReader();
+  r.onload = ev => { document.getElementById('fCoverImage').value = ev.target.result; setImgPreview(ev.target.result); };
+  r.readAsDataURL(file);
+}
+function pasteUrl() {
+  const url = prompt('Paste image URL:');
+  if (url && url.startsWith('http')) { document.getElementById('fCoverImage').value = url; setImgPreview(url); }
+}
+function clearImg() { document.getElementById('fCoverImage').value=''; setImgPreview(''); document.getElementById('imgFile').value=''; }
+function setImgPreview(src) {
+  document.getElementById('imgPreview').innerHTML = src
+    ? `<img src="${src}" onerror="this.parentElement.innerHTML='<div class=img-preview-empty>Could not load</div>'">`
+    : '<div class="img-preview-empty">No image selected</div>';
+}
+function cmd(c,v=null){document.getElementById('rteEditor').focus();document.execCommand(c,false,v);syncToolbar();}
+function setSize(s){
+  if(!s)return;
+  const px={small:'14px',normal:'16px',large:'22px',huge:'32px'}[s];
+  const sel=window.getSelection();if(!sel||sel.isCollapsed)return;
+  const range=sel.getRangeAt(0);const span=document.createElement('span');
+  span.style.fontSize=px;try{range.surroundContents(span);}catch(e){}
+}
+function syncToolbar(){
+  document.getElementById('btnBold').classList.toggle('on',document.queryCommandState('bold'));
+  document.getElementById('btnItalic').classList.toggle('on',document.queryCommandState('italic'));
+  document.getElementById('btnUnder').classList.toggle('on',document.queryCommandState('underline'));
+}
+function fmtDate(s){return s?new Date(s).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}):'—';}
+let toastTimer;
+function toast(msg,isErr=false){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.className='show'+(isErr?' err':'');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.className='',3500);
+}
+</script>
+</body>
+</html>

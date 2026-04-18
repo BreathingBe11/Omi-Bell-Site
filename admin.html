@@ -8,115 +8,156 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
-  --black: #0A0A0A; --white: #F9F7F4; --teal: #007B8F; --teal-light: #0CB6D4;
-  --sand: #E8E0D4; --sand-dark: #C9BDB0;
-  --bg: #F9F7F4; --surface: #FFFFFF; --border: #E8E0D4;
-  --text: #0A0A0A; --muted: rgba(10,10,10,0.45); --danger: #c0392b;
+  --black:#0A0A0A;--white:#F9F7F4;--teal:#007B8F;--teal-light:#0CB6D4;
+  --sand:#E8E0D4;--sand-dark:#C9BDB0;
+  --bg:#F9F7F4;--surface:#FFFFFF;--border:#E8E0D4;
+  --text:#0A0A0A;--muted:rgba(10,10,10,0.45);--danger:#c0392b;
+  --amber:#B45309;--amber-bg:#FEF3C7;
 }
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
 
 /* LOGIN */
-#loginScreen { display: flex; align-items: center; justify-content: center; min-height: 100vh; flex-direction: column; gap: 2rem; padding: 2rem; }
-.login-logo { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 300; letter-spacing: 0.1em; }
-.login-card { background: var(--surface); border: 1px solid var(--border); padding: 2.5rem 3rem; width: 100%; max-width: 380px; }
-.login-label { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--teal); display: block; margin-bottom: 1.2rem; text-align: center; }
-.login-input { width: 100%; padding: 0.8rem 1rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 1rem; margin-bottom: 1rem; outline: none; transition: border-color 0.2s; box-shadow: inset 0 1px 3px rgba(0,0,0,0.04); }
-.login-input:focus { border-color: var(--teal); }
-.login-input::placeholder { color: var(--muted); }
-.login-btn { width: 100%; padding: 0.8rem; background: var(--teal); color: var(--white); border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; transition: background 0.2s; }
-.login-btn:hover { background: var(--teal-light); }
-.login-error { color: #e74c3c; font-size: 0.82rem; margin-top: 0.6rem; text-align: center; display: none; }
+#loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:2rem;padding:2rem;}
+.login-logo{font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:300;letter-spacing:0.1em;}
+.login-card{background:var(--surface);border:1px solid var(--border);padding:2.5rem 3rem;width:100%;max-width:380px;box-shadow:0 4px 20px rgba(0,0,0,0.06);}
+.login-label{font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--teal);display:block;margin-bottom:1.2rem;text-align:center;}
+.login-input{width:100%;padding:0.8rem 1rem;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'DM Sans',sans-serif;font-size:1rem;margin-bottom:1rem;outline:none;transition:border-color 0.2s;}
+.login-input:focus{border-color:var(--teal);}
+.login-input::placeholder{color:var(--muted);}
+.login-btn{width:100%;padding:0.8rem;background:var(--teal);color:var(--white);border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:0.78rem;letter-spacing:0.14em;text-transform:uppercase;transition:background 0.2s;}
+.login-btn:hover{background:var(--teal-light);}
+.login-error{color:var(--danger);font-size:0.82rem;margin-top:0.6rem;text-align:center;display:none;}
 
 /* SHELL */
-#adminShell { display: none; min-height: 100vh; }
-.admin-top { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; }
-.admin-brand { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; letter-spacing: 0.08em; }
-.admin-brand span { color: var(--teal); }
-.top-actions { display: flex; gap: 0.8rem; align-items: center; }
-.btn-sm { padding: 0.45rem 1rem; font-family: 'DM Sans', sans-serif; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; border: none; cursor: pointer; transition: all 0.2s; }
-.btn-teal { background: var(--teal); color: var(--white); }
-.btn-teal:hover { background: var(--teal-light); }
-.btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border) !important; }
-.btn-ghost:hover { color: var(--text); }
-.view-link { color: var(--muted); font-size: 0.72rem; text-decoration: none; }
-.view-link:hover { color: var(--teal-light); }
+#adminShell{display:none;min-height:100vh;}
+.admin-top{display:flex;align-items:center;justify-content:space-between;padding:0.9rem 2rem;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;box-shadow:0 1px 0 var(--sand);}
+.admin-brand{font-family:'Cormorant Garamond',serif;font-size:1.1rem;letter-spacing:0.08em;}
+.admin-brand span{color:var(--teal);}
+.admin-badge{display:inline-block;background:var(--teal);color:var(--white);font-size:0.55rem;letter-spacing:0.12em;text-transform:uppercase;padding:0.15rem 0.5rem;margin-left:0.6rem;vertical-align:middle;}
+.top-actions{display:flex;gap:0.8rem;align-items:center;}
+.btn-sm{padding:0.45rem 1rem;font-family:'DM Sans',sans-serif;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;border:none;}
+.btn-teal{background:var(--teal);color:var(--white);}
+.btn-teal:hover{background:var(--teal-light);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)!important;}
+.btn-ghost:hover{color:var(--text);}
+.view-link{color:var(--muted);font-size:0.72rem;text-decoration:none;}
+.view-link:hover{color:var(--teal);}
 
-.admin-body { display: flex; min-height: calc(100vh - 54px); }
+.admin-body{display:flex;min-height:calc(100vh - 55px);}
 
-/* POSTS LIST */
-.posts-panel { width: 320px; flex-shrink: 0; border-right: 1px solid var(--border); overflow-y: auto; max-height: calc(100vh - 54px); position: sticky; top: 54px; }
-.panel-head { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-.panel-title { font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
-.post-item { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem; }
-.post-item:hover { background: rgba(255,255,255,0.03); }
-.post-item.selected { background: rgba(0,123,143,0.1); border-left: 2px solid var(--teal); padding-left: calc(1.5rem - 2px); }
-.post-item-title { font-size: 0.88rem; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0.25rem; }
-.post-item-date { font-size: 0.68rem; color: var(--muted); }
-.status { display: inline-block; padding: 0.15rem 0.5rem; font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; flex-shrink: 0; margin-top: 0.1rem; }
-.status-live { background: rgba(0,123,143,0.2); color: var(--teal-light); }
-.status-draft { background: rgba(232,224,212,0.08); color: var(--muted); }
-.posts-empty { padding: 2rem 1.5rem; text-align: center; font-size: 0.82rem; color: var(--muted); font-style: italic; }
+/* LEFT PANEL */
+.left-panel{width:300px;flex-shrink:0;border-right:1px solid var(--border);overflow-y:auto;max-height:calc(100vh - 55px);position:sticky;top:55px;background:var(--surface);}
+.panel-tabs{display:flex;border-bottom:1px solid var(--border);}
+.panel-tab{flex:1;padding:0.8rem;font-size:0.68rem;letter-spacing:0.12em;text-transform:uppercase;text-align:center;cursor:pointer;color:var(--muted);border:none;background:transparent;transition:all 0.2s;position:relative;font-family:'DM Sans',sans-serif;}
+.panel-tab.active{color:var(--teal);}
+.panel-tab.active::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--teal);}
+.tab-badge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:var(--amber);color:white;border-radius:50%;font-size:0.6rem;margin-left:4px;}
+.filter-bar{display:flex;border-bottom:1px solid var(--border);overflow-x:auto;}
+.filter-btn{padding:0.5rem 0.7rem;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;color:var(--muted);border:none;background:transparent;white-space:nowrap;transition:all 0.2s;font-family:'DM Sans',sans-serif;border-bottom:2px solid transparent;}
+.filter-btn.active{color:var(--teal);border-bottom-color:var(--teal);}
+.post-item{padding:0.85rem 1.2rem;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.15s;}
+.post-item:hover{background:rgba(0,123,143,0.04);}
+.post-item.selected{background:rgba(0,123,143,0.08);border-left:2px solid var(--teal);padding-left:calc(1.2rem - 2px);}
+.post-item.submitted-item{border-left:3px solid var(--amber);padding-left:calc(1.2rem - 3px);background:#FFFBF0;}
+.post-item.submitted-item:hover{background:var(--amber-bg);}
+.post-item-title{font-size:0.84rem;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:0.25rem;}
+.post-item-meta{font-size:0.64rem;color:var(--muted);display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;}
+.post-item-author{color:var(--teal);font-weight:500;}
+.status-pill{display:inline-block;padding:0.1rem 0.45rem;font-size:0.56rem;letter-spacing:0.1em;text-transform:uppercase;}
+.s-live{background:rgba(0,123,143,0.12);color:var(--teal);}
+.s-draft{background:rgba(10,10,10,0.07);color:var(--muted);}
+.s-scheduled{background:#EFF6FF;color:#0369a1;}
+.s-submitted{background:var(--amber-bg);color:var(--amber);font-weight:500;}
+.posts-empty{padding:2rem 1.2rem;text-align:center;font-size:0.82rem;color:var(--muted);font-style:italic;}
+
+/* WRITERS TAB */
+#writersTab{display:none;}
+.writers-section{padding:1.2rem;border-bottom:1px solid var(--border);}
+.writers-section-title{font-size:0.62rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-bottom:1rem;display:block;}
+.add-writer-form{display:flex;flex-direction:column;gap:0.6rem;}
+.w-input{padding:0.55rem 0.7rem;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.85rem;outline:none;transition:border-color 0.2s;width:100%;}
+.w-input:focus{border-color:var(--teal);}
+.w-input::placeholder{color:var(--muted);}
+.btn-add-writer{padding:0.55rem;background:var(--teal);color:var(--white);border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;transition:background 0.2s;}
+.btn-add-writer:hover{background:var(--teal-light);}
+.writer-card{padding:0.9rem 1.2rem;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:0.8rem;}
+.writer-card.inactive{opacity:0.5;}
+.writer-name{font-size:0.88rem;margin-bottom:0.25rem;}
+.writer-creds{font-size:0.68rem;color:var(--muted);line-height:1.7;}
+.writer-creds strong{color:var(--text);}
+.writer-portal-link{font-size:0.65rem;color:var(--teal);text-decoration:none;}
+.writer-portal-link:hover{text-decoration:underline;}
+.btn-writer-action{padding:0.2rem 0.5rem;font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;border:none;background:transparent;font-family:'DM Sans',sans-serif;}
+.btn-deactivate{color:var(--danger);}
+.btn-deactivate:hover{text-decoration:underline;}
+.btn-reactivate{color:var(--teal);}
+.btn-reactivate:hover{text-decoration:underline;}
 
 /* EDITOR */
-.editor-panel { flex: 1; overflow-y: auto; padding: 2rem 2.5rem; max-height: calc(100vh - 54px); }
-.editor-welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; text-align: center; color: var(--muted); }
-.editor-welcome h3 { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; font-weight: 300; margin-bottom: 0.5rem; color: var(--text); }
-
-.field-group { margin-bottom: 1.5rem; }
-.field-label { display: block; font-size: 0.62rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
-.field-input { width: 100%; padding: 0.7rem 0.9rem; background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.92rem; outline: none; transition: border-color 0.2s; resize: vertical; }
-.field-input:focus { border-color: var(--teal); }
-.field-input::placeholder { color: var(--muted); }
-.title-input { font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; font-weight: 300; }
-.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-
-/* IMAGE */
-.img-preview { height: 130px; background: var(--bg); border: 1px dashed var(--sand-dark); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 0.6rem; }
-.img-preview img { width: 100%; height: 100%; object-fit: cover; }
-.img-preview-empty { font-size: 0.75rem; color: var(--muted); }
-.img-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
-.img-btn { padding: 0.35rem 0.8rem; background: transparent; color: var(--teal); border: 1px solid var(--teal); font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: all 0.2s; }
-.img-btn:hover { background: var(--teal); color: var(--white); }
-.img-btn-muted { color: var(--muted); border-color: var(--border); }
-.img-btn-muted:hover { background: transparent; color: var(--text); border-color: rgba(232,224,212,0.3); }
-.img-note { font-size: 0.65rem; color: var(--muted); }
-
-/* RICH TEXT */
-.rte-wrap { border: 1px solid var(--border); }
-.rte-toolbar { display: flex; flex-wrap: wrap; gap: 2px; padding: 0.5rem; border-bottom: 1px solid var(--border); background: #F0EBE4; }
-.rte-btn { padding: 0.28rem 0.5rem; min-width: 30px; height: 28px; background: transparent; border: none; color: var(--black); font-family: 'DM Sans', sans-serif; font-size: 0.8rem; cursor: pointer; transition: background 0.15s; display: flex; align-items: center; justify-content: center; }
-.rte-btn:hover { background: rgba(0,123,143,0.1); }
-.rte-btn.on { background: var(--teal); color: var(--white); }
-.rte-sep { width: 1px; background: var(--border); margin: 0 3px; height: 26px; align-self: center; }
-.rte-select { height: 28px; padding: 0 0.4rem; background: #FFFFFF; border: 1px solid var(--border); color: var(--black); font-family: 'DM Sans', sans-serif; font-size: 0.76rem; cursor: pointer; outline: none; }
-.rte-color-wrap { width: 30px; height: 28px; border: 1px solid var(--border); position: relative; overflow: hidden; cursor: pointer; }
-.rte-color-swatch { width: 100%; height: 100%; pointer-events: none; background: #e8e0d4; }
-.rte-color-wrap input[type="color"] { position: absolute; top: -4px; left: -4px; width: calc(100% + 8px); height: calc(100% + 8px); border: none; opacity: 0; cursor: pointer; }
-.rte-editor { min-height: 300px; padding: 1.2rem; outline: none; line-height: 1.75; color: var(--black); font-size: 0.95rem; background: #FFFFFF; }
-.rte-editor:empty::before { content: attr(data-placeholder); color: var(--muted); pointer-events: none; }
-.rte-editor h2,.rte-editor h3 { font-family: 'Cormorant Garamond', serif; font-weight: 400; margin: 1rem 0 0.5rem; }
-.rte-editor ul,.rte-editor ol { margin-left: 1.5rem; }
-.rte-editor blockquote { border-left: 3px solid var(--teal); padding-left: 1rem; color: var(--muted); font-style: italic; margin: 1rem 0; }
-
-/* ACTIONS */
-.editor-actions { display: flex; align-items: center; gap: 1rem; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
-.btn-publish { padding: 0.7rem 1.8rem; background: var(--teal); color: var(--white); border: none; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: background 0.2s; }
-.btn-publish:hover { background: var(--teal-light); }
-.btn-draft { padding: 0.7rem 1.8rem; background: transparent; color: var(--text); border: 1px solid var(--border); font-family: 'DM Sans', sans-serif; font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: all 0.2s; }
-.btn-draft:hover { border-color: var(--text); }
-.btn-delete { padding: 0.7rem 1rem; background: transparent; color: var(--danger); border: 1px solid transparent; font-family: 'DM Sans', sans-serif; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; margin-left: auto; transition: all 0.2s; }
-.btn-delete:hover { border-color: var(--danger); }
-
-/* TOAST */
-#toast { position: fixed; bottom: 2rem; right: 2rem; z-index: 1000; padding: 0.8rem 1.5rem; background: var(--teal); color: var(--white); font-size: 0.82rem; transform: translateY(100px); opacity: 0; transition: all 0.3s; }
-#toast.show { transform: translateY(0); opacity: 1; }
-#toast.err { background: var(--danger); }
-
-@media(max-width:768px){
-  .admin-body{flex-direction:column} .posts-panel{width:100%;max-height:40vh;position:static}
-  .editor-panel{padding:1.5rem} .field-row{grid-template-columns:1fr}
-}
+.editor-panel{flex:1;overflow-y:auto;padding:2rem 2.5rem;max-height:calc(100vh - 55px);}
+.editor-welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;color:var(--muted);gap:0.5rem;}
+.editor-welcome h3{font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:300;color:var(--text);}
+.review-banner{background:var(--amber-bg);border:1px solid #FDE68A;border-left:4px solid var(--amber);padding:1rem 1.2rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
+.review-banner-title{font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--amber);font-weight:500;margin-bottom:0.2rem;}
+.review-banner-sub{font-size:0.82rem;color:rgba(180,83,9,0.8);}
+.btn-return{padding:0.4rem 0.9rem;background:transparent;color:var(--amber);border:1px solid var(--amber);font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+.btn-return:hover{background:var(--amber);color:white;}
+.author-field{display:flex;align-items:center;gap:0.8rem;padding:0.7rem 1rem;background:rgba(0,123,143,0.05);border:1px solid rgba(0,123,143,0.15);margin-bottom:1.5rem;}
+.author-field-label{font-size:0.62rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);white-space:nowrap;}
+.author-field-name{font-size:0.9rem;color:var(--teal);font-weight:500;}
+.field-group{margin-bottom:1.5rem;}
+.field-label{display:block;font-size:0.62rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem;}
+.field-input{width:100%;padding:0.7rem 0.9rem;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.92rem;outline:none;transition:border-color 0.2s;resize:vertical;}
+.field-input:focus{border-color:var(--teal);}
+.field-input::placeholder{color:var(--muted);}
+.title-input{font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:300;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.img-preview{height:130px;background:var(--bg);border:1px dashed var(--sand-dark);display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:0.6rem;}
+.img-preview img{width:100%;height:100%;object-fit:cover;}
+.img-preview-empty{font-size:0.75rem;color:var(--muted);}
+.img-actions{display:flex;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.4rem;}
+.img-btn{padding:0.35rem 0.8rem;background:transparent;color:var(--teal);border:1px solid var(--teal);font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;}
+.img-btn:hover{background:var(--teal);color:var(--white);}
+.img-btn-muted{color:var(--muted);border-color:var(--border);}
+.img-btn-muted:hover{background:transparent;color:var(--text);border-color:var(--sand-dark);}
+.img-note{font-size:0.65rem;color:var(--muted);}
+.rte-wrap{border:1px solid var(--border);}
+.rte-toolbar{display:flex;flex-wrap:wrap;gap:2px;padding:0.5rem;border-bottom:1px solid var(--border);background:#F0EBE4;}
+.rte-btn{padding:0.28rem 0.5rem;min-width:30px;height:28px;background:transparent;border:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.8rem;cursor:pointer;transition:background 0.15s;display:flex;align-items:center;justify-content:center;}
+.rte-btn:hover{background:rgba(0,123,143,0.1);}
+.rte-btn.on{background:var(--teal);color:var(--white);}
+.rte-sep{width:1px;background:var(--border);margin:0 3px;height:26px;align-self:center;}
+.rte-select{height:28px;padding:0 0.4rem;background:var(--white);border:1px solid var(--border);color:var(--black);font-family:'DM Sans',sans-serif;font-size:0.76rem;cursor:pointer;outline:none;}
+.rte-color-wrap{width:30px;height:28px;border:1px solid var(--border);position:relative;overflow:hidden;cursor:pointer;}
+.rte-color-swatch{width:100%;height:100%;pointer-events:none;background:#0A0A0A;}
+.rte-color-wrap input[type="color"]{position:absolute;top:-4px;left:-4px;width:calc(100% + 8px);height:calc(100% + 8px);border:none;opacity:0;cursor:pointer;}
+.rte-editor{min-height:300px;padding:1.2rem;outline:none;line-height:1.8;color:var(--black);font-size:0.95rem;background:var(--white);}
+.rte-editor:empty::before{content:attr(data-placeholder);color:var(--muted);pointer-events:none;}
+.rte-editor h2,.rte-editor h3{font-family:'Cormorant Garamond',serif;font-weight:400;margin:1rem 0 0.5rem;}
+.rte-editor ul,.rte-editor ol{margin-left:1.5rem;}
+.rte-editor blockquote{border-left:3px solid var(--teal);padding-left:1rem;color:var(--muted);font-style:italic;margin:1rem 0;}
+.schedule-box{background:#F0EBE4;border:1px solid var(--sand);padding:1rem 1.2rem;margin-bottom:1.5rem;}
+.schedule-box-label{font-size:0.62rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-bottom:0.6rem;display:block;}
+.schedule-row{display:flex;gap:0.8rem;align-items:center;flex-wrap:wrap;}
+.schedule-input{padding:0.6rem 0.8rem;background:var(--white);border:1px solid var(--border);color:var(--black);font-family:'DM Sans',sans-serif;font-size:0.88rem;outline:none;transition:border-color 0.2s;flex:1;min-width:180px;}
+.schedule-input:focus{border-color:var(--teal);}
+.schedule-clear{font-size:0.68rem;color:var(--muted);cursor:pointer;text-decoration:underline;white-space:nowrap;}
+.schedule-clear:hover{color:var(--danger);}
+.schedule-note{font-size:0.68rem;color:var(--muted);margin-top:0.5rem;}
+.editor-actions{display:flex;align-items:center;gap:0.8rem;margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border);flex-wrap:wrap;}
+.btn-publish{padding:0.7rem 1.6rem;background:var(--teal);color:var(--white);border:none;font-family:'DM Sans',sans-serif;font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background 0.2s;}
+.btn-publish:hover{background:var(--teal-light);}
+.btn-schedule{padding:0.7rem 1.6rem;background:transparent;color:var(--teal);border:1px solid var(--teal);font-family:'DM Sans',sans-serif;font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;}
+.btn-schedule:hover{background:var(--teal);color:var(--white);}
+.btn-draft{padding:0.7rem 1.4rem;background:transparent;color:var(--text);border:1px solid var(--border);font-family:'DM Sans',sans-serif;font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;}
+.btn-draft:hover{border-color:var(--sand-dark);}
+.btn-delete{padding:0.7rem 1rem;background:transparent;color:var(--danger);border:1px solid transparent;font-family:'DM Sans',sans-serif;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;margin-left:auto;transition:all 0.2s;}
+.btn-delete:hover{border-color:var(--danger);}
+#toast{position:fixed;bottom:2rem;right:2rem;z-index:1000;padding:0.8rem 1.5rem;background:var(--teal);color:var(--white);font-size:0.82rem;transform:translateY(100px);opacity:0;transition:all 0.3s;}
+#toast.show{transform:translateY(0);opacity:1;}
+#toast.err{background:var(--danger);}
+@media(max-width:768px){.admin-body{flex-direction:column}.left-panel{width:100%;max-height:40vh;position:static}.editor-panel{padding:1.5rem}.field-row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -124,8 +165,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 <div id="loginScreen">
   <div class="login-logo">Omi Bell</div>
   <div class="login-card">
-    <span class="login-label">Journal Admin</span>
-    <input type="password" id="pwInput" class="login-input" placeholder="Password" onkeydown="if(event.key==='Enter')login()">
+    <span class="login-label">Super Admin</span>
+    <input type="password" id="pwInput" class="login-input" placeholder="Admin password" onkeydown="if(event.key==='Enter')login()">
     <button class="login-btn" onclick="login()">Enter</button>
     <p class="login-error" id="loginErr">Incorrect password.</p>
   </div>
@@ -133,30 +174,69 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 
 <div id="adminShell">
   <div class="admin-top">
-    <div class="admin-brand">Omi Bell · <span>Journal</span></div>
+    <div class="admin-brand">Omi Bell · <span>Journal</span><span class="admin-badge">Super Admin</span></div>
     <div class="top-actions">
       <a href="blog.html" target="_blank" class="view-link">View Blog ↗</a>
+      <a href="writer.html" target="_blank" class="view-link" style="margin-left:0.3rem">Writer Portal ↗</a>
       <button class="btn-sm btn-teal" onclick="newPost()">+ New Post</button>
       <button class="btn-sm btn-ghost" onclick="logout()">Log Out</button>
     </div>
   </div>
 
   <div class="admin-body">
-    <div class="posts-panel">
-      <div class="panel-head">
-        <span class="panel-title">All Posts</span>
-        <span id="postCount" style="font-size:0.68rem;color:var(--muted);">—</span>
+    <div class="left-panel">
+      <div class="panel-tabs">
+        <button class="panel-tab active" id="tabPosts" onclick="switchTab('posts')">
+          Posts <span class="tab-badge" id="submittedBadge" style="display:none">0</span>
+        </button>
+        <button class="panel-tab" id="tabWriters" onclick="switchTab('writers')">Writers</button>
       </div>
-      <div id="postList"></div>
+
+      <div id="postsTab">
+        <div class="filter-bar">
+          <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+          <button class="filter-btn" onclick="setFilter('submitted',this)">Submitted</button>
+          <button class="filter-btn" onclick="setFilter('published',this)">Live</button>
+          <button class="filter-btn" onclick="setFilter('scheduled',this)">Scheduled</button>
+          <button class="filter-btn" onclick="setFilter('draft',this)">Drafts</button>
+        </div>
+        <div id="postList"><div class="posts-empty">Loading…</div></div>
+      </div>
+
+      <div id="writersTab" style="display:none">
+        <div class="writers-section">
+          <span class="writers-section-title">Add New Writer</span>
+          <div class="add-writer-form">
+            <input type="text" id="wName" class="w-input" placeholder="Full name">
+            <input type="password" id="wPassword" class="w-input" placeholder="Create a password for them">
+            <textarea id="wBio" class="w-input" rows="2" placeholder="Short bio (optional)" style="resize:vertical"></textarea>
+            <button class="btn-add-writer" onclick="addWriter()">Add Writer</button>
+          </div>
+        </div>
+        <div id="writersList"><div class="posts-empty">No writers yet.</div></div>
+      </div>
     </div>
 
     <div class="editor-panel" id="editorPanel">
       <div class="editor-welcome" id="editorWelcome">
         <h3>Your Journal</h3>
-        <p>Select a post to edit, or create a new one.</p>
+        <p>Select a post or create a new one.<br>Check the Submitted filter for guest posts awaiting review.</p>
       </div>
 
-      <div id="editorForm" style="display:none;">
+      <div id="editorForm" style="display:none">
+        <div class="review-banner" id="reviewBanner" style="display:none">
+          <div>
+            <div class="review-banner-title">⚑ Guest Submission — Awaiting Review</div>
+            <div class="review-banner-sub" id="reviewBannerSub"></div>
+          </div>
+          <button class="btn-return" onclick="returnToDraft()">Return to Writer</button>
+        </div>
+
+        <div class="author-field">
+          <span class="author-field-label">Author</span>
+          <span class="author-field-name" id="authorDisplay">Omi Bell</span>
+        </div>
+
         <div class="field-group">
           <label class="field-label">Title</label>
           <input type="text" id="fTitle" class="field-input title-input" placeholder="Write your title here…">
@@ -168,7 +248,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
         <div class="field-row">
           <div class="field-group">
             <label class="field-label">Category</label>
-            <input type="text" id="fCategory" class="field-input" placeholder="e.g. Wellness, Rest, Leadership…">
+            <input type="text" id="fCategory" class="field-input" placeholder="e.g. Wellness, Rest…">
           </div>
           <div class="field-group">
             <label class="field-label">Read Time (min)</label>
@@ -176,7 +256,6 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
           </div>
         </div>
 
-        <!-- COVER IMAGE -->
         <div class="field-group">
           <label class="field-label">Cover Image</label>
           <div class="img-preview" id="imgPreview"><div class="img-preview-empty">No image selected</div></div>
@@ -186,23 +265,22 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
             <button class="img-btn" onclick="pasteUrl()">Paste URL</button>
             <button class="img-btn img-btn-muted" onclick="clearImg()">Remove</button>
           </div>
-          <p class="img-note">Keep under 1MB for uploads. For larger images, use a URL from Cloudinary or any image host.</p>
+          <p class="img-note">Keep under 1MB for uploads. For larger images, paste a URL.</p>
           <input type="hidden" id="fCoverImage">
         </div>
 
-        <!-- RICH TEXT EDITOR -->
         <div class="field-group">
           <label class="field-label">Article Content</label>
           <div class="rte-wrap">
             <div class="rte-toolbar">
-              <select class="rte-select" onchange="cmd('fontName',this.value);this.blur()" title="Font">
+              <select class="rte-select" onchange="cmd('fontName',this.value);this.blur()">
                 <option value="'DM Sans',sans-serif">DM Sans</option>
                 <option value="'Cormorant Garamond',serif">Garamond</option>
                 <option value="Georgia,serif">Georgia</option>
                 <option value="'Times New Roman',serif">Times New Roman</option>
                 <option value="'Courier New',monospace">Courier</option>
               </select>
-              <select class="rte-select" onchange="setSize(this.value);this.blur()" title="Size">
+              <select class="rte-select" onchange="setSize(this.value);this.blur()">
                 <option value="">Size</option>
                 <option value="small">Small</option>
                 <option value="normal">Normal</option>
@@ -210,36 +288,43 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
                 <option value="huge">Huge</option>
               </select>
               <div class="rte-sep"></div>
-              <button class="rte-btn" id="btnBold" onclick="cmd('bold')" title="Bold"><strong>B</strong></button>
-              <button class="rte-btn" id="btnItalic" onclick="cmd('italic')" title="Italic"><em>I</em></button>
-              <button class="rte-btn" id="btnUnder" onclick="cmd('underline')" title="Underline"><u>U</u></button>
+              <button class="rte-btn" id="btnBold" onclick="cmd('bold')"><strong>B</strong></button>
+              <button class="rte-btn" id="btnItalic" onclick="cmd('italic')"><em>I</em></button>
+              <button class="rte-btn" id="btnUnder" onclick="cmd('underline')"><u>U</u></button>
               <div class="rte-sep"></div>
-              <div class="rte-color-wrap" title="Text color">
-                <div class="rte-color-swatch" id="colorSwatch"></div>
-                <input type="color" value="#e8e0d4" oninput="cmd('foreColor',this.value);document.getElementById('colorSwatch').style.background=this.value">
-              </div>
+              <div class="rte-color-wrap"><div class="rte-color-swatch" id="colorSwatch"></div><input type="color" value="#0A0A0A" oninput="cmd('foreColor',this.value);document.getElementById('colorSwatch').style.background=this.value"></div>
               <div class="rte-sep"></div>
-              <button class="rte-btn" onclick="cmd('justifyLeft')" title="Left">≡</button>
-              <button class="rte-btn" onclick="cmd('justifyCenter')" title="Center">≡</button>
-              <button class="rte-btn" onclick="cmd('justifyRight')" title="Right">≡</button>
+              <button class="rte-btn" onclick="cmd('justifyLeft')">⬤◻◻</button>
+              <button class="rte-btn" onclick="cmd('justifyCenter')">◻⬤◻</button>
+              <button class="rte-btn" onclick="cmd('justifyRight')">◻◻⬤</button>
               <div class="rte-sep"></div>
-              <button class="rte-btn" onclick="cmd('insertUnorderedList')" title="Bullets">• —</button>
-              <button class="rte-btn" onclick="cmd('insertOrderedList')" title="Numbers">1. —</button>
+              <button class="rte-btn" onclick="cmd('insertUnorderedList')">• —</button>
+              <button class="rte-btn" onclick="cmd('insertOrderedList')">1. —</button>
               <div class="rte-sep"></div>
-              <button class="rte-btn" onclick="cmd('formatBlock','h2')" title="Heading">H2</button>
-              <button class="rte-btn" onclick="cmd('formatBlock','h3')" title="Subheading">H3</button>
-              <button class="rte-btn" onclick="cmd('formatBlock','blockquote')" title="Quote">"</button>
-              <button class="rte-btn" onclick="cmd('formatBlock','p')" title="Normal">¶</button>
-              <button class="rte-btn" onclick="cmd('insertHorizontalRule')" title="Divider">—</button>
+              <button class="rte-btn" onclick="cmd('formatBlock','h2')">H2</button>
+              <button class="rte-btn" onclick="cmd('formatBlock','h3')">H3</button>
+              <button class="rte-btn" onclick="cmd('formatBlock','blockquote')">"</button>
+              <button class="rte-btn" onclick="cmd('formatBlock','p')">¶</button>
+              <button class="rte-btn" onclick="cmd('insertHorizontalRule')">—</button>
             </div>
             <div class="rte-editor" id="rteEditor" contenteditable="true" data-placeholder="Start writing your article here…" onmouseup="syncToolbar()" onkeyup="syncToolbar()"></div>
           </div>
         </div>
 
+        <div class="schedule-box">
+          <span class="schedule-box-label">Schedule Publishing</span>
+          <div class="schedule-row">
+            <input type="datetime-local" id="fSchedule" class="schedule-input">
+            <span class="schedule-clear" onclick="clearSchedule()">Clear</span>
+          </div>
+          <p class="schedule-note">Leave blank to publish immediately. Set a future date/time to schedule.</p>
+        </div>
+
         <div class="editor-actions">
-          <button class="btn-publish" onclick="savePost(true)">Publish</button>
-          <button class="btn-draft" onclick="savePost(false)">Save Draft</button>
-          <button class="btn-delete" id="btnDelete" style="display:none" onclick="deletePost()">Delete Post</button>
+          <button class="btn-publish" onclick="savePost('published')">Publish Now</button>
+          <button class="btn-schedule" onclick="schedulePost()">Schedule</button>
+          <button class="btn-draft" onclick="savePost('draft')">Save Draft</button>
+          <button class="btn-delete" id="btnDelete" style="display:none" onclick="deletePost()">Delete</button>
         </div>
       </div>
     </div>
@@ -249,22 +334,21 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 <div id="toast"></div>
 
 <script>
-// ── CONFIG ────────────────────────────────────────────────
 const ADMIN_PASSWORD = 'omibell2025'; // ← change this!
+const ADMIN_NAME = 'Omi Bell';
 const db = supabase.createClient(
   'https://mfevhwdtpftmlsksrgdi.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mZXZod2R0cGZ0bWxza3NyZ2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNzg1MTQsImV4cCI6MjA5MTg1NDUxNH0.tjWrwpoL24y2WhlkexWLHxYeHw_Yu9qfHM4Qj1VE6XA'
 );
-// ─────────────────────────────────────────────────────────
 
 let posts = [];
 let currentId = null;
+let currentFilter = 'all';
 
-// AUTH
-window.onload = () => { if (sessionStorage.getItem('ob_auth') === 'yes') showAdmin(); };
+window.onload = () => { if (sessionStorage.getItem('ob_admin') === 'yes') showAdmin(); };
 function login() {
   if (document.getElementById('pwInput').value === ADMIN_PASSWORD) {
-    sessionStorage.setItem('ob_auth', 'yes');
+    sessionStorage.setItem('ob_admin', 'yes');
     document.getElementById('loginErr').style.display = 'none';
     showAdmin();
   } else {
@@ -273,54 +357,87 @@ function login() {
     document.getElementById('pwInput').focus();
   }
 }
-function logout() { sessionStorage.removeItem('ob_auth'); location.reload(); }
-
+function logout() { sessionStorage.removeItem('ob_admin'); location.reload(); }
 async function showAdmin() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('adminShell').style.display = 'block';
-  loadList();
+  loadList(); loadWriters();
 }
 
-// POST LIST
+function switchTab(tab) {
+  document.getElementById('postsTab').style.display = tab === 'posts' ? 'block' : 'none';
+  document.getElementById('writersTab').style.display = tab === 'writers' ? 'block' : 'none';
+  document.getElementById('tabPosts').classList.toggle('active', tab === 'posts');
+  document.getElementById('tabWriters').classList.toggle('active', tab === 'writers');
+}
+
+function setFilter(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+  renderList();
+}
+
 async function loadList() {
-  const el = document.getElementById('postList');
-  el.innerHTML = '<div class="posts-empty">Loading…</div>';
-  const { data, error } = await db.from('posts').select('id,title,date,published').order('date', { ascending: false });
-  if (error) { el.innerHTML = `<div class="posts-empty">${error.message}</div>`; return; }
+  const { data, error } = await db.from('posts')
+    .select('id,title,date,published,status,author_name,author_id')
+    .order('date', { ascending: false });
+  if (error) { document.getElementById('postList').innerHTML = `<div class="posts-empty">${error.message}</div>`; return; }
   posts = data || [];
-  document.getElementById('postCount').textContent = posts.length;
-  if (!posts.length) { el.innerHTML = '<div class="posts-empty">No posts yet.</div>'; return; }
+  const submitted = posts.filter(p => p.status === 'submitted').length;
+  const badge = document.getElementById('submittedBadge');
+  if (submitted > 0) { badge.textContent = submitted; badge.style.display = 'inline-flex'; }
+  else { badge.style.display = 'none'; }
+  renderList();
+}
+
+function getStatus(p) {
+  if (p.status === 'submitted') return { cls: 's-submitted', label: 'Submitted' };
+  if (!p.published) return { cls: 's-draft', label: 'Draft' };
+  if (new Date(p.date) > new Date()) return { cls: 's-scheduled', label: 'Scheduled' };
+  return { cls: 's-live', label: 'Live' };
+}
+
+function renderList() {
+  const el = document.getElementById('postList');
+  const now = new Date();
+  let filtered = posts;
+  if (currentFilter === 'submitted') filtered = posts.filter(p => p.status === 'submitted');
+  else if (currentFilter === 'published') filtered = posts.filter(p => p.published && p.status !== 'scheduled' && new Date(p.date) <= now);
+  else if (currentFilter === 'scheduled') filtered = posts.filter(p => p.published && new Date(p.date) > now);
+  else if (currentFilter === 'draft') filtered = posts.filter(p => !p.published && p.status !== 'submitted');
+  if (!filtered.length) { el.innerHTML = '<div class="posts-empty">No posts here.</div>'; return; }
   el.innerHTML = '';
-  posts.forEach(p => {
+  filtered.forEach(p => {
+    const st = getStatus(p);
+    const isGuest = !!p.author_id;
     const d = document.createElement('div');
-    d.className = 'post-item' + (p.id === currentId ? ' selected' : '');
+    d.className = `post-item${p.id === currentId ? ' selected' : ''}${p.status === 'submitted' ? ' submitted-item' : ''}`;
     d.dataset.id = p.id;
     d.onclick = () => openPost(p.id);
     d.innerHTML = `
-      <div style="flex:1;min-width:0">
-        <div class="post-item-title">${p.title || '(Untitled)'}</div>
-        <div class="post-item-date">${fmtDate(p.date)}</div>
-      </div>
-      <span class="status ${p.published ? 'status-live' : 'status-draft'}">${p.published ? 'Live' : 'Draft'}</span>`;
+      <div class="post-item-title">${p.title || '(Untitled)'}</div>
+      <div class="post-item-meta">
+        <span class="status-pill ${st.cls}">${st.label}</span>
+        ${isGuest ? `<span class="post-item-author">${p.author_name || 'Guest'}</span>` : ''}
+        <span>${fmtDate(p.date)}</span>
+      </div>`;
     el.appendChild(d);
   });
 }
 
-// NEW / OPEN
 function newPost() {
-  currentId = null;
-  showForm();
+  currentId = null; showForm(); clearForm();
   document.getElementById('btnDelete').style.display = 'none';
-  clearForm();
-  document.getElementById('fTitle').focus();
+  document.getElementById('reviewBanner').style.display = 'none';
+  document.getElementById('authorDisplay').textContent = ADMIN_NAME;
   document.querySelectorAll('.post-item').forEach(e => e.classList.remove('selected'));
+  document.getElementById('fTitle').focus();
 }
 
 async function openPost(id) {
   const { data, error } = await db.from('posts').select('*').eq('id', id).single();
   if (error || !data) { toast('Could not load post.', true); return; }
-  currentId = id;
-  showForm();
+  currentId = id; showForm();
   document.getElementById('btnDelete').style.display = 'inline-block';
   document.getElementById('fTitle').value = data.title || '';
   document.getElementById('fExcerpt').value = data.excerpt || '';
@@ -329,6 +446,15 @@ async function openPost(id) {
   document.getElementById('fCoverImage').value = data.cover_image || '';
   document.getElementById('rteEditor').innerHTML = data.content || '';
   setImgPreview(data.cover_image || '');
+  document.getElementById('authorDisplay').textContent = data.author_name || ADMIN_NAME;
+  if (data.date && data.published && new Date(data.date) > new Date()) {
+    const d = new Date(data.date);
+    document.getElementById('fSchedule').value = new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  } else { document.getElementById('fSchedule').value = ''; }
+  if (data.status === 'submitted') {
+    document.getElementById('reviewBanner').style.display = 'flex';
+    document.getElementById('reviewBannerSub').textContent = `Written by ${data.author_name || 'a guest writer'} — edit if needed, then publish or schedule.`;
+  } else { document.getElementById('reviewBanner').style.display = 'none'; }
   document.querySelectorAll('.post-item').forEach(e => e.classList.toggle('selected', e.dataset.id === id));
   document.getElementById('editorPanel').scrollTop = 0;
 }
@@ -338,37 +464,60 @@ function showForm() {
   document.getElementById('editorForm').style.display = 'block';
 }
 function clearForm() {
-  ['fTitle','fExcerpt','fCategory','fReadTime','fCoverImage'].forEach(id => document.getElementById(id).value = '');
+  ['fTitle','fExcerpt','fCategory','fReadTime','fCoverImage','fSchedule'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('rteEditor').innerHTML = '';
   setImgPreview('');
 }
 
-// SAVE / DELETE
-async function savePost(publish) {
+async function savePost(statusVal) {
   const title = document.getElementById('fTitle').value.trim();
   if (!title) { toast('Please enter a title.', true); return; }
+  const isPublished = statusVal === 'published' || statusVal === 'scheduled';
+  const schedVal = statusVal === 'scheduled' ? document.getElementById('fSchedule').value : null;
+  let authorName = ADMIN_NAME, authorId = null;
+  if (currentId) {
+    const ex = posts.find(p => p.id === currentId);
+    if (ex) { authorName = ex.author_name || ADMIN_NAME; authorId = ex.author_id || null; }
+  }
   const payload = {
-    title,
-    excerpt: document.getElementById('fExcerpt').value.trim(),
+    title, excerpt: document.getElementById('fExcerpt').value.trim(),
     category: document.getElementById('fCategory').value.trim(),
     read_time: parseInt(document.getElementById('fReadTime').value) || null,
     cover_image: document.getElementById('fCoverImage').value || null,
     content: document.getElementById('rteEditor').innerHTML,
-    published: publish,
+    published: isPublished, status: statusVal,
+    author_name: authorName, author_id: authorId,
     updated_at: new Date().toISOString()
   };
+  if (schedVal) payload.date = new Date(schedVal).toISOString();
   let error;
   if (currentId) {
+    if (!schedVal) delete payload.date;
     ({ error } = await db.from('posts').update(payload).eq('id', currentId));
   } else {
-    payload.date = new Date().toISOString();
+    if (!schedVal) payload.date = new Date().toISOString();
+    payload.author_name = ADMIN_NAME; payload.author_id = null;
     const res = await db.from('posts').insert(payload).select('id').single();
-    error = res.error;
-    if (!error) currentId = res.data.id;
+    error = res.error; if (!error) currentId = res.data.id;
   }
   if (error) { toast('Error: ' + error.message, true); return; }
-  toast(publish ? 'Published!' : 'Saved as draft.');
+  toast({ published:'Published!', scheduled:'Scheduled!', draft:'Saved as draft.' }[statusVal] || 'Saved.');
   loadList();
+}
+
+async function schedulePost() {
+  const v = document.getElementById('fSchedule').value;
+  if (!v) { toast('Pick a date and time to schedule.', true); return; }
+  if (new Date(v) <= new Date()) { toast('Scheduled time must be in the future.', true); return; }
+  await savePost('scheduled');
+}
+
+async function returnToDraft() {
+  if (!currentId) return;
+  const { error } = await db.from('posts').update({ status: 'draft', published: false }).eq('id', currentId);
+  if (error) { toast('Error: ' + error.message, true); return; }
+  document.getElementById('reviewBanner').style.display = 'none';
+  toast('Returned to writer as a draft.'); loadList();
 }
 
 async function deletePost() {
@@ -378,14 +527,56 @@ async function deletePost() {
   currentId = null;
   document.getElementById('editorForm').style.display = 'none';
   document.getElementById('editorWelcome').style.display = 'flex';
-  toast('Post deleted.');
-  loadList();
+  toast('Post deleted.'); loadList();
 }
 
-// IMAGE
+async function loadWriters() {
+  const { data } = await db.from('writers').select('*').order('created_at');
+  const el = document.getElementById('writersList');
+  if (!data || !data.length) { el.innerHTML = '<div class="posts-empty">No writers added yet.</div>'; return; }
+  el.innerHTML = '';
+  data.forEach(w => {
+    const d = document.createElement('div');
+    d.className = `writer-card${!w.active ? ' inactive' : ''}`;
+    d.innerHTML = `
+      <div style="flex:1;min-width:0">
+        <div class="writer-name">${w.name}</div>
+        <div class="writer-creds">
+          Password: <strong>${w.password}</strong><br>
+          ${w.bio ? `Bio: ${w.bio}<br>` : ''}
+          <a href="writer.html" target="_blank" class="writer-portal-link">Share writer portal link →</a>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.3rem;align-items:flex-end">
+        ${w.active
+          ? `<button class="btn-writer-action btn-deactivate" onclick="toggleWriter('${w.id}',false)">Deactivate</button>`
+          : `<button class="btn-writer-action btn-reactivate" onclick="toggleWriter('${w.id}',true)">Reactivate</button>`}
+      </div>`;
+    el.appendChild(d);
+  });
+}
+
+async function addWriter() {
+  const name = document.getElementById('wName').value.trim();
+  const password = document.getElementById('wPassword').value.trim();
+  const bio = document.getElementById('wBio').value.trim();
+  if (!name || !password) { toast('Name and password are required.', true); return; }
+  const { error } = await db.from('writers').insert({ name, password, bio: bio||null });
+  if (error) { toast('Error: ' + error.message, true); return; }
+  ['wName','wPassword','wBio'].forEach(id => document.getElementById(id).value = '');
+  toast(`${name} added as a writer.`); loadWriters();
+}
+
+async function toggleWriter(id, active) {
+  const { error } = await db.from('writers').update({ active }).eq('id', id);
+  if (error) { toast('Error: ' + error.message, true); return; }
+  toast(active ? 'Writer reactivated.' : 'Writer deactivated.'); loadWriters();
+}
+
+function clearSchedule() { document.getElementById('fSchedule').value = ''; }
 function handleImg(e) {
   const file = e.target.files[0]; if (!file) return;
-  if (file.size > 1.2 * 1024 * 1024) { toast('Image over 1MB — please use a URL instead.', true); e.target.value = ''; return; }
+  if (file.size > 1.2*1024*1024) { toast('Image over 1MB — please use a URL instead.', true); e.target.value=''; return; }
   const r = new FileReader();
   r.onload = ev => { document.getElementById('fCoverImage').value = ev.target.result; setImgPreview(ev.target.result); };
   r.readAsDataURL(file);
@@ -394,39 +585,31 @@ function pasteUrl() {
   const url = prompt('Paste image URL:');
   if (url && url.startsWith('http')) { document.getElementById('fCoverImage').value = url; setImgPreview(url); }
 }
-function clearImg() { document.getElementById('fCoverImage').value = ''; setImgPreview(''); document.getElementById('imgFile').value = ''; }
+function clearImg() { document.getElementById('fCoverImage').value=''; setImgPreview(''); document.getElementById('imgFile').value=''; }
 function setImgPreview(src) {
   document.getElementById('imgPreview').innerHTML = src
     ? `<img src="${src}" onerror="this.parentElement.innerHTML='<div class=img-preview-empty>Could not load</div>'">`
     : '<div class="img-preview-empty">No image selected</div>';
 }
-
-// RICH TEXT
-function cmd(c, v = null) { document.getElementById('rteEditor').focus(); document.execCommand(c, false, v); syncToolbar(); }
-function setSize(s) {
-  if (!s) return;
-  const px = { small:'14px', normal:'16px', large:'22px', huge:'32px' }[s];
-  const sel = window.getSelection();
-  if (!sel || sel.isCollapsed) return;
-  const range = sel.getRangeAt(0);
-  const span = document.createElement('span');
-  span.style.fontSize = px;
-  try { range.surroundContents(span); } catch(e) {}
+function cmd(c,v=null){document.getElementById('rteEditor').focus();document.execCommand(c,false,v);syncToolbar();}
+function setSize(s){
+  if(!s)return;
+  const px={small:'14px',normal:'16px',large:'22px',huge:'32px'}[s];
+  const sel=window.getSelection();if(!sel||sel.isCollapsed)return;
+  const range=sel.getRangeAt(0);const span=document.createElement('span');
+  span.style.fontSize=px;try{range.surroundContents(span);}catch(e){}
 }
-function syncToolbar() {
-  document.getElementById('btnBold').classList.toggle('on', document.queryCommandState('bold'));
-  document.getElementById('btnItalic').classList.toggle('on', document.queryCommandState('italic'));
-  document.getElementById('btnUnder').classList.toggle('on', document.queryCommandState('underline'));
+function syncToolbar(){
+  document.getElementById('btnBold').classList.toggle('on',document.queryCommandState('bold'));
+  document.getElementById('btnItalic').classList.toggle('on',document.queryCommandState('italic'));
+  document.getElementById('btnUnder').classList.toggle('on',document.queryCommandState('underline'));
 }
-
-// UTILS
-function fmtDate(s) { return s ? new Date(s).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'; }
+function fmtDate(s){return s?new Date(s).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';}
 let toastTimer;
-function toast(msg, isErr = false) {
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.className = 'show' + (isErr ? ' err' : '');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.className = '', 3000);
+function toast(msg,isErr=false){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.className='show'+(isErr?' err':'');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.className='',3200);
 }
 </script>
 </body>
