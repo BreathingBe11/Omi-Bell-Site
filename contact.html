@@ -381,15 +381,7 @@
 <!-- FORM -->
 <section class="contact-body">
 
-  <form
-    id="contactForm"
-    name="contact"
-    method="POST"
-    data-netlify="true"
-    netlify-honeypot="bot-field"
-  >
-    <input type="hidden" name="form-name" value="contact" />
-    <input class="hidden-field" name="bot-field" />
+  <form id="contactForm">
     <input type="hidden" name="inquiry-type" id="inquiryTypeInput" value="Podcast Guest" />
 
     <p class="inquiry-prompt">What are you reaching out about?</p>
@@ -488,10 +480,41 @@
     });
   });
 
-  if (window.location.search.includes('success=true')) {
-    document.getElementById('contactForm').style.display = 'none';
-    document.getElementById('successMsg').style.display = 'block';
-  }
+  document.getElementById('contactForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('.btn-submit');
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: form.querySelector('#firstName').value,
+          lastName: form.querySelector('#lastName').value,
+          email: form.querySelector('#email').value,
+          company: form.querySelector('#company').value,
+          inquiryType: document.getElementById('inquiryTypeInput').value,
+          message: form.querySelector('#message').value,
+        }),
+      });
+
+      if (res.ok) {
+        form.style.display = 'none';
+        document.getElementById('successMsg').style.display = 'block';
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Send Message →';
+        alert('Something went wrong. Please try again.');
+      }
+    } catch {
+      btn.disabled = false;
+      btn.textContent = 'Send Message →';
+      alert('Something went wrong. Please try again.');
+    }
+  });
 </script>
 </body>
 </html>

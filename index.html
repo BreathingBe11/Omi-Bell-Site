@@ -817,6 +817,81 @@
     color: var(--black);
   }
 
+  /* ── NEWSLETTER ── */
+  .newsletter {
+    background: var(--black);
+    padding: 6rem 4rem;
+    text-align: center;
+  }
+  .newsletter .section-label { color: var(--teal-light); }
+  .newsletter h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(2.2rem, 4.5vw, 3.6rem);
+    font-weight: 300;
+    color: var(--white);
+    line-height: 1.15;
+    margin-bottom: 1rem;
+  }
+  .newsletter h2 strong { font-weight: 600; display: block; }
+  .newsletter-desc {
+    color: rgba(249,247,244,0.65);
+    font-size: 1rem;
+    font-weight: 300;
+    max-width: 420px;
+    margin: 0 auto 2.5rem;
+    line-height: 1.7;
+  }
+  .newsletter-form {
+    display: flex;
+    gap: 0.75rem;
+    max-width: 540px;
+    margin: 0 auto;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .newsletter-form input {
+    flex: 1;
+    min-width: 170px;
+    padding: 0.9rem 1.2rem;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(0,123,143,0.35);
+    border-radius: 2px;
+    color: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+  }
+  .newsletter-form input::placeholder { color: rgba(249,247,244,0.4); }
+  .newsletter-form input:focus { outline: none; border-color: var(--teal); }
+  .newsletter-form button {
+    background: var(--teal);
+    color: var(--white);
+    border: none;
+    padding: 0.9rem 2rem;
+    font-size: 0.82rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 500;
+    border-radius: 2px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+  }
+  .newsletter-form button:hover { background: var(--teal-light); }
+  .newsletter-form button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .newsletter-note {
+    font-size: 0.78rem;
+    color: rgba(249,247,244,0.3);
+    margin-top: 1rem;
+  }
+  .newsletter-success { display: none; }
+  .newsletter-success p {
+    color: var(--teal-light);
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.4rem;
+    font-weight: 300;
+    font-style: italic;
+  }
+
   /* ── BOOKING CTA ── */
   .booking {
     background: var(--teal);
@@ -1087,6 +1162,9 @@
     .bb-logo-wrap { width: 180px; }
     .bb-headline { font-size: 2rem; }
     .bb-cta { width: 100%; text-align: center; }
+    .newsletter { padding: 3.5rem 1.5rem; }
+    .newsletter-form { flex-direction: column; }
+    .newsletter-form input, .newsletter-form button { width: 100%; }
     .booking { padding: 3rem 1.25rem; }
     .booking-inner h2 { font-size: 2rem; }
     .social-label { display: none; }
@@ -1391,6 +1469,22 @@
   </div>
 </section>
 
+<!-- NEWSLETTER -->
+<section class="newsletter" id="newsletter">
+  <p class="section-label">Stay in the Loop</p>
+  <h2>Rest. Reflect.<br><strong>Stay connected.</strong></h2>
+  <p class="newsletter-desc">Reflections on rest, leadership, and the art of becoming — delivered to your inbox.</p>
+  <form class="newsletter-form" id="newsletterForm">
+    <input type="text" name="name" placeholder="First name" />
+    <input type="email" name="email" placeholder="your@email.com" required />
+    <button type="submit">Subscribe →</button>
+  </form>
+  <p class="newsletter-note" id="newsletterNote">No spam. Unsubscribe anytime.</p>
+  <div class="newsletter-success" id="newsletterSuccess">
+    <p>You're in. Welcome to the slow lane.</p>
+  </div>
+</section>
+
 <!-- BOOKING CTA -->
 <section class="booking" id="booking">
   <div class="booking-inner">
@@ -1513,6 +1607,36 @@
   overlay.addEventListener('click', closeMenu);
   drawer.querySelectorAll('a').forEach(link => {
     link.addEventListener('click', closeMenu);
+  });
+
+  document.getElementById('newsletterForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    const name = form.querySelector('input[name="name"]').value;
+    const email = form.querySelector('input[name="email"]').value;
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    try {
+      const res = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email }),
+      });
+      if (res.ok) {
+        form.style.display = 'none';
+        document.getElementById('newsletterNote').style.display = 'none';
+        document.getElementById('newsletterSuccess').style.display = 'block';
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Subscribe →';
+        alert('Something went wrong. Please try again.');
+      }
+    } catch {
+      btn.disabled = false;
+      btn.textContent = 'Subscribe →';
+      alert('Something went wrong. Please try again.');
+    }
   });
 
 </script>
