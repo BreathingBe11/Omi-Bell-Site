@@ -19,6 +19,9 @@ module.exports = async function handler(req, res) {
     fields: {
       name: firstName,
       last_name: lastName || '',
+      company: company || '',
+      inquiry_type: inquiryType || '',
+      message: message || '',
     },
   };
 
