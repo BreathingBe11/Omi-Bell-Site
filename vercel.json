@@ -1,3 +1,5 @@
 {
-  "outputDirectory": "."
+  "outputDirectory": ".",
+  "cleanUrls": true,
+  "trailingSlash": false
 }
