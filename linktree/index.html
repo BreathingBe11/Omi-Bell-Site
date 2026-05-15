@@ -302,9 +302,7 @@
         <div class="email-label">Stay Connected</div>
         <div class="email-heading">Join the inner circle.</div>
         <div class="email-sub">Insights on body, business &amp; belonging &mdash; delivered to your inbox.</div>
-        <form id="email-form" name="email-signup" method="POST" data-netlify="true" netlify-honeypot="bot-field">
-          <input type="hidden" name="form-name" value="email-signup">
-          <p style="display:none"><label>Don't fill this out: <input name="bot-field"></label></p>
+        <form id="email-form">
           <div class="email-row">
             <input type="email" name="email" class="email-input" placeholder="Your email" required>
             <button type="submit" class="email-btn">Join</button>
@@ -396,13 +394,15 @@
           input.classList.add('invalid');
           return;
         }
-        fetch('/', {
+        fetch('/api/subscribe', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ 'form-name': 'email-signup', email: input.value }).toString()
-        }).then(function() {
-          form.style.display = 'none';
-          success.style.display = 'block';
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: input.value })
+        }).then(function(res) {
+          if (res.ok) {
+            form.style.display = 'none';
+            success.style.display = 'block';
+          }
         });
       }
 
