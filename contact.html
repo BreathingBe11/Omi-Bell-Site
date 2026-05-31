@@ -505,16 +505,14 @@
         form.style.display = 'none';
         document.getElementById('successMsg').style.display = 'block';
       } else {
-        const errText = await res.text();
         btn.disabled = false;
         btn.textContent = 'Send Message →';
-        alert('Error ' + res.status + ': ' + errText);
+        alert('Something went wrong. Please try again or email directly.');
       }
-    } catch (err) {
+    } catch {
       btn.disabled = false;
       btn.textContent = 'Send Message →';
-      alert('Network error: ' + err.message);
-      alert('Something went wrong. Please try again.');
+      alert('Something went wrong. Please try again or email directly.');
     }
   });
 </script>

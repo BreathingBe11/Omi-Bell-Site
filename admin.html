@@ -334,7 +334,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 <div id="toast"></div>
 
 <script>
-const ADMIN_PASSWORD = 'om1b3ll*369Fin3!'; // ← change this!
 const ADMIN_NAME = 'Omi Bell';
 const db = supabase.createClient(
   'https://mfevhwdtpftmlsksrgdi.supabase.co',
@@ -345,19 +344,40 @@ let posts = [];
 let currentId = null;
 let currentFilter = 'all';
 
-window.onload = () => { if (sessionStorage.getItem('ob_admin') === 'yes') showAdmin(); };
-function login() {
-  if (document.getElementById('pwInput').value === ADMIN_PASSWORD) {
-    sessionStorage.setItem('ob_admin', 'yes');
+window.onload = () => { if (sessionStorage.getItem('ob_admin_token')) showAdmin(); };
+
+async function login() {
+  const pw = document.getElementById('pwInput').value;
+  if (!pw) return;
+  try {
+    const r = await fetch('/api/admin-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw }),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      document.getElementById('loginErr').style.display = 'block';
+      document.getElementById('pwInput').value = '';
+      document.getElementById('pwInput').focus();
+      return;
+    }
+    sessionStorage.setItem('ob_admin_token', d.token);
     document.getElementById('loginErr').style.display = 'none';
     showAdmin();
-  } else {
+  } catch {
     document.getElementById('loginErr').style.display = 'block';
     document.getElementById('pwInput').value = '';
     document.getElementById('pwInput').focus();
   }
 }
-function logout() { sessionStorage.removeItem('ob_admin'); location.reload(); }
+function logout() { sessionStorage.removeItem('ob_admin_token'); location.reload(); }
+function authHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${sessionStorage.getItem('ob_admin_token')}`,
+  };
+}
 async function showAdmin() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('adminShell').style.display = 'block';
@@ -378,11 +398,10 @@ function setFilter(filter, btn) {
 }
 
 async function loadList() {
-  const { data, error } = await db.from('posts')
-    .select('id,title,date,published,status,author_name,author_id')
-    .order('date', { ascending: false });
-  if (error) { document.getElementById('postList').innerHTML = `<div class="posts-empty">${error.message}</div>`; return; }
-  posts = data || [];
+  const r = await fetch('/api/list-posts', { headers: { 'Authorization': `Bearer ${sessionStorage.getItem('ob_admin_token')}` } });
+  const d = await r.json();
+  if (!r.ok) { document.getElementById('postList').innerHTML = `<div class="posts-empty">Could not load posts.</div>`; return; }
+  posts = d.posts || [];
   const submitted = posts.filter(p => p.status === 'submitted').length;
   const badge = document.getElementById('submittedBadge');
   if (submitted > 0) { badge.textContent = submitted; badge.style.display = 'inline-flex'; }
@@ -435,8 +454,10 @@ function newPost() {
 }
 
 async function openPost(id) {
-  const { data, error } = await db.from('posts').select('*').eq('id', id).single();
-  if (error || !data) { toast('Could not load post.', true); return; }
+  const r = await fetch(`/api/get-post?id=${encodeURIComponent(id)}`, { headers: { 'Authorization': `Bearer ${sessionStorage.getItem('ob_admin_token')}` } });
+  const d = await r.json();
+  if (!r.ok || !d.post) { toast('Could not load post.', true); return; }
+  const data = d.post;
   currentId = id; showForm();
   document.getElementById('btnDelete').style.display = 'inline-block';
   document.getElementById('fTitle').value = data.title || '';
@@ -448,8 +469,8 @@ async function openPost(id) {
   setImgPreview(data.cover_image || '');
   document.getElementById('authorDisplay').textContent = data.author_name || ADMIN_NAME;
   if (data.date && data.published && new Date(data.date) > new Date()) {
-    const d = new Date(data.date);
-    document.getElementById('fSchedule').value = new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+    const dt = new Date(data.date);
+    document.getElementById('fSchedule').value = new Date(dt.getTime() - dt.getTimezoneOffset()*60000).toISOString().slice(0,16);
   } else { document.getElementById('fSchedule').value = ''; }
   if (data.status === 'submitted') {
     document.getElementById('reviewBanner').style.display = 'flex';
@@ -490,17 +511,17 @@ async function savePost(statusVal) {
     updated_at: new Date().toISOString()
   };
   if (schedVal) payload.date = new Date(schedVal).toISOString();
-  let error;
   if (currentId) {
     if (!schedVal) delete payload.date;
-    ({ error } = await db.from('posts').update(payload).eq('id', currentId));
   } else {
     if (!schedVal) payload.date = new Date().toISOString();
     payload.author_name = ADMIN_NAME; payload.author_id = null;
-    const res = await db.from('posts').insert(payload).select('id').single();
-    error = res.error; if (!error) currentId = res.data.id;
   }
-  if (error) { toast('Error: ' + error.message, true); return; }
+  const body = currentId ? { id: currentId, ...payload } : payload;
+  const r = await fetch('/api/save-post', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+  const d = await r.json();
+  if (!r.ok) { toast('Error saving post.', true); return; }
+  if (!currentId) currentId = d.id;
   toast({ published:'Published!', scheduled:'Scheduled!', draft:'Saved as draft.' }[statusVal] || 'Saved.');
   loadList();
 }
@@ -514,16 +535,22 @@ async function schedulePost() {
 
 async function returnToDraft() {
   if (!currentId) return;
-  const { error } = await db.from('posts').update({ status: 'draft', published: false }).eq('id', currentId);
-  if (error) { toast('Error: ' + error.message, true); return; }
+  const r = await fetch('/api/save-post', {
+    method: 'POST', headers: authHeaders(),
+    body: JSON.stringify({ id: currentId, status: 'draft', published: false }),
+  });
+  if (!r.ok) { toast('Error returning post.', true); return; }
   document.getElementById('reviewBanner').style.display = 'none';
   toast('Returned to writer as a draft.'); loadList();
 }
 
 async function deletePost() {
   if (!currentId || !confirm('Delete this post permanently?')) return;
-  const { error } = await db.from('posts').delete().eq('id', currentId);
-  if (error) { toast('Error: ' + error.message, true); return; }
+  const r = await fetch('/api/delete-post', {
+    method: 'POST', headers: authHeaders(),
+    body: JSON.stringify({ id: currentId }),
+  });
+  if (!r.ok) { toast('Error deleting post.', true); return; }
   currentId = null;
   document.getElementById('editorForm').style.display = 'none';
   document.getElementById('editorWelcome').style.display = 'flex';
@@ -531,45 +558,72 @@ async function deletePost() {
 }
 
 async function loadWriters() {
-  const { data } = await db.from('writers').select('*').order('created_at');
   const el = document.getElementById('writersList');
-  if (!data || !data.length) { el.innerHTML = '<div class="posts-empty">No writers added yet.</div>'; return; }
-  el.innerHTML = '';
-  data.forEach(w => {
-    const d = document.createElement('div');
-    d.className = `writer-card${!w.active ? ' inactive' : ''}`;
-    d.innerHTML = `
-      <div style="flex:1;min-width:0">
-        <div class="writer-name">${w.name}</div>
-        <div class="writer-creds">
-          Password: <strong>${w.password}</strong><br>
-          ${w.bio ? `Bio: ${w.bio}<br>` : ''}
-          <a href="writer.html" target="_blank" class="writer-portal-link">Share writer portal link →</a>
+  try {
+    const r = await fetch('/api/list-writers', {
+      headers: { 'Authorization': `Bearer ${sessionStorage.getItem('ob_admin_token')}` },
+    });
+    const d = await r.json();
+    if (!r.ok || !d.writers || !d.writers.length) {
+      el.innerHTML = '<div class="posts-empty">No writers added yet.</div>';
+      return;
+    }
+    el.innerHTML = '';
+    d.writers.forEach(w => {
+      const card = document.createElement('div');
+      card.className = `writer-card${!w.active ? ' inactive' : ''}`;
+      // Use data attributes — never interpolate IDs into onclick strings.
+      const actionBtn = w.active
+        ? `<button class="btn-writer-action btn-deactivate" data-id="${w.id}" data-action="deactivate">Deactivate</button>`
+        : `<button class="btn-writer-action btn-reactivate" data-id="${w.id}" data-action="reactivate">Reactivate</button>`;
+      card.innerHTML = `
+        <div style="flex:1;min-width:0">
+          <div class="writer-name">${w.name}</div>
+          <div class="writer-creds">
+            ${w.bio ? `Bio: ${w.bio}<br>` : ''}
+            <a href="writer.html" target="_blank" class="writer-portal-link">Share writer portal link →</a>
+          </div>
         </div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:0.3rem;align-items:flex-end">
-        ${w.active
-          ? `<button class="btn-writer-action btn-deactivate" onclick="toggleWriter('${w.id}',false)">Deactivate</button>`
-          : `<button class="btn-writer-action btn-reactivate" onclick="toggleWriter('${w.id}',true)">Reactivate</button>`}
-      </div>`;
-    el.appendChild(d);
-  });
+        <div style="display:flex;flex-direction:column;gap:0.3rem;align-items:flex-end">
+          ${actionBtn}
+        </div>`;
+      el.appendChild(card);
+    });
+    // Event delegation — no inline onclick handlers with interpolated data.
+    el.onclick = e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      toggleWriter(btn.dataset.id, btn.dataset.action === 'reactivate');
+    };
+  } catch {
+    el.innerHTML = '<div class="posts-empty">Could not load writers.</div>';
+  }
 }
 
 async function addWriter() {
-  const name = document.getElementById('wName').value.trim();
+  const name     = document.getElementById('wName').value.trim();
   const password = document.getElementById('wPassword').value.trim();
-  const bio = document.getElementById('wBio').value.trim();
+  const bio      = document.getElementById('wBio').value.trim();
   if (!name || !password) { toast('Name and password are required.', true); return; }
-  const { error } = await db.from('writers').insert({ name, password, bio: bio||null });
-  if (error) { toast('Error: ' + error.message, true); return; }
+  const r = await fetch('/api/create-writer', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ name, password, bio }),
+  });
+  const d = await r.json();
+  if (!r.ok) { toast(d.error || 'Failed to add writer.', true); return; }
   ['wName','wPassword','wBio'].forEach(id => document.getElementById(id).value = '');
   toast(`${name} added as a writer.`); loadWriters();
 }
 
 async function toggleWriter(id, active) {
-  const { error } = await db.from('writers').update({ active }).eq('id', id);
-  if (error) { toast('Error: ' + error.message, true); return; }
+  const r = await fetch('/api/toggle-writer', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ id, active }),
+  });
+  const d = await r.json();
+  if (!r.ok) { toast(d.error || 'Error updating writer.', true); return; }
   toast(active ? 'Writer reactivated.' : 'Writer deactivated.'); loadWriters();
 }
 

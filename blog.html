@@ -63,6 +63,36 @@ nav.scrolled{background:rgba(249,247,244,0.96);box-shadow:0 1px 0 var(--sand);ba
 .page-btn:disabled{opacity:0.3;cursor:not-allowed;}
 .page-btn:disabled:hover{background:transparent;color:var(--black);border-color:var(--sand);}
 .page-ellipsis{color:var(--text-muted);font-size:0.8rem;padding:0 0.3rem;}
+.subscribe-section{background:var(--sand);padding:5rem 3rem;text-align:center;border-top:1px solid var(--sand-dark);}
+.subscribe-eyebrow{font-size:0.68rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--teal);margin-bottom:1rem;}
+.subscribe-title{font-family:'Cormorant Garamond',serif;font-size:clamp(2rem,4vw,3rem);font-weight:300;margin-bottom:0.75rem;line-height:1.1;}
+.subscribe-title em{font-style:italic;}
+.subscribe-sub{font-size:0.9rem;color:var(--text-muted);margin-bottom:2.5rem;max-width:380px;margin-left:auto;margin-right:auto;line-height:1.6;}
+.subscribe-form{display:flex;gap:0.75rem;max-width:560px;margin:0 auto;flex-wrap:wrap;justify-content:center;}
+.subscribe-input{flex:1;min-width:160px;padding:0.85rem 1.1rem;border:1px solid var(--sand-dark);background:var(--white);font-family:'DM Sans',sans-serif;font-size:0.87rem;color:var(--black);outline:none;transition:border-color 0.2s;}
+.subscribe-input:focus{border-color:var(--teal);}
+.subscribe-input::placeholder{color:var(--text-muted);}
+.subscribe-btn{padding:0.85rem 2rem;background:var(--teal);color:var(--white);border:none;font-family:'DM Sans',sans-serif;font-size:0.82rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background 0.2s;white-space:nowrap;}
+.subscribe-btn:hover{background:var(--teal-light);}
+.subscribe-btn:disabled{opacity:0.6;cursor:not-allowed;}
+.subscribe-msg{margin-top:1rem;font-size:0.85rem;min-height:1.2em;}
+.subscribe-msg.success{color:var(--teal);}
+.subscribe-msg.error{color:#c0392b;}
+.modal-overlay{position:fixed;inset:0;background:rgba(10,10,10,0.6);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transition:opacity 0.3s,visibility 0.3s;backdrop-filter:blur(4px);}
+.modal-overlay.open{opacity:1;visibility:visible;}
+.modal{background:var(--white);padding:3rem 2.5rem;max-width:480px;width:90%;position:relative;transform:translateY(20px);transition:transform 0.3s;}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal-close{position:absolute;top:1.2rem;right:1.2rem;background:none;border:none;font-size:1.6rem;cursor:pointer;color:var(--text-muted);line-height:1;padding:0.2rem;}
+.modal-close:hover{color:var(--black);}
+.modal-eyebrow{font-size:0.62rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--teal);margin-bottom:0.75rem;}
+.modal-title{font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:300;line-height:1.15;margin-bottom:0.6rem;}
+.modal-title em{font-style:italic;}
+.modal-sub{font-size:0.85rem;color:var(--text-muted);line-height:1.6;margin-bottom:1.8rem;}
+.modal .subscribe-form{flex-direction:column;max-width:100%;}
+.modal .subscribe-input{min-width:unset;width:100%;}
+.modal .subscribe-btn{width:100%;}
+.nav-subscribe{border:1px solid var(--teal);color:var(--teal)!important;padding:0.5rem 1.2rem;transition:all 0.2s!important;}
+.nav-subscribe:hover{background:var(--teal);color:var(--white)!important;}
 footer{background:var(--black);color:var(--white);padding:2rem 3rem;display:flex;align-items:center;justify-content:space-between;}
 .footer-logo{font-family:'Cormorant Garamond',serif;font-size:1.1rem;letter-spacing:0.08em;}
 .footer-copy{font-size:0.72rem;letter-spacing:0.08em;color:rgba(249,247,244,0.4);}
@@ -78,6 +108,9 @@ footer{background:var(--black);color:var(--white);padding:2rem 3rem;display:flex
   .card-featured .card-img{aspect-ratio:16/9}
   .card-featured .card-body::before{top:0;left:0;width:100%;height:2px}
   footer{flex-direction:column;gap:0.5rem;text-align:center}
+  .subscribe-section{padding:3.5rem 1.5rem;}
+  .subscribe-form{flex-direction:column;}
+  .subscribe-input,.subscribe-btn{width:100%;min-width:unset;}
 }
 @media(min-width:901px) and (max-width:1100px){
   .blog-grid{grid-template-columns:repeat(2,1fr)}
@@ -95,6 +128,7 @@ footer{background:var(--black);color:var(--white);padding:2rem 3rem;display:flex
     <li><a href="blog.html" class="active">Blog</a></li>
     <li><a href="https://my.community.com/omibell" target="_blank">Community</a></li>
     <li><a href="index.html#media">Media</a></li>
+    <li><a href="#" class="nav-subscribe" onclick="openSubscribeModal();return false;">Subscribe</a></li>
     <li><a href="contact.html" class="nav-cta">Contact</a></li>
   </ul>
 </nav>
@@ -112,6 +146,31 @@ footer{background:var(--black);color:var(--white);padding:2rem 3rem;display:flex
   </div>
   <div class="pagination" id="pagination" style="display:none;"></div>
 </main>
+<section class="subscribe-section">
+  <p class="subscribe-eyebrow">The Journal</p>
+  <h2 class="subscribe-title">Words worth <em>returning to</em></h2>
+  <p class="subscribe-sub">New essays on rest, performance, and the body as strategy — delivered to your inbox.</p>
+  <form class="subscribe-form" onsubmit="handleSubscribe(event,this,'sectionMsg')">
+    <input class="subscribe-input" type="text" name="name" placeholder="Your name" required>
+    <input class="subscribe-input" type="email" name="email" placeholder="Your email" required>
+    <button class="subscribe-btn" type="submit">Subscribe</button>
+  </form>
+  <p class="subscribe-msg" id="sectionMsg"></p>
+</section>
+<div class="modal-overlay" id="subscribeModal" onclick="if(event.target===this)closeSubscribeModal()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeSubscribeModal()" aria-label="Close">×</button>
+    <p class="modal-eyebrow">The Journal</p>
+    <h2 class="modal-title">Join the <em>conversation</em></h2>
+    <p class="modal-sub">New essays on rest, performance, and the body as strategy — delivered to your inbox.</p>
+    <form class="subscribe-form" onsubmit="handleSubscribe(event,this,'modalMsg')">
+      <input class="subscribe-input" type="text" name="name" placeholder="Your name" required>
+      <input class="subscribe-input" type="email" name="email" placeholder="Your email" required>
+      <button class="subscribe-btn" type="submit">Subscribe</button>
+    </form>
+    <p class="subscribe-msg" id="modalMsg"></p>
+  </div>
+</div>
 <footer>
   <div class="footer-logo">Omi Bell</div>
   <div class="footer-copy">© 2025 Omi Bell · All rights reserved</div>
@@ -203,6 +262,35 @@ function renderPagination(){
 }
 
 window.addEventListener('scroll',()=>document.getElementById('navbar').classList.toggle('scrolled',window.scrollY>30),{passive:true});
+
+function openSubscribeModal(){document.getElementById('subscribeModal').classList.add('open');document.body.style.overflow='hidden';}
+function closeSubscribeModal(){document.getElementById('subscribeModal').classList.remove('open');document.body.style.overflow='';}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSubscribeModal();});
+
+async function handleSubscribe(e,form,msgId){
+  e.preventDefault();
+  const btn=form.querySelector('.subscribe-btn');
+  const msgEl=document.getElementById(msgId);
+  const name=form.querySelector('[name=name]').value.trim();
+  const email=form.querySelector('[name=email]').value.trim();
+  btn.disabled=true;btn.textContent='Subscribing…';
+  msgEl.textContent='';msgEl.className='subscribe-msg';
+  try{
+    const r=await fetch('/api/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email})});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Something went wrong.');
+    msgEl.textContent='You\'re in! Watch your inbox for the next essay.';
+    msgEl.className='subscribe-msg success';
+    form.reset();
+    if(msgId==='modalMsg')setTimeout(closeSubscribeModal,2500);
+  }catch(err){
+    msgEl.textContent=err.message||'Something went wrong. Please try again.';
+    msgEl.className='subscribe-msg error';
+  }finally{
+    btn.disabled=false;btn.textContent='Subscribe';
+  }
+}
+
 loadPosts();
 </script>
 </body>

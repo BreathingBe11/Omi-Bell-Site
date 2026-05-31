@@ -296,23 +296,43 @@ let currentWriter = null; // { id, name, bio }
 let myPosts = [];
 let currentId = null;
 
+function writerAuthHeaders() {
+  const saved = sessionStorage.getItem('ob_writer');
+  const token = saved ? (JSON.parse(saved).token || '') : '';
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+}
+
 window.onload = () => {
   const saved = sessionStorage.getItem('ob_writer');
-  if (saved) { currentWriter = JSON.parse(saved); showWriterShell(); }
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      // Support both new {writer, token} format and any older cached object.
+      currentWriter = parsed.writer || parsed;
+      showWriterShell();
+    } catch { sessionStorage.removeItem('ob_writer'); }
+  }
 };
 
 async function writerLogin() {
   const name = document.getElementById('wNameInput').value.trim();
-  const pw = document.getElementById('wPwInput').value.trim();
+  const pw   = document.getElementById('wPwInput').value.trim();
   if (!name || !pw) { showLoginError('Please enter your name and password.'); return; }
-  const { data, error } = await db.from('writers')
-    .select('*').eq('active', true)
-    .ilike('name', name).eq('password', pw).single();
-  if (error || !data) { showLoginError('Name or password not found. Contact Omi to get access.'); return; }
-  currentWriter = { id: data.id, name: data.name, bio: data.bio };
-  sessionStorage.setItem('ob_writer', JSON.stringify(currentWriter));
-  document.getElementById('loginErr').style.display = 'none';
-  showWriterShell();
+  try {
+    const r = await fetch('/api/writer-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, password: pw }),
+    });
+    const d = await r.json();
+    if (!r.ok) { showLoginError(d.error || 'Name or password not found. Contact Omi to get access.'); return; }
+    currentWriter = d.writer;
+    sessionStorage.setItem('ob_writer', JSON.stringify({ writer: d.writer, token: d.token }));
+    document.getElementById('loginErr').style.display = 'none';
+    showWriterShell();
+  } catch {
+    showLoginError('Something went wrong. Please try again.');
+  }
 }
 
 function showLoginError(msg) {
@@ -334,12 +354,10 @@ async function showWriterShell() {
 
 async function loadMyPosts() {
   const el = document.getElementById('myPostList');
-  const { data, error } = await db.from('posts')
-    .select('id,title,date,published,status')
-    .eq('author_id', currentWriter.id)
-    .order('updated_at', { ascending: false });
-  if (error) { el.innerHTML = `<div class="posts-empty">${error.message}</div>`; return; }
-  myPosts = data || [];
+  const r = await fetch('/api/writer-posts', { headers: writerAuthHeaders() });
+  const d = await r.json();
+  if (!r.ok) { el.innerHTML = `<div class="posts-empty">Could not load posts.</div>`; return; }
+  myPosts = d.posts || [];
   document.getElementById('myPostCount').textContent = myPosts.length;
   if (!myPosts.length) { el.innerHTML = '<div class="posts-empty">No posts yet.<br>Create your first!</div>'; return; }
   el.innerHTML = '';
@@ -374,8 +392,10 @@ function newPost() {
 }
 
 async function openPost(id) {
-  const { data, error } = await db.from('posts').select('*').eq('id', id).single();
-  if (error || !data) { toast('Could not load post.', true); return; }
+  const r = await fetch(`/api/writer-posts?id=${encodeURIComponent(id)}`, { headers: writerAuthHeaders() });
+  const d = await r.json();
+  if (!r.ok || !d.post) { toast('Could not load post.', true); return; }
+  const data = d.post;
   currentId = id; showForm();
   document.getElementById('fTitle').value = data.title || '';
   document.getElementById('fExcerpt').value = data.excerpt || '';
@@ -438,28 +458,30 @@ function clearForm() {
   setImgPreview('');
 }
 
-async function saveDraft() {
-  const title = document.getElementById('fTitle').value.trim() || '(Untitled)';
+async function writerSavePost(status) {
   const payload = {
-    title, excerpt: document.getElementById('fExcerpt').value.trim(),
-    category: document.getElementById('fCategory').value.trim(),
-    read_time: parseInt(document.getElementById('fReadTime').value) || null,
-    cover_image: document.getElementById('fCoverImage').value || null,
-    content: document.getElementById('rteEditor').innerHTML,
-    published: false, status: 'draft',
-    author_name: currentWriter.name, author_id: currentWriter.id,
-    author_bio: currentWriter.bio || null,
-    updated_at: new Date().toISOString()
+    title:      document.getElementById('fTitle').value.trim() || '(Untitled)',
+    excerpt:    document.getElementById('fExcerpt').value.trim(),
+    category:   document.getElementById('fCategory').value.trim(),
+    read_time:  parseInt(document.getElementById('fReadTime').value) || null,
+    cover_image:document.getElementById('fCoverImage').value || null,
+    content:    document.getElementById('rteEditor').innerHTML,
+    status,
+    updated_at: new Date().toISOString(),
   };
-  let error;
-  if (currentId) {
-    ({ error } = await db.from('posts').update(payload).eq('id', currentId));
-  } else {
-    payload.date = new Date().toISOString();
-    const res = await db.from('posts').insert(payload).select('id').single();
-    error = res.error; if (!error) currentId = res.data.id;
-  }
-  if (error) { toast('Error: ' + error.message, true); return; }
+  if (currentId) payload.id = currentId;
+  const r = await fetch('/api/writer-save-post', {
+    method: 'POST', headers: writerAuthHeaders(), body: JSON.stringify(payload),
+  });
+  const d = await r.json();
+  if (!r.ok) { toast(d.error || 'Error saving post.', true); return null; }
+  return d.id;
+}
+
+async function saveDraft() {
+  const id = await writerSavePost('draft');
+  if (id === null) return;
+  if (!currentId) currentId = id;
   toast('Draft saved.'); loadMyPosts();
 }
 
@@ -468,26 +490,9 @@ async function submitPost() {
   if (!title) { toast('Please add a title before submitting.', true); return; }
   const content = document.getElementById('rteEditor').innerHTML.replace(/<[^>]*>/g, '').trim();
   if (!content) { toast('Please add some content before submitting.', true); return; }
-  const payload = {
-    title, excerpt: document.getElementById('fExcerpt').value.trim(),
-    category: document.getElementById('fCategory').value.trim(),
-    read_time: parseInt(document.getElementById('fReadTime').value) || null,
-    cover_image: document.getElementById('fCoverImage').value || null,
-    content: document.getElementById('rteEditor').innerHTML,
-    published: false, status: 'submitted',
-    author_name: currentWriter.name, author_id: currentWriter.id,
-    author_bio: currentWriter.bio || null,
-    updated_at: new Date().toISOString()
-  };
-  let error;
-  if (currentId) {
-    ({ error } = await db.from('posts').update(payload).eq('id', currentId));
-  } else {
-    payload.date = new Date().toISOString();
-    const res = await db.from('posts').insert(payload).select('id').single();
-    error = res.error; if (!error) currentId = res.data.id;
-  }
-  if (error) { toast('Error: ' + error.message, true); return; }
+  const id = await writerSavePost('submitted');
+  if (id === null) return;
+  if (!currentId) currentId = id;
   toast('Submitted! Omi will review and publish your post.');
   loadMyPosts();
   // Refresh the open post to show submitted state

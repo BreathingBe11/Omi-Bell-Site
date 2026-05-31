@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Not Your Average Group Chat | Omi Bell</title>
+  <meta name="description" content="A weekly manifestation container where members speak their future into the present — not as hope, but as truth already in motion.">
+  <meta property="og:title" content="Not Your Average Group Chat | NYAGC">
+  <meta property="og:description" content="A sacred space for bold builders. Drop your Decree. Speak life into what you are building.">
+  <meta property="og:url" content="https://www.omibell.com/nyagc">
+  <link rel="canonical" href="https://www.omibell.com/nyagc">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --gold: #B8892E;
+      --gold-faint: rgba(184, 137, 46, 0.08);
+      --gold-border: rgba(184, 137, 46, 0.3);
+      --cream: #FDFAF6;
+      --warm-bg: #F7F3EE;
+      --charcoal: #2A2420;
+      --muted: #6E6259;
+      --border: #E4DDD5;
+      --serif: 'Cormorant Garamond', Georgia, serif;
+      --sans: 'DM Sans', system-ui, sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--cream);
+      color: var(--charcoal);
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    .hero {
+      padding: 5rem 2rem 4rem;
+      text-align: center;
+      background: var(--warm-bg);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tag {
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--gold);
+      font-weight: 500;
+      margin-bottom: 1.25rem;
+    }
+
+    .hero-title {
+      font-family: var(--serif);
+      font-size: clamp(2.6rem, 7vw, 4.5rem);
+      font-weight: 300;
+      line-height: 1.1;
+      color: var(--charcoal);
+      margin-bottom: 0.5rem;
+    }
+
+    .hero-title em { font-style: italic; color: var(--gold); }
+
+    .acronym {
+      font-size: 10px;
+      letter-spacing: 0.28em;
+      color: var(--muted);
+      margin-bottom: 1.75rem;
+    }
+
+    .hero-sub {
+      font-size: 1rem;
+      color: var(--muted);
+      max-width: 480px;
+      margin: 0 auto 2.5rem;
+      font-weight: 300;
+      line-height: 1.85;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 0.75rem 2.25rem;
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      font-family: var(--sans);
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-decoration: none;
+      text-transform: uppercase;
+      font-weight: 500;
+      background: transparent;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .btn:hover { background: var(--gold); color: #fff; }
+
+    .experiment-banner {
+      background: var(--gold-faint);
+      border-top: 1px solid var(--gold-border);
+      border-bottom: 1px solid var(--gold-border);
+      padding: 1.1rem 2rem;
+      text-align: center;
+    }
+
+    .experiment-banner p {
+      font-size: 0.88rem;
+      color: var(--muted);
+      font-weight: 300;
+      line-height: 1.7;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    .experiment-banner p strong { color: var(--charcoal); font-weight: 500; }
+    .experiment-banner p em { font-style: italic; color: var(--gold); }
+
+    .sec {
+      padding: 4rem 2rem;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    .sec-label {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold);
+      font-weight: 500;
+      margin-bottom: 0.9rem;
+    }
+
+    .sec-title {
+      font-family: var(--serif);
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 400;
+      color: var(--charcoal);
+      line-height: 1.2;
+      margin-bottom: 1.25rem;
+    }
+
+    .sec-title em { font-style: italic; color: var(--gold); }
+
+    .body-text {
+      color: var(--muted);
+      font-size: 0.97rem;
+      font-weight: 300;
+      line-height: 1.9;
+    }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+    .decree-box {
+      border: 1px solid var(--gold-border);
+      border-radius: 12px;
+      padding: 1.75rem;
+      margin: 2rem 0;
+      background: var(--gold-faint);
+    }
+
+    .decree-box .dlabel {
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--gold);
+      font-weight: 500;
+      margin-bottom: 1rem;
+    }
+
+    .dlist { list-style: none; }
+
+    .dlist li {
+      font-family: var(--serif);
+      font-size: 1.05rem;
+      font-style: italic;
+      color: var(--muted);
+      padding: 0.55rem 0;
+      border-bottom: 1px solid var(--border);
+      line-height: 1.5;
+    }
+
+    .dlist li:last-child { border-bottom: none; }
+    .dlist li::before { content: '\201C'; color: var(--gold); margin-right: 3px; }
+
+    .rules-list { list-style: none; margin-top: 1.75rem; }
+
+    .rule {
+      display: flex;
+      gap: 1.5rem;
+      padding: 1.4rem 0;
+      border-bottom: 1px solid var(--border);
+      align-items: flex-start;
+    }
+
+    .rnum {
+      font-family: var(--serif);
+      font-size: 2rem;
+      font-weight: 300;
+      color: var(--gold);
+      line-height: 1;
+      min-width: 2.5rem;
+    }
+
+    .rtitle {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--charcoal);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.35rem;
+    }
+
+    .rbody {
+      font-size: 0.93rem;
+      color: var(--muted);
+      font-weight: 300;
+      line-height: 1.7;
+    }
+
+    .tools-sec {
+      padding: 4rem 2rem;
+      background: var(--warm-bg);
+      border-top: 1px solid var(--border);
+    }
+
+    .tools-inner { max-width: 900px; margin: 0 auto; }
+
+    .tgrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+      margin-top: 1.75rem;
+    }
+
+    .tool-card {
+      background: var(--cream);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .badge {
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 500;
+      margin-bottom: 0.8rem;
+      display: inline-block;
+      width: fit-content;
+    }
+
+    .badge.free { background: #EAF3DE; color: #3B6D11; }
+    .badge.paid { background: #FAEEDA; color: #854F0B; }
+
+    .tname {
+      font-family: var(--serif);
+      font-size: 1.3rem;
+      font-weight: 500;
+      color: var(--charcoal);
+      margin-bottom: 0.2rem;
+    }
+
+    .tcreator { font-size: 0.78rem; color: var(--muted); margin-bottom: 0.75rem; }
+
+    .tdesc {
+      font-size: 0.88rem;
+      color: var(--muted);
+      font-weight: 300;
+      line-height: 1.7;
+      flex: 1;
+      margin-bottom: 1rem;
+    }
+
+    .tlink { font-size: 0.82rem; color: var(--gold); text-decoration: none; font-weight: 500; }
+    .tlink:hover { text-decoration: underline; }
+
+    .closing {
+      padding: 6rem 2rem;
+      text-align: center;
+      background: var(--charcoal);
+    }
+
+    .closing blockquote {
+      font-family: var(--serif);
+      font-size: clamp(1.5rem, 4vw, 2.4rem);
+      font-weight: 300;
+      font-style: italic;
+      color: #F0E6D3;
+      line-height: 1.5;
+      max-width: 680px;
+      margin: 0 auto 1.5rem;
+    }
+
+    .closing blockquote em {
+      color: var(--gold);
+      font-style: normal;
+    }
+
+    .closing cite {
+      display: block;
+      font-family: var(--sans);
+      font-size: 0.78rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #8A7D72;
+      font-style: normal;
+      font-weight: 400;
+    }
+
+    footer {
+      text-align: center;
+      padding: 1.75rem 2rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      background: var(--warm-bg);
+    }
+
+    footer a { color: var(--gold); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .fade-up { animation: fadeUp 0.6s ease forwards; }
+
+    @media (max-width: 600px) {
+      .rule { gap: 1rem; }
+      .closing { padding: 4rem 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <section class="hero">
+    <p class="tag fade-up">A Sacred Space for Bold Builders</p>
+    <h1 class="hero-title fade-up">Not Your <em>Average</em><br>Group Chat</h1>
+    <p class="acronym fade-up">N · Y · A · G · C</p>
+    <p class="hero-sub fade-up">A weekly manifestation container where members speak their future into the present — not as hope, but as truth already in motion.</p>
+    <a href="mailto:hello@omisworld.com?subject=NYAGC%20Request%20to%20Join" class="btn fade-up">Request to Join</a>
+  </section>
+
+  <div class="experiment-banner">
+    <p><strong>This is an experiment.</strong> NYAGC launches on <em>June 2, 2026</em> and runs for one month. On <em>July 2, 2026</em>, we regroup — together — to feel into whether it's working, what it's producing, and whether we keep going. Nothing is permanent. Everything is intentional.</p>
+  </div>
+
+  <section class="sec">
+    <p class="sec-label">Why This Exists</p>
+    <h2 class="sec-title">This is where <em>two or three</em> gather and agree.</h2>
+    <p class="body-text">
+      Most group chats are full of noise. NYAGC is an energy container — a place where every member is actively pulling their future into their present. Here, you don't wait for the life you want. You speak it, claim it, and hold each other accountable to the vision that already exists in the unseen.
+      <br><br>
+      This is not a motivational space. It's not a hype house. It's a discipline — a weekly ritual of speaking life into what you are building, and being witnessed by people who believe it alongside you.
+    </p>
+  </section>
+
+  <hr class="divider">
+
+  <section class="sec">
+    <p class="sec-label">The Weekly Practice</p>
+    <h2 class="sec-title">What is <em>The Decree</em>?</h2>
+    <p class="body-text">
+      Every week, each member drops their Decree — a present-tense, future-forward declaration of their life as it is already becoming. You are not wishing. You are not hoping. You are speaking what is already real in the frequency of where you are headed.
+      <br><br>
+      The language shifts from <em>will</em> to <em>is</em>. From <em>I hope to have</em> to <em>I have</em>. Your Decree speaks the life you are pulling into view as though it already exists — because energetically, it does.
+    </p>
+    <div class="decree-box">
+      <p class="dlabel">Decree Language — Examples</p>
+      <ul class="dlist">
+        <li>I am leading a team that trusts my vision and moves with me.</li>
+        <li>I have the revenue, the time, and the clarity to build what matters.</li>
+        <li>In the next 30 days, I am closing a deal that changes the trajectory of my business.</li>
+        <li>In the next 90 days, I am living in full alignment with everything I have been building toward.</li>
+        <li>Tomorrow, I am showing up as the most grounded version of myself.</li>
+        <li>I am not becoming. I already am.</li>
+      </ul>
+    </div>
+    <p class="body-text">Your Decree can be a paragraph or a list. It can cover your business, your body, your relationships, your peace — whatever you are actively summoning. Speak it like it has already landed.</p>
+  </section>
+
+  <hr class="divider">
+
+  <section class="sec">
+    <p class="sec-label">The Container Has Rules</p>
+    <h2 class="sec-title">How <em>NYAGC</em> Works</h2>
+    <p class="body-text">We begin on <strong>Tuesday, June 2, 2026</strong> — the first Tuesday of June. From that point forward, Tuesdays are sacred.</p>
+    <ul class="rules-list">
+      <li class="rule">
+        <span class="rnum">01</span>
+        <div>
+          <p class="rtitle">Post Your Decree Every Tuesday</p>
+          <p class="rbody">Every Tuesday, you drop your Decree in the group. Present tense. Future-forward. Witnessed by everyone in the container.</p>
+        </div>
+      </li>
+      <li class="rule">
+        <span class="rnum">02</span>
+        <div>
+          <p class="rtitle">Thursday is Your Grace Period</p>
+          <p class="rbody">If Tuesday doesn't work, you have until end of day Thursday. Life happens — but the commitment must be honored within the window.</p>
+        </div>
+      </li>
+      <li class="rule">
+        <span class="rnum">03</span>
+        <div>
+          <p class="rtitle">No Post by Thursday = Removed</p>
+          <p class="rbody">If Thursday passes without your Decree, you will be removed from the group. This is not personal. The container only works when everyone is actively in it.</p>
+        </div>
+      </li>
+      <li class="rule">
+        <span class="rnum">04</span>
+        <div>
+          <p class="rtitle">You Can Request to Return</p>
+          <p class="rbody">If you're removed and want back in, reach out. You'll be asked to re-commit. Once re-added, you have 24 hours to drop your Decree — or the door closes permanently.</p>
+        </div>
+      </li>
+      <li class="rule">
+        <span class="rnum">05</span>
+        <div>
+          <p class="rtitle">Witness, Affirm, Agree</p>
+          <p class="rbody">When others post, read it. Respond with agreement. Speak back to them what you see. Your engagement is part of the practice — this is a two-and-three-touching-and-agreeing space.</p>
+        </div>
+      </li>
+      <li class="rule">
+        <span class="rnum">06</span>
+        <div>
+          <p class="rtitle">July 2nd — We Regroup</p>
+          <p class="rbody">This is a one-month experiment. On July 2, 2026, we pause together to assess. What did the container produce? What did we feel? We decide as a group whether NYAGC continues.</p>
+        </div>
+      </li>
+    </ul>
+  </section>
+
+  <section class="tools-sec">
+    <div class="tools-inner">
+      <p class="sec-label">Resources for the Work</p>
+      <h2 class="sec-title">Tools to <em>Support Your Decree</em></h2>
+      <p class="body-text">These tools support your clarity, your nervous system, and your capacity to receive what you are calling in.</p>
+      <div class="tgrid">
+        <div class="tool-card">
+          <span class="badge free">Free</span>
+          <p class="tname">Saturn</p>
+          <p class="tcreator">By Alice Hu</p>
+          <p class="tdesc">A free career astrology report that uses your birth chart to reveal the work you were built for. Whether you're pivoting, starting fresh, or seeking deeper alignment — your Saturn placement illuminates the career path that is truly yours.</p>
+          <a href="https://www.yoursaturn.com/" class="tlink" target="_blank" rel="noopener">Get your free report →</a>
+        </div>
+        <div class="tool-card">
+          <span class="badge free">Free to Start</span>
+          <p class="tname">The Breathing Bell</p>
+          <p class="tcreator">By Omi Bell</p>
+          <p class="tdesc">Guided breathwork and Yoga Nidra sessions to reset your nervous system — so you can receive what you are calling in. "Your nervous system called. Answer it." Begin a free session and meet the version of yourself who is already at rest.</p>
+          <a href="https://www.thebreathingbell.com/" class="tlink" target="_blank" rel="noopener">Begin your session →</a>
+        </div>
+        <div class="tool-card">
+          <span class="badge free">Free</span>
+          <p class="tname">The Clearing Statement</p>
+          <p class="tcreator">By Access Consciousness</p>
+          <p class="tdesc">A verbal clearing tool that dissolves stuck energy and hidden limitations you may not even be aware of — working energetically, not cognitively. Use it to clear what's in the way of your Decree landing fully.</p>
+          <a href="https://www.accessconsciousness.com/en/about/how-it-works/the-clearing-statement/" class="tlink" target="_blank" rel="noopener">Learn the clearing statement →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="closing">
+    <blockquote>
+      "The act of faith is not a <em>leap into the dark</em> —<br>it is the recognition that what you have spoken<br>has already taken root in the unseen."
+    </blockquote>
+    <cite>— Omi Bell</cite>
+  </section>
+
+  <footer>
+    <p>NYAGC is curated by <a href="https://www.omibell.com">Omi Bell</a> &nbsp;·&nbsp; <a href="https://www.omibell.com/nyagc" style="color: var(--muted);">omibell.com/nyagc</a></p>
+  </footer>
+
+</body>
+</html>
