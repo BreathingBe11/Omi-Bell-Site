@@ -279,6 +279,80 @@
     .tlink { font-size: 0.82rem; color: var(--gold); text-decoration: none; font-weight: 500; }
     .tlink:hover { text-decoration: underline; }
 
+    /* ── SUBMIT RESOURCE FORM ── */
+    .submit-resource {
+      margin-top: 3rem;
+      border-top: 1px solid var(--border);
+      padding-top: 2.5rem;
+    }
+
+    .submit-resource .slabel {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold);
+      font-weight: 500;
+      margin-bottom: 0.6rem;
+    }
+
+    .submit-resource h3 {
+      font-family: var(--serif);
+      font-size: 1.5rem;
+      font-weight: 400;
+      color: var(--charcoal);
+      margin-bottom: 0.5rem;
+    }
+
+    .submit-resource p {
+      font-size: 0.88rem;
+      color: var(--muted);
+      font-weight: 300;
+      margin-bottom: 1.5rem;
+    }
+
+    .res-form { display: flex; flex-direction: column; gap: 0.85rem; max-width: 560px; }
+
+    .res-form input,
+    .res-form textarea {
+      width: 100%;
+      padding: 0.7rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--cream);
+      font-family: var(--sans);
+      font-size: 0.9rem;
+      color: var(--charcoal);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .res-form input:focus,
+    .res-form textarea:focus { border-color: var(--gold); }
+
+    .res-form textarea { resize: vertical; min-height: 90px; }
+
+    .res-form button {
+      align-self: flex-start;
+      padding: 0.7rem 2rem;
+      border: 1px solid var(--gold);
+      background: transparent;
+      color: var(--gold);
+      font-family: var(--sans);
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .res-form button:hover { background: var(--gold); color: #fff; }
+    .res-form button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .res-msg { font-size: 0.88rem; margin-top: 0.5rem; display: none; }
+    .res-msg.success { color: #3B6D11; }
+    .res-msg.error { color: #9B2C2C; }
+
     .closing {
       padding: 6rem 2rem;
       text-align: center;
@@ -442,7 +516,14 @@
       <p class="sec-label">Resources for the Work</p>
       <h2 class="sec-title">Tools to <em>Support Your Decree</em></h2>
       <p class="body-text">These tools support your clarity, your nervous system, and your capacity to receive what you are calling in.</p>
-      <div class="tgrid">
+      <div class="tgrid" id="toolsGrid">
+        <div class="tool-card">
+          <span class="badge paid">Book a Session</span>
+          <p class="tname">Trish Mariani</p>
+          <p class="tcreator">Reader &amp; Healer</p>
+          <p class="tdesc">Trish is a powerful and grounded reader and healer whose work meets you exactly where you are. Whether you're seeking clarity, energetic alignment, or a deeper read on what you're moving through — Trish holds space with precision and grace.</p>
+          <a href="https://calendly.com/t-mariani" class="tlink" target="_blank" rel="noopener">Book a reading with Trish →</a>
+        </div>
         <div class="tool-card">
           <span class="badge free">Free</span>
           <p class="tname">Saturn</p>
@@ -465,6 +546,21 @@
           <a href="https://www.accessconsciousness.com/en/about/how-it-works/the-clearing-statement/" class="tlink" target="_blank" rel="noopener">Learn the clearing statement →</a>
         </div>
       </div>
+
+      <div class="submit-resource">
+        <p class="slabel">Community Contributions</p>
+        <h3>Know a tool that belongs here?</h3>
+        <p>Share a resource that supports clarity, healing, or bold building. Submissions are reviewed before going live.</p>
+        <form class="res-form" id="resourceForm">
+          <input type="text" name="name" placeholder="Resource name *" maxlength="120" required>
+          <input type="url" name="link" placeholder="Link (https://...) *" maxlength="500" required>
+          <textarea name="description" placeholder="What is it and why does it belong here? *" maxlength="600" required></textarea>
+          <input type="email" name="submitter_email" placeholder="Your email (optional — in case we have questions)">
+          <button type="submit">Submit Resource →</button>
+        </form>
+        <p class="res-msg success" id="resSuccess">Received. Thank you — we'll review it and add it if it's a fit.</p>
+        <p class="res-msg error" id="resError">Something went wrong. Please try again.</p>
+      </div>
     </div>
   </section>
 
@@ -479,5 +575,74 @@
     <p>NYAGC is curated by <a href="https://www.omibell.com">Omi Bell</a> &nbsp;·&nbsp; <a href="https://www.omibell.com/nyagc" style="color: var(--muted);">omibell.com/nyagc</a></p>
   </footer>
 
+<script>
+  // Load community-submitted resources from Supabase (approved only)
+  async function loadResources() {
+    try {
+      const res = await fetch('/api/list-resources');
+      if (!res.ok) return;
+      const { resources } = await res.json();
+      if (!resources || resources.length === 0) return;
+      const grid = document.getElementById('toolsGrid');
+      resources.forEach(r => {
+        const card = document.createElement('div');
+        card.className = 'tool-card';
+        card.innerHTML = `
+          <span class="badge free">Community Pick</span>
+          <p class="tname">${escHtml(r.name)}</p>
+          <p class="tdesc">${escHtml(r.description)}</p>
+          <a href="${escHtml(r.link)}" class="tlink" target="_blank" rel="noopener noreferrer">Visit resource →</a>`;
+        grid.appendChild(card);
+      });
+    } catch (_) {}
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  loadResources();
+
+  // Resource submission form
+  document.getElementById('resourceForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = this.querySelector('button');
+    const success = document.getElementById('resSuccess');
+    const errEl = document.getElementById('resError');
+    success.style.display = 'none';
+    errEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+
+    const body = {
+      name: this.name.value.trim(),
+      link: this.link.value.trim(),
+      description: this.description.value.trim(),
+      submitter_email: this.submitter_email.value.trim(),
+    };
+
+    try {
+      const res = await fetch('/api/submit-resource', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        this.reset();
+        success.style.display = 'block';
+      } else {
+        errEl.textContent = data.error || 'Something went wrong. Please try again.';
+        errEl.style.display = 'block';
+      }
+    } catch (_) {
+      errEl.textContent = 'Something went wrong. Please try again.';
+      errEl.style.display = 'block';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Submit Resource →';
+  });
+</script>
 </body>
 </html>
