@@ -138,6 +138,7 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
     <span></span><span></span><span></span>
   </button>
   <ul class="nav-links" id="navLinks">
+    <li><a href="/">Home</a></li>
     <li><a href="/about">About</a></li>
     <li><a href="/work-with-me" class="active">Work With Me</a></li>
     <li><a href="/resources">Resources</a></li>
@@ -148,6 +149,7 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
 </nav>
 <div class="nav-mobile-overlay" id="navOverlay"></div>
 <div class="nav-mobile-drawer" id="navDrawer">
+  <a href="/" class="drawer-link">Home</a>
   <a href="/about" class="drawer-link">About</a>
   <a href="/work-with-me" class="drawer-link">Work With Me</a>
   <a href="/resources" class="drawer-link">Resources</a>
@@ -379,11 +381,13 @@ document.getElementById('inquiryForm').addEventListener('submit',async e=>{
   const btn=document.getElementById('inqSubmit'),msg=document.getElementById('inqMsg2');
   btn.disabled=true;btn.textContent='Sending…';
   try{
+    const fullName=document.getElementById('inqName').value.trim().split(' ');
     const r=await fetch('/api/contact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      name:document.getElementById('inqName').value.trim(),
+      firstName:fullName[0]||'',
+      lastName:fullName.slice(1).join(' ')||'',
       email:document.getElementById('inqEmail').value.trim(),
-      organization:document.getElementById('inqOrg').value.trim(),
-      type:document.getElementById('inqType').value,
+      company:document.getElementById('inqOrg').value.trim(),
+      inquiryType:document.getElementById('inqType').value,
       message:document.getElementById('inqMsg').value.trim()
     })});
     const d=await r.json();
