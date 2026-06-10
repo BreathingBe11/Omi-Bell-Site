@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About — Omi Bell</title>
+<meta name="description" content="Omi Bell is a founder, builder, wellness practitioner, speaker, and media creator. Founder of Black Girl Ventures. Aspen Fellow. Kennedy Center Artist.">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--black:#0A0A0A;--white:#F9F7F4;--teal:#007B8F;--teal-light:#0CB6D4;--sand:#E8E0D4;--sand-dark:#C9BDB0;--text-body:#2A2A2A;--text-muted:rgba(10,10,10,0.5);}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:'DM Sans',sans-serif;background:var(--white);color:var(--text-body);overflow-x:hidden;-webkit-font-smoothing:antialiased;}
+
+/* NAV */
+nav{position:fixed;top:1rem;left:50%;transform:translateX(-50%);z-index:100;padding:.85rem 2rem;display:flex;justify-content:space-between;align-items:center;background:rgba(10,10,10,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(0,123,143,.2);border-radius:40px;width:calc(100% - 3rem);max-width:1100px;transition:box-shadow .3s,border-color .3s;}
+nav.scrolled{box-shadow:0 8px 40px rgba(0,0,0,.5);border-color:rgba(0,123,143,.4);}
+.nav-logo{font-family:'Cormorant Garamond',serif;font-size:1.35rem;font-weight:300;letter-spacing:.08em;color:var(--white);text-decoration:none;}
+.nav-links{display:flex;gap:1.8rem;list-style:none;align-items:center;}
+.nav-links a{color:rgba(249,247,244,.72);text-decoration:none;font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;font-weight:400;transition:color .2s;}
+.nav-links a:hover,.nav-links a.active{color:var(--teal-light);}
+.nav-cta{background:var(--teal);color:var(--white)!important;padding:.5rem 1.3rem;border-radius:2px;letter-spacing:.1em!important;transition:background .2s!important;}
+.nav-cta:hover{background:var(--teal-light)!important;}
+.nav-hamburger{display:none;flex-direction:column;justify-content:space-between;width:22px;height:14px;background:none;border:none;cursor:pointer;padding:0;}
+.nav-hamburger span{display:block;height:1.5px;background:var(--white);transition:transform .3s,opacity .3s;}
+.nav-hamburger.open span:nth-child(1){transform:translateY(6.25px) rotate(45deg);}
+.nav-hamburger.open span:nth-child(2){opacity:0;}
+.nav-hamburger.open span:nth-child(3){transform:translateY(-6.25px) rotate(-45deg);}
+.nav-mobile-overlay{display:none;position:fixed;inset:0;background:rgba(10,10,10,.7);z-index:98;backdrop-filter:blur(4px);}
+.nav-mobile-overlay.open{display:block;}
+.nav-mobile-drawer{display:none;position:fixed;top:0;right:0;height:100%;width:280px;background:var(--black);z-index:99;padding:5rem 2.5rem 3rem;flex-direction:column;gap:1.8rem;border-left:1px solid rgba(0,123,143,.2);}
+.nav-mobile-drawer.open{display:flex;}
+.drawer-link{color:rgba(249,247,244,.8);text-decoration:none;font-size:.9rem;letter-spacing:.1em;text-transform:uppercase;font-weight:400;transition:color .2s;}
+.drawer-link:hover{color:var(--teal-light);}
+.nav-mobile-drawer .nav-cta{text-align:center;padding:.7rem;margin-top:1rem;text-decoration:none;display:block;}
+
+/* HERO */
+.page-hero{background:var(--black);padding:10rem 5rem 7rem;position:relative;overflow:hidden;}
+.page-hero::before{content:'';position:absolute;top:-30%;right:-15%;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(0,123,143,.12) 0%,transparent 65%);pointer-events:none;}
+.page-hero-inner{max-width:900px;margin:0 auto;position:relative;}
+.page-eyebrow{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal-light);margin-bottom:1.5rem;display:block;}
+.page-hero h1{font-family:'Cormorant Garamond',serif;font-size:clamp(3rem,7vw,6rem);font-weight:300;line-height:.95;color:var(--white);margin-bottom:2rem;}
+.page-hero h1 em{font-style:italic;color:rgba(249,247,244,.6);}
+.page-hero-sub{font-size:1.05rem;color:rgba(249,247,244,.58);line-height:1.8;max-width:580px;font-weight:300;}
+.hero-rule{width:50px;height:1px;background:var(--teal);margin:2rem 0;}
+
+/* STORY */
+.story{padding:8rem 5rem;background:var(--white);}
+.story-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1.6fr;gap:6rem;align-items:start;}
+.story-aside{}
+.story-aside-sticky{position:sticky;top:7rem;}
+.story-label{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal);margin-bottom:1rem;display:block;}
+.story-aside h2{font-family:'Cormorant Garamond',serif;font-size:clamp(2rem,3vw,2.8rem);font-weight:300;line-height:1.1;color:var(--black);}
+.story-aside h2 em{font-style:italic;color:var(--teal);}
+.divider{width:50px;height:1px;background:var(--teal);margin:1.5rem 0;}
+.story-pull{font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:300;font-style:italic;color:var(--text-muted);line-height:1.6;margin-top:1.5rem;}
+.story-body p{font-size:1rem;line-height:1.9;color:var(--text-body);margin-bottom:1.8rem;}
+.story-body p:last-child{margin-bottom:0;}
+.story-body strong{font-weight:500;color:var(--black);}
+
+/* CHAPTERS */
+.chapters{padding:7rem 5rem;background:var(--sand);}
+.chapters-inner{max-width:1100px;margin:0 auto;}
+.chapters-header{margin-bottom:4rem;}
+.chapters-header .section-label{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal);margin-bottom:1rem;display:block;}
+.chapters-header h2{font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,4vw,3.2rem);font-weight:300;color:var(--black);}
+.chapters-header h2 em{font-style:italic;color:var(--teal);}
+.chapters-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;}
+.chapter-card{background:var(--white);padding:2.5rem 2rem;}
+.chapter-num{font-family:'Cormorant Garamond',serif;font-size:3.5rem;font-weight:300;color:var(--sand);line-height:1;margin-bottom:.8rem;}
+.chapter-label{font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--teal);margin-bottom:.6rem;display:block;}
+.chapter-card h3{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:300;color:var(--black);margin-bottom:.8rem;line-height:1.2;}
+.chapter-card p{font-size:.85rem;color:var(--text-muted);line-height:1.75;}
+
+/* CREDENTIALS */
+.credentials{padding:7rem 5rem;background:var(--black);}
+.credentials-inner{max-width:1100px;margin:0 auto;}
+.credentials-header{margin-bottom:4rem;}
+.credentials-header .section-label{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal-light);margin-bottom:1rem;display:block;}
+.credentials-header h2{font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,4vw,3.2rem);font-weight:300;color:var(--white);}
+.credentials-list{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:rgba(249,247,244,.07);}
+.credential-item{background:var(--black);padding:2.5rem;border:1px solid rgba(249,247,244,.06);}
+.credential-title{font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:300;color:var(--white);margin-bottom:.5rem;line-height:1.2;}
+.credential-org{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.8rem;display:block;}
+.credential-desc{font-size:.84rem;color:rgba(249,247,244,.45);line-height:1.7;}
+
+/* PHILOSOPHY */
+.philosophy{padding:8rem 5rem;background:var(--white);}
+.philosophy-inner{max-width:900px;margin:0 auto;text-align:center;}
+.philosophy-eyebrow{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal);margin-bottom:1.5rem;display:block;}
+.philosophy-quote{font-family:'Cormorant Garamond',serif;font-size:clamp(1.8rem,3.5vw,2.8rem);font-weight:300;font-style:italic;line-height:1.4;color:var(--black);margin-bottom:3rem;}
+.philosophy-body{font-size:.95rem;color:var(--text-muted);line-height:1.8;max-width:640px;margin:0 auto 3rem;}
+.btn-teal{display:inline-block;padding:1rem 2.5rem;background:var(--teal);color:var(--white);text-decoration:none;font-size:.78rem;letter-spacing:.15em;text-transform:uppercase;font-weight:500;transition:background .2s,transform .2s;border-radius:2px;}
+.btn-teal:hover{background:var(--teal-light);transform:translateY(-1px);}
+.btn-outline{display:inline-block;padding:1rem 2.5rem;border:1px solid var(--teal);color:var(--teal);text-decoration:none;font-size:.78rem;letter-spacing:.15em;text-transform:uppercase;font-weight:400;transition:all .2s;border-radius:2px;margin-left:1rem;}
+.btn-outline:hover{background:var(--teal);color:var(--white);}
+
+/* FOOTER */
+footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;}
+.footer-logo{font-family:'Cormorant Garamond',serif;font-size:1.2rem;letter-spacing:.08em;color:var(--white);text-decoration:none;}
+.footer-links{display:flex;gap:2rem;flex-wrap:wrap;}
+.footer-links a{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(249,247,244,.4);text-decoration:none;transition:color .2s;}
+.footer-links a:hover{color:var(--teal-light);}
+.footer-copy{font-size:.68rem;color:rgba(249,247,244,.28);}
+
+@media(max-width:960px){
+  .nav-links{display:none;}
+  .nav-hamburger{display:flex;}
+  .page-hero,.story,.chapters,.credentials,.philosophy{padding:6rem 2.5rem;}
+  footer{padding:2.5rem;}
+  .story-inner{grid-template-columns:1fr;gap:3rem;}
+  .story-aside-sticky{position:static;}
+  .chapters-grid{grid-template-columns:1fr 1fr;}
+  .credentials-list{grid-template-columns:1fr;}
+}
+@media(max-width:600px){
+  nav{width:calc(100% - 2rem);padding:.75rem 1.5rem;}
+  .page-hero,.story,.chapters,.credentials,.philosophy{padding:5rem 1.5rem;}
+  footer{padding:2rem 1.5rem;flex-direction:column;align-items:flex-start;}
+  .footer-links{display:none;}
+  .chapters-grid{grid-template-columns:1fr;}
+  .btn-outline{margin-left:0;margin-top:1rem;}
+}
+</style>
+</head>
+<body>
+
+<nav id="navbar">
+  <a href="/" class="nav-logo">Omi Bell</a>
+  <button class="nav-hamburger" id="navHamburger" aria-label="Open menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+  <ul class="nav-links" id="navLinks">
+    <li><a href="/about" class="active">About</a></li>
+    <li><a href="/work-with-me">Work With Me</a></li>
+    <li><a href="/resources">Resources</a></li>
+    <li><a href="/blog">Blog</a></li>
+    <li><a href="/media">Media</a></li>
+    <li><a href="/contact" class="nav-cta">Contact</a></li>
+  </ul>
+</nav>
+<div class="nav-mobile-overlay" id="navOverlay"></div>
+<div class="nav-mobile-drawer" id="navDrawer">
+  <a href="/about" class="drawer-link">About</a>
+  <a href="/work-with-me" class="drawer-link">Work With Me</a>
+  <a href="/resources" class="drawer-link">Resources</a>
+  <a href="/blog" class="drawer-link">Blog</a>
+  <a href="/media" class="drawer-link">Media</a>
+  <a href="/contact" class="nav-cta">Contact</a>
+</div>
+
+<!-- HERO -->
+<section class="page-hero">
+  <div class="page-hero-inner">
+    <span class="page-eyebrow">About Omi Bell</span>
+    <h1>Builder.<br>Leader.<br><em>Healer.</em></h1>
+    <div class="hero-rule"></div>
+    <p class="page-hero-sub">One story, many chapters. Entrepreneurship, wellness, storytelling, media, and leadership—not as separate worlds, but as one integrated life.</p>
+  </div>
+</section>
+
+<!-- STORY -->
+<section class="story">
+  <div class="story-inner">
+    <div class="story-aside">
+      <div class="story-aside-sticky">
+        <span class="story-label">The Story</span>
+        <h2>Integration,<br>not <em>reinvention.</em></h2>
+        <div class="divider"></div>
+        <p class="story-pull">"I didn't pivot. I remembered who I had always been."</p>
+      </div>
+    </div>
+    <div class="story-body">
+      <p>I built <strong>Black Girl Ventures</strong> from a living room and a vision. A teepee, T-shirts, marbles in coffee cups as pitch judges. What grew from that seed became a nationally recognized organization helping under-resourced entrepreneurs access capital, capacity, and community.</p>
+      <p>Over a decade of building, I became someone who knew how to run hard. I knew how to show up, push through, and carry things that weren't mine to carry. I was good at it. But I had confused endurance with thriving.</p>
+      <p>The moment I stopped—really stopped—I discovered something I had been moving too fast to notice: I had always been a healer. The same qualities that made me a founder also made me a practitioner. The same storytelling that built a movement could hold space for transformation. These were never separate.</p>
+      <p>Today, my work sits at the intersection of <strong>Body, Business, and Belonging.</strong> Not because I invented a new philosophy, but because I finally stopped pretending these things were unrelated. I help ambitious people see that the work they do in the world and the life they live inside their body are not in competition—they are in conversation.</p>
+      <p>This is the work I was always supposed to do. I just had to build enough, rest enough, and remember enough to finally do it out loud.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CHAPTERS -->
+<section class="chapters">
+  <div class="chapters-inner">
+    <div class="chapters-header">
+      <span class="section-label">The Chapters</span>
+      <h2>One story,<br><em>many dimensions.</em></h2>
+    </div>
+    <div class="chapters-grid">
+      <div class="chapter-card">
+        <div class="chapter-num">01</div>
+        <span class="chapter-label">Builder</span>
+        <h3>Founder & CEO, Black Girl Ventures</h3>
+        <p>A decade building a nationally recognized entrepreneurship organization from the ground up. Capital access, community, and capacity for those who've been overlooked.</p>
+      </div>
+      <div class="chapter-card">
+        <div class="chapter-num">02</div>
+        <span class="chapter-label">Practitioner</span>
+        <h3>Yoga Nidra · Breathwork · Sound Healing</h3>
+        <p>Certified wellness practitioner working at the level of the nervous system. Creating spaces where leaders, founders, and high performers can actually rest.</p>
+      </div>
+      <div class="chapter-card">
+        <div class="chapter-num">03</div>
+        <span class="chapter-label">Storyteller</span>
+        <h3>SiriusXM Host & Media Creator</h3>
+        <p>Host, podcast creator, and investigative business storyteller. Building in public, documenting the journey, and making meaning out of complex stories.</p>
+      </div>
+      <div class="chapter-card">
+        <div class="chapter-num">04</div>
+        <span class="chapter-label">Speaker</span>
+        <h3>Keynotes & Experiences</h3>
+        <p>Speaking at conferences, corporate events, and leadership summits. Bringing the Body.Business.Belonging framework to stages and organizations worldwide.</p>
+      </div>
+      <div class="chapter-card">
+        <div class="chapter-num">05</div>
+        <span class="chapter-label">Fellow & Artist</span>
+        <h3>Aspen Fellow · Kennedy Center Artist</h3>
+        <p>Recognized at the intersection of leadership, arts, and civic life. A practitioner of belonging in every room she enters.</p>
+      </div>
+      <div class="chapter-card">
+        <div class="chapter-num">06</div>
+        <span class="chapter-label">Advisor</span>
+        <h3>Smooth Operator</h3>
+        <p>Operational clarity and leadership systems for founders who are ready to build infrastructure that lasts. Decision-making frameworks that create sustainable growth.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CREDENTIALS -->
+<section class="credentials">
+  <div class="credentials-inner">
+    <div class="credentials-header">
+      <span class="section-label">Recognition & Credentials</span>
+      <h2 style="color:var(--white)">The work <em style="color:var(--teal-light)">recognized.</em></h2>
+    </div>
+    <div class="credentials-list">
+      <div class="credential-item">
+        <div class="credential-title">Founder & CEO</div>
+        <span class="credential-org">Black Girl Ventures</span>
+        <p class="credential-desc">Built one of the most recognized entrepreneurship organizations in the country, helping under-resourced founders access the capital and community they deserve.</p>
+      </div>
+      <div class="credential-item">
+        <div class="credential-title">Aspen Fellow</div>
+        <span class="credential-org">Aspen Institute</span>
+        <p class="credential-desc">Recognized by the Aspen Institute as a fellow at the intersection of leadership, civic life, and systems change.</p>
+      </div>
+      <div class="credential-item">
+        <div class="credential-title">Kennedy Center Artist</div>
+        <span class="credential-org">John F. Kennedy Center for the Performing Arts</span>
+        <p class="credential-desc">Artist recognition at one of the nation's most prestigious cultural institutions, honoring work at the intersection of art and social change.</p>
+      </div>
+      <div class="credential-item">
+        <div class="credential-title">SiriusXM Host</div>
+        <span class="credential-org">Omi's World Media</span>
+        <p class="credential-desc">Radio host and media creator bringing entrepreneurship, wellness, and real conversation to national audiences.</p>
+      </div>
+      <div class="credential-item">
+        <div class="credential-title">Certified Wellness Practitioner</div>
+        <span class="credential-org">Yoga Nidra · Breathwork · Sound Healing</span>
+        <p class="credential-desc">Formally trained in Yoga Nidra facilitation, breathwork, sound healing, and nervous system regulation practices.</p>
+      </div>
+      <div class="credential-item">
+        <div class="credential-title">Speaker & Thought Leader</div>
+        <span class="credential-org">Conferences · Corporate · Universities</span>
+        <p class="credential-desc">Keynotes and facilitation at leadership summits, corporate conferences, and university stages across the country.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PHILOSOPHY -->
+<section class="philosophy">
+  <div class="philosophy-inner">
+    <span class="philosophy-eyebrow">The Belief</span>
+    <p class="philosophy-quote">"You don't have to choose between building something and being something."</p>
+    <p class="philosophy-body">This is what every piece of my work is built on. Body. Business. Belonging. Not as a tagline—as a lived commitment. The work I do in the world and the life I live inside my body are not in competition. They are in conversation. And when both are nourished, everything becomes possible.</p>
+    <div>
+      <a href="/work-with-me" class="btn-teal">Work With Me</a>
+      <a href="/contact" class="btn-outline">Get In Touch</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <a href="/" class="footer-logo">Omi Bell</a>
+  <nav class="footer-links" aria-label="Footer navigation">
+    <a href="/about">About</a>
+    <a href="/work-with-me">Work With Me</a>
+    <a href="/resources">Resources</a>
+    <a href="/blog">Blog</a>
+    <a href="/media">Media</a>
+    <a href="/contact">Contact</a>
+  </nav>
+  <p class="footer-copy">© 2025 Omi Bell · All rights reserved</p>
+</footer>
+
+<script>
+const navbar=document.getElementById('navbar'),hamburger=document.getElementById('navHamburger'),overlay=document.getElementById('navOverlay'),drawer=document.getElementById('navDrawer');
+window.addEventListener('scroll',()=>navbar.classList.toggle('scrolled',window.scrollY>40));
+function openDrawer(){drawer.classList.add('open');overlay.classList.add('open');hamburger.classList.add('open');hamburger.setAttribute('aria-expanded','true');}
+function closeDrawer(){drawer.classList.remove('open');overlay.classList.remove('open');hamburger.classList.remove('open');hamburger.setAttribute('aria-expanded','false');}
+hamburger.addEventListener('click',()=>drawer.classList.contains('open')?closeDrawer():openDrawer());
+overlay.addEventListener('click',closeDrawer);
+drawer.querySelectorAll('a').forEach(a=>a.addEventListener('click',closeDrawer));
+</script>
+</body>
+</html>

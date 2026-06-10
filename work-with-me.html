@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Work With Me — Omi Bell</title>
+<meta name="description" content="Work with Omi Bell. Speaking, wellness experiences, and operational strategy for founders, executives, and organizations.">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--black:#0A0A0A;--white:#F9F7F4;--teal:#007B8F;--teal-light:#0CB6D4;--sand:#E8E0D4;--sand-dark:#C9BDB0;--text-body:#2A2A2A;--text-muted:rgba(10,10,10,0.5);}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:'DM Sans',sans-serif;background:var(--white);color:var(--text-body);overflow-x:hidden;-webkit-font-smoothing:antialiased;}
+
+/* NAV */
+nav{position:fixed;top:1rem;left:50%;transform:translateX(-50%);z-index:100;padding:.85rem 2rem;display:flex;justify-content:space-between;align-items:center;background:rgba(10,10,10,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(0,123,143,.2);border-radius:40px;width:calc(100% - 3rem);max-width:1100px;transition:box-shadow .3s,border-color .3s;}
+nav.scrolled{box-shadow:0 8px 40px rgba(0,0,0,.5);border-color:rgba(0,123,143,.4);}
+.nav-logo{font-family:'Cormorant Garamond',serif;font-size:1.35rem;font-weight:300;letter-spacing:.08em;color:var(--white);text-decoration:none;}
+.nav-links{display:flex;gap:1.8rem;list-style:none;align-items:center;}
+.nav-links a{color:rgba(249,247,244,.72);text-decoration:none;font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;font-weight:400;transition:color .2s;}
+.nav-links a:hover,.nav-links a.active{color:var(--teal-light);}
+.nav-cta{background:var(--teal);color:var(--white)!important;padding:.5rem 1.3rem;border-radius:2px;letter-spacing:.1em!important;transition:background .2s!important;}
+.nav-cta:hover{background:var(--teal-light)!important;}
+.nav-hamburger{display:none;flex-direction:column;justify-content:space-between;width:22px;height:14px;background:none;border:none;cursor:pointer;padding:0;}
+.nav-hamburger span{display:block;height:1.5px;background:var(--white);transition:transform .3s,opacity .3s;}
+.nav-hamburger.open span:nth-child(1){transform:translateY(6.25px) rotate(45deg);}
+.nav-hamburger.open span:nth-child(2){opacity:0;}
+.nav-hamburger.open span:nth-child(3){transform:translateY(-6.25px) rotate(-45deg);}
+.nav-mobile-overlay{display:none;position:fixed;inset:0;background:rgba(10,10,10,.7);z-index:98;backdrop-filter:blur(4px);}
+.nav-mobile-overlay.open{display:block;}
+.nav-mobile-drawer{display:none;position:fixed;top:0;right:0;height:100%;width:280px;background:var(--black);z-index:99;padding:5rem 2.5rem 3rem;flex-direction:column;gap:1.8rem;border-left:1px solid rgba(0,123,143,.2);}
+.nav-mobile-drawer.open{display:flex;}
+.drawer-link{color:rgba(249,247,244,.8);text-decoration:none;font-size:.9rem;letter-spacing:.1em;text-transform:uppercase;font-weight:400;transition:color .2s;}
+.drawer-link:hover{color:var(--teal-light);}
+.nav-mobile-drawer .nav-cta{text-align:center;padding:.7rem;margin-top:1rem;text-decoration:none;display:block;}
+
+/* HERO */
+.page-hero{background:var(--black);padding:10rem 5rem 7rem;position:relative;overflow:hidden;}
+.page-hero::before{content:'';position:absolute;top:-20%;right:-10%;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(0,123,143,.13) 0%,transparent 65%);pointer-events:none;}
+.page-hero-inner{max-width:900px;margin:0 auto;position:relative;}
+.page-eyebrow{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal-light);margin-bottom:1.5rem;display:block;}
+.page-hero h1{font-family:'Cormorant Garamond',serif;font-size:clamp(3rem,7vw,6rem);font-weight:300;line-height:.95;color:var(--white);margin-bottom:2rem;}
+.page-hero h1 em{font-style:italic;color:rgba(249,247,244,.55);}
+.page-hero-sub{font-size:1.05rem;color:rgba(249,247,244,.55);line-height:1.8;max-width:600px;font-weight:300;}
+.hero-rule{width:50px;height:1px;background:var(--teal);margin:2rem 0;}
+
+/* PATHWAY TABS */
+.pathway-nav{background:var(--sand);border-bottom:1px solid var(--sand-dark);padding:0 5rem;display:flex;gap:0;position:sticky;top:4.5rem;z-index:50;}
+.pathway-tab{padding:1.2rem 2rem;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);text-decoration:none;font-weight:400;border-bottom:2px solid transparent;transition:color .2s,border-color .2s;}
+.pathway-tab:hover{color:var(--teal);}
+.pathway-tab.active{color:var(--teal);border-bottom-color:var(--teal);}
+
+/* PATHWAY SECTIONS */
+.pathway{padding:8rem 5rem;scroll-margin-top:8rem;}
+.pathway:nth-child(even){background:var(--sand);}
+.pathway:nth-child(odd){background:var(--white);}
+.pathway-inner{max-width:1100px;margin:0 auto;}
+.pathway-header{display:grid;grid-template-columns:1fr 1.5fr;gap:5rem;align-items:start;margin-bottom:5rem;}
+.pathway-label{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal);margin-bottom:1rem;display:block;}
+.pathway-num{font-family:'Cormorant Garamond',serif;font-size:6rem;font-weight:300;color:var(--sand);line-height:1;margin-bottom:.5rem;}
+.pathway:nth-child(even) .pathway-num{color:var(--sand-dark);}
+.pathway-title{font-family:'Cormorant Garamond',serif;font-size:clamp(2.5rem,4vw,4rem);font-weight:300;color:var(--black);line-height:1;}
+.pathway-title em{font-style:italic;color:var(--teal);}
+.pathway-desc{font-size:1rem;color:var(--text-muted);line-height:1.8;margin-bottom:2rem;}
+.pathway-list{list-style:none;}
+.pathway-list li{font-size:.88rem;color:var(--text-body);padding:.5rem 0;border-bottom:1px solid var(--sand);display:flex;align-items:center;gap:.6rem;}
+.pathway-list li::before{content:'—';color:var(--teal);font-size:.7rem;flex-shrink:0;}
+.pathway:nth-child(even) .pathway-list li{border-bottom-color:var(--sand-dark);}
+.pathway-cta{display:inline-block;margin-top:2rem;padding:1rem 2.5rem;background:var(--teal);color:var(--white);text-decoration:none;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;font-weight:500;transition:background .2s,transform .2s;border-radius:2px;}
+.pathway-cta:hover{background:var(--teal-light);transform:translateY(-1px);}
+.pathway-detail{display:flex;flex-direction:column;gap:2rem;}
+.pathway-card{background:var(--white);padding:2rem;border-left:3px solid var(--teal);}
+.pathway:nth-child(even) .pathway-card{background:var(--white);}
+.pathway-card-title{font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:400;color:var(--black);margin-bottom:.5rem;}
+.pathway-card-desc{font-size:.85rem;color:var(--text-muted);line-height:1.7;}
+.pathway-ideal{margin-top:2rem;padding:1.5rem;background:rgba(0,123,143,.06);border:1px solid rgba(0,123,143,.15);}
+.pathway-ideal-label{font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--teal);margin-bottom:.6rem;display:block;}
+.pathway-ideal p{font-size:.85rem;color:var(--text-muted);line-height:1.7;}
+
+/* INQUIRY */
+.inquiry{padding:8rem 5rem;background:var(--black);}
+.inquiry-inner{max-width:900px;margin:0 auto;}
+.inquiry-header{margin-bottom:4rem;}
+.inquiry-header .section-label{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal-light);margin-bottom:1rem;display:block;}
+.inquiry-header h2{font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,4vw,3.5rem);font-weight:300;color:var(--white);}
+.inquiry-header h2 em{font-style:italic;color:var(--teal-light);}
+.inquiry-header p{font-size:.9rem;color:rgba(249,247,244,.5);line-height:1.75;margin-top:1rem;max-width:560px;}
+.inquiry-form{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.form-field{display:flex;flex-direction:column;gap:.4rem;}
+.form-field.full{grid-column:1/-1;}
+.form-label{font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(249,247,244,.5);}
+.form-input,.form-select,.form-textarea{padding:.9rem 1.1rem;background:rgba(249,247,244,.05);border:1px solid rgba(249,247,244,.12);color:var(--white);font-family:'DM Sans',sans-serif;font-size:.87rem;outline:none;transition:border-color .2s;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--teal);}
+.form-input::placeholder,.form-textarea::placeholder{color:rgba(249,247,244,.3);}
+.form-select{appearance:none;cursor:pointer;}
+.form-select option{background:var(--black);color:var(--white);}
+.form-textarea{resize:vertical;min-height:120px;}
+.form-submit{padding:1rem 2.5rem;background:var(--teal);color:var(--white);border:none;font-family:'DM Sans',sans-serif;font-size:.78rem;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;transition:background .2s;font-weight:500;border-radius:2px;}
+.form-submit:hover{background:var(--teal-light);}
+.form-submit:disabled{opacity:.6;cursor:not-allowed;}
+.form-msg{margin-top:1rem;font-size:.85rem;min-height:1.2em;}
+.form-msg.success{color:var(--teal-light);}
+.form-msg.error{color:#e74c3c;}
+
+/* FOOTER */
+footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;border-top:1px solid rgba(249,247,244,.07);}
+.footer-logo{font-family:'Cormorant Garamond',serif;font-size:1.2rem;letter-spacing:.08em;color:var(--white);text-decoration:none;}
+.footer-links{display:flex;gap:2rem;flex-wrap:wrap;}
+.footer-links a{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(249,247,244,.4);text-decoration:none;transition:color .2s;}
+.footer-links a:hover{color:var(--teal-light);}
+.footer-copy{font-size:.68rem;color:rgba(249,247,244,.28);}
+
+@media(max-width:960px){
+  .nav-links{display:none;}
+  .nav-hamburger{display:flex;}
+  .page-hero,.pathway,.inquiry{padding:6rem 2.5rem;}
+  .pathway-nav{padding:0 2.5rem;top:4rem;}
+  footer{padding:2.5rem;}
+  .pathway-header{grid-template-columns:1fr;gap:2.5rem;}
+  .inquiry-form{grid-template-columns:1fr;}
+  .form-field.full{grid-column:1;}
+}
+@media(max-width:600px){
+  nav{width:calc(100% - 2rem);padding:.75rem 1.5rem;}
+  .page-hero,.pathway,.inquiry{padding:5rem 1.5rem;}
+  .pathway-nav{padding:0 1.5rem;overflow-x:auto;flex-wrap:nowrap;}
+  .pathway-tab{white-space:nowrap;}
+  footer{padding:2rem 1.5rem;flex-direction:column;align-items:flex-start;}
+  .footer-links{display:none;}
+}
+</style>
+</head>
+<body>
+
+<nav id="navbar">
+  <a href="/" class="nav-logo">Omi Bell</a>
+  <button class="nav-hamburger" id="navHamburger" aria-label="Open menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+  <ul class="nav-links" id="navLinks">
+    <li><a href="/about">About</a></li>
+    <li><a href="/work-with-me" class="active">Work With Me</a></li>
+    <li><a href="/resources">Resources</a></li>
+    <li><a href="/blog">Blog</a></li>
+    <li><a href="/media">Media</a></li>
+    <li><a href="/contact" class="nav-cta">Contact</a></li>
+  </ul>
+</nav>
+<div class="nav-mobile-overlay" id="navOverlay"></div>
+<div class="nav-mobile-drawer" id="navDrawer">
+  <a href="/about" class="drawer-link">About</a>
+  <a href="/work-with-me" class="drawer-link">Work With Me</a>
+  <a href="/resources" class="drawer-link">Resources</a>
+  <a href="/blog" class="drawer-link">Blog</a>
+  <a href="/media" class="drawer-link">Media</a>
+  <a href="/contact" class="nav-cta">Contact</a>
+</div>
+
+<!-- HERO -->
+<section class="page-hero">
+  <div class="page-hero-inner">
+    <span class="page-eyebrow">Work With Me</span>
+    <h1>How we<br>work <em>together.</em></h1>
+    <div class="hero-rule"></div>
+    <p class="page-hero-sub">Three distinct pathways—organized around outcomes, not services. Each one is a different way to bring Body, Business, and Belonging into your world.</p>
+  </div>
+</section>
+
+<!-- PATHWAY TABS -->
+<div class="pathway-nav" role="navigation" aria-label="Pathway navigation">
+  <a href="#speak" class="pathway-tab">01 · Speak</a>
+  <a href="#experience" class="pathway-tab">02 · Experience</a>
+  <a href="#operate" class="pathway-tab">03 · Operate</a>
+  <a href="#inquiry" class="pathway-tab">Inquire</a>
+</div>
+
+<!-- SPEAK -->
+<section class="pathway" id="speak">
+  <div class="pathway-inner">
+    <div class="pathway-header">
+      <div>
+        <div class="pathway-num">01</div>
+        <span class="pathway-label">Speak</span>
+        <h2 class="pathway-title">Stage &<br><em>Platform</em></h2>
+        <ul class="pathway-list">
+          <li>Keynotes</li>
+          <li>Panels & Moderation</li>
+          <li>Conference Talks</li>
+          <li>Corporate Events</li>
+          <li>Leadership Summits</li>
+          <li>University Engagements</li>
+        </ul>
+        <a href="#inquiry" class="pathway-cta">Book Speaking</a>
+      </div>
+      <div class="pathway-detail">
+        <p class="pathway-desc">Omi Bell brings over a decade of lived experience as a founder, builder, and wellness practitioner to every stage. Her talks don't deliver information—they shift perspective. Audiences leave with new frameworks for how they think about leadership, wellbeing, and what it means to build something sustainable.</p>
+        <div class="pathway-card">
+          <div class="pathway-card-title">Body, Business & Belonging</div>
+          <p class="pathway-card-desc">The signature talk exploring integration over compartmentalization—why high performers perform better when they stop treating their work and their wellness as separate departments.</p>
+        </div>
+        <div class="pathway-card">
+          <div class="pathway-card-title">The Architecture of Belonging</div>
+          <p class="pathway-card-desc">For organizations building culture. How leaders create spaces where people can show up fully, contribute meaningfully, and stay.</p>
+        </div>
+        <div class="pathway-card">
+          <div class="pathway-card-title">Sustainable Success</div>
+          <p class="pathway-card-desc">For entrepreneurship conferences and business events. What it actually looks like to build something lasting without burning yourself down in the process.</p>
+        </div>
+        <div class="pathway-ideal">
+          <span class="pathway-ideal-label">Ideal For</span>
+          <p>Conferences, corporate leadership events, entrepreneurship summits, university programs, and organizations investing in culture, belonging, and sustainable performance.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- EXPERIENCE -->
+<section class="pathway" id="experience">
+  <div class="pathway-inner">
+    <div class="pathway-header">
+      <div>
+        <div class="pathway-num">02</div>
+        <span class="pathway-label">Experience</span>
+        <h2 class="pathway-title">Wellness &<br><em>Activation</em></h2>
+        <ul class="pathway-list">
+          <li>Breathwork Sessions</li>
+          <li>Yoga Nidra</li>
+          <li>Sound Healing</li>
+          <li>Retreats</li>
+          <li>Wellness Activations</li>
+          <li>Corporate Wellbeing</li>
+        </ul>
+        <a href="#inquiry" class="pathway-cta">Book Experience</a>
+      </div>
+      <div class="pathway-detail">
+        <p class="pathway-desc">Omi is a certified Yoga Nidra practitioner, breathwork facilitator, and sound healer. Her wellness experiences are designed specifically for leaders, founders, and high performers who have forgotten what it feels like to be inside their own body. These are not passive spa days—they are active, somatic practices with measurable effect.</p>
+        <div class="pathway-card">
+          <div class="pathway-card-title">Breathwork</div>
+          <p class="pathway-card-desc">Guided breathwork sessions for groups ranging from corporate teams to retreat cohorts. Accessible, powerful, and regulation-focused.</p>
+        </div>
+        <div class="pathway-card">
+          <div class="pathway-card-title">Yoga Nidra</div>
+          <p class="pathway-card-desc">The practice of yogic sleep. A guided state of conscious rest that restores the nervous system at a level that regular sleep often can't reach.</p>
+        </div>
+        <div class="pathway-card">
+          <div class="pathway-card-title">Retreats & Sound Healing</div>
+          <p class="pathway-card-desc">Immersive multi-modality retreat experiences. Sound baths, breathwork, and somatic practices woven together into a full-day or multi-day journey.</p>
+        </div>
+        <div class="pathway-ideal">
+          <span class="pathway-ideal-label">Ideal For</span>
+          <p>Corporate wellness programs, team retreats, leadership offsites, wellness conferences, festivals, and organizations investing in the nervous system health of their people.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- OPERATE -->
+<section class="pathway" id="operate">
+  <div class="pathway-inner">
+    <div class="pathway-header">
+      <div>
+        <div class="pathway-num">03</div>
+        <span class="pathway-label">Operate</span>
+        <h2 class="pathway-title">Strategy &<br><em>Systems</em></h2>
+        <ul class="pathway-list">
+          <li>Smooth Operator Program</li>
+          <li>Founder Advising</li>
+          <li>Leadership Systems</li>
+          <li>Operations Strategy</li>
+          <li>Decision-Making Frameworks</li>
+          <li>Sustainable Growth Planning</li>
+        </ul>
+        <a href="#inquiry" class="pathway-cta">Work Together</a>
+      </div>
+      <div class="pathway-detail">
+        <p class="pathway-desc">For founders, executives, and organizations who need more than inspiration—they need architecture. Omi brings over a decade of hard-won experience building an organization from nothing, combined with the operational clarity that comes from having rebuilt from the ground up. This work creates systems that don't depend on heroics.</p>
+        <div class="pathway-card">
+          <div class="pathway-card-title">Smooth Operator</div>
+          <p class="pathway-card-desc">A structured advisory program for founders who are operationally overwhelmed. We build systems, decision-making frameworks, and sustainable operating models.</p>
+        </div>
+        <div class="pathway-card">
+          <div class="pathway-card-title">Founder Advising</div>
+          <p class="pathway-card-desc">Ongoing thought partnership for founders navigating growth, transitions, or complexity. Someone who has built to ask the questions you haven't thought to ask yet.</p>
+        </div>
+        <div class="pathway-card">
+          <div class="pathway-card-title">Leadership Systems</div>
+          <p class="pathway-card-desc">For organizations building leadership infrastructure. Decision-making clarity, delegation frameworks, and the operational architecture of a team that functions without everything routing through one person.</p>
+        </div>
+        <div class="pathway-ideal">
+          <span class="pathway-ideal-label">Ideal For</span>
+          <p>Founders in growth stages, executive leaders navigating scale, and organizations that have outgrown their current operating model and need someone who has been there.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INQUIRY -->
+<section class="inquiry" id="inquiry">
+  <div class="inquiry-inner">
+    <div class="inquiry-header">
+      <span class="section-label">Get In Touch</span>
+      <h2>Let's build<br><em>something together.</em></h2>
+      <p>Tell me a little about what you're looking for. I'll respond within 48 hours to discuss how we can work together.</p>
+    </div>
+    <form class="inquiry-form" id="inquiryForm">
+      <div class="form-field">
+        <label class="form-label" for="inqName">Your Name</label>
+        <input type="text" class="form-input" id="inqName" placeholder="First and last name" required>
+      </div>
+      <div class="form-field">
+        <label class="form-label" for="inqEmail">Email Address</label>
+        <input type="email" class="form-input" id="inqEmail" placeholder="your@email.com" required>
+      </div>
+      <div class="form-field">
+        <label class="form-label" for="inqOrg">Organization</label>
+        <input type="text" class="form-input" id="inqOrg" placeholder="Company or organization name">
+      </div>
+      <div class="form-field">
+        <label class="form-label" for="inqType">How Can I Help?</label>
+        <select class="form-select form-input" id="inqType" required>
+          <option value="">Select a pathway</option>
+          <option value="speaking">Speaking — Keynote or Panel</option>
+          <option value="experience">Experience — Wellness or Activation</option>
+          <option value="operate">Operate — Strategy or Advising</option>
+          <option value="other">Something Else</option>
+        </select>
+      </div>
+      <div class="form-field full">
+        <label class="form-label" for="inqMsg">Tell Me More</label>
+        <textarea class="form-textarea" id="inqMsg" placeholder="Share a bit about your event, organization, or what you're looking for…" required></textarea>
+      </div>
+      <div class="form-field full">
+        <button type="submit" class="form-submit" id="inqSubmit">Send Inquiry</button>
+        <p class="form-msg" id="inqMsg2"></p>
+      </div>
+    </form>
+  </div>
+</section>
+
+<footer>
+  <a href="/" class="footer-logo">Omi Bell</a>
+  <nav class="footer-links" aria-label="Footer navigation">
+    <a href="/about">About</a>
+    <a href="/work-with-me">Work With Me</a>
+    <a href="/resources">Resources</a>
+    <a href="/blog">Blog</a>
+    <a href="/media">Media</a>
+    <a href="/contact">Contact</a>
+  </nav>
+  <p class="footer-copy">© 2025 Omi Bell · All rights reserved</p>
+</footer>
+
+<script>
+// Nav
+const navbar=document.getElementById('navbar'),hamburger=document.getElementById('navHamburger'),overlay=document.getElementById('navOverlay'),drawer=document.getElementById('navDrawer');
+window.addEventListener('scroll',()=>navbar.classList.toggle('scrolled',window.scrollY>40));
+function openDrawer(){drawer.classList.add('open');overlay.classList.add('open');hamburger.classList.add('open');hamburger.setAttribute('aria-expanded','true');}
+function closeDrawer(){drawer.classList.remove('open');overlay.classList.remove('open');hamburger.classList.remove('open');hamburger.setAttribute('aria-expanded','false');}
+hamburger.addEventListener('click',()=>drawer.classList.contains('open')?closeDrawer():openDrawer());
+overlay.addEventListener('click',closeDrawer);
+drawer.querySelectorAll('a').forEach(a=>a.addEventListener('click',closeDrawer));
+
+// Pathway tab active state on scroll
+const tabs=document.querySelectorAll('.pathway-tab[href^="#"]');
+const sections=document.querySelectorAll('.pathway[id],.inquiry[id]');
+function updateTabs(){
+  let current='';
+  sections.forEach(s=>{if(window.scrollY>=s.offsetTop-200)current=s.id;});
+  tabs.forEach(t=>{t.classList.toggle('active',t.getAttribute('href')==='#'+current);});
+}
+window.addEventListener('scroll',updateTabs);
+
+// Inquiry form
+document.getElementById('inquiryForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const btn=document.getElementById('inqSubmit'),msg=document.getElementById('inqMsg2');
+  btn.disabled=true;btn.textContent='Sending…';
+  try{
+    const r=await fetch('/api/contact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      name:document.getElementById('inqName').value.trim(),
+      email:document.getElementById('inqEmail').value.trim(),
+      organization:document.getElementById('inqOrg').value.trim(),
+      type:document.getElementById('inqType').value,
+      message:document.getElementById('inqMsg').value.trim()
+    })});
+    const d=await r.json();
+    if(r.ok){msg.className='form-msg success';msg.textContent="Thank you! I'll be in touch within 48 hours.";e.target.reset();}
+    else throw new Error(d.error||'Something went wrong.');
+  }catch(err){msg.className='form-msg error';msg.textContent=err.message;}
+  finally{btn.disabled=false;btn.textContent='Send Inquiry';}
+});
+</script>
+</body>
+</html>

@@ -121,15 +121,14 @@ footer{background:var(--black);color:var(--white);padding:2rem 3rem;display:flex
 </head>
 <body>
 <nav id="navbar">
-  <a href="index.html" class="nav-logo">Omi Bell</a>
+  <a href="/" class="nav-logo">Omi Bell</a>
   <ul class="nav-links">
-    <li><a href="index.html#about">About</a></li>
-    <li><a href="index.html#services">Work With Me</a></li>
-    <li><a href="blog.html" class="active">Blog</a></li>
-    <li><a href="https://my.community.com/omibell" target="_blank">Community</a></li>
-    <li><a href="index.html#media">Media</a></li>
-    <li><a href="#" class="nav-subscribe" onclick="openSubscribeModal();return false;">Subscribe</a></li>
-    <li><a href="contact.html" class="nav-cta">Contact</a></li>
+    <li><a href="/about">About</a></li>
+    <li><a href="/work-with-me">Work With Me</a></li>
+    <li><a href="/resources">Resources</a></li>
+    <li><a href="/blog" class="active">Blog</a></li>
+    <li><a href="/media">Media</a></li>
+    <li><a href="/contact" class="nav-cta">Contact</a></li>
   </ul>
 </nav>
 <header class="journal-header">
@@ -138,7 +137,7 @@ footer{background:var(--black);color:var(--white);padding:2rem 3rem;display:flex
     <h1 class="journal-title">The <em>Journal</em></h1>
     <div class="journal-rule"></div>
   </div>
-  <p class="journal-tagline">Thoughts on rest, performance, and the body as strategy.</p>
+  <p class="journal-tagline">Writing on Body, Business, and Belonging.</p>
 </header>
 <main class="blog-main">
   <div class="blog-grid" id="blogGrid">
@@ -172,7 +171,14 @@ footer{background:var(--black);color:var(--white);padding:2rem 3rem;display:flex
   </div>
 </div>
 <footer>
-  <div class="footer-logo">Omi Bell</div>
+  <a href="/" class="footer-logo">Omi Bell</a>
+  <nav style="display:flex;gap:2rem;flex-wrap:wrap;" aria-label="Footer navigation">
+    <a href="/about" style="font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(249,247,244,.4);text-decoration:none;transition:color .2s;">About</a>
+    <a href="/work-with-me" style="font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(249,247,244,.4);text-decoration:none;transition:color .2s;">Work With Me</a>
+    <a href="/resources" style="font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(249,247,244,.4);text-decoration:none;transition:color .2s;">Resources</a>
+    <a href="/media" style="font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(249,247,244,.4);text-decoration:none;transition:color .2s;">Media</a>
+    <a href="/contact" style="font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(249,247,244,.4);text-decoration:none;transition:color .2s;">Contact</a>
+  </nav>
   <div class="footer-copy">© 2025 Omi Bell · All rights reserved</div>
 </footer>
 <script>

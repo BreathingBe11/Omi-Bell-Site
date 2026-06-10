@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resources — Omi Bell</title>
+<meta name="description" content="Resources from Omi Bell. The Breathing Bell, Smooth Operator, The 30-Day Show, and free frameworks for Body, Business, and Belonging.">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--black:#0A0A0A;--white:#F9F7F4;--teal:#007B8F;--teal-light:#0CB6D4;--sand:#E8E0D4;--sand-dark:#C9BDB0;--text-body:#2A2A2A;--text-muted:rgba(10,10,10,0.5);}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:'DM Sans',sans-serif;background:var(--white);color:var(--text-body);overflow-x:hidden;-webkit-font-smoothing:antialiased;}
+
+/* NAV */
+nav{position:fixed;top:1rem;left:50%;transform:translateX(-50%);z-index:100;padding:.85rem 2rem;display:flex;justify-content:space-between;align-items:center;background:rgba(10,10,10,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(0,123,143,.2);border-radius:40px;width:calc(100% - 3rem);max-width:1100px;transition:box-shadow .3s,border-color .3s;}
+nav.scrolled{box-shadow:0 8px 40px rgba(0,0,0,.5);border-color:rgba(0,123,143,.4);}
+.nav-logo{font-family:'Cormorant Garamond',serif;font-size:1.35rem;font-weight:300;letter-spacing:.08em;color:var(--white);text-decoration:none;}
+.nav-links{display:flex;gap:1.8rem;list-style:none;align-items:center;}
+.nav-links a{color:rgba(249,247,244,.72);text-decoration:none;font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;font-weight:400;transition:color .2s;}
+.nav-links a:hover,.nav-links a.active{color:var(--teal-light);}
+.nav-cta{background:var(--teal);color:var(--white)!important;padding:.5rem 1.3rem;border-radius:2px;letter-spacing:.1em!important;transition:background .2s!important;}
+.nav-cta:hover{background:var(--teal-light)!important;}
+.nav-hamburger{display:none;flex-direction:column;justify-content:space-between;width:22px;height:14px;background:none;border:none;cursor:pointer;padding:0;}
+.nav-hamburger span{display:block;height:1.5px;background:var(--white);transition:transform .3s,opacity .3s;}
+.nav-hamburger.open span:nth-child(1){transform:translateY(6.25px) rotate(45deg);}
+.nav-hamburger.open span:nth-child(2){opacity:0;}
+.nav-hamburger.open span:nth-child(3){transform:translateY(-6.25px) rotate(-45deg);}
+.nav-mobile-overlay{display:none;position:fixed;inset:0;background:rgba(10,10,10,.7);z-index:98;backdrop-filter:blur(4px);}
+.nav-mobile-overlay.open{display:block;}
+.nav-mobile-drawer{display:none;position:fixed;top:0;right:0;height:100%;width:280px;background:var(--black);z-index:99;padding:5rem 2.5rem 3rem;flex-direction:column;gap:1.8rem;border-left:1px solid rgba(0,123,143,.2);}
+.nav-mobile-drawer.open{display:flex;}
+.drawer-link{color:rgba(249,247,244,.8);text-decoration:none;font-size:.9rem;letter-spacing:.1em;text-transform:uppercase;font-weight:400;transition:color .2s;}
+.drawer-link:hover{color:var(--teal-light);}
+.nav-mobile-drawer .nav-cta{text-align:center;padding:.7rem;margin-top:1rem;text-decoration:none;display:block;}
+
+/* HERO */
+.page-hero{background:var(--black);padding:10rem 5rem 7rem;position:relative;overflow:hidden;}
+.page-hero::before{content:'';position:absolute;top:-20%;right:-10%;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(0,123,143,.13) 0%,transparent 65%);pointer-events:none;}
+.page-hero-inner{max-width:900px;margin:0 auto;position:relative;}
+.page-eyebrow{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal-light);margin-bottom:1.5rem;display:block;}
+.page-hero h1{font-family:'Cormorant Garamond',serif;font-size:clamp(3rem,7vw,6rem);font-weight:300;line-height:.95;color:var(--white);margin-bottom:2rem;}
+.page-hero h1 em{font-style:italic;color:rgba(249,247,244,.55);}
+.page-hero-sub{font-size:1.05rem;color:rgba(249,247,244,.55);line-height:1.8;max-width:600px;font-weight:300;}
+.hero-rule{width:50px;height:1px;background:var(--teal);margin:2rem 0;}
+
+/* RESOURCE SECTIONS */
+.resource-block{padding:8rem 5rem;scroll-margin-top:5rem;}
+.resource-block:nth-child(odd){background:var(--white);}
+.resource-block:nth-child(even){background:var(--sand);}
+.resource-block-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1.4fr;gap:6rem;align-items:center;}
+.resource-block:nth-child(even) .resource-block-inner{direction:rtl;}
+.resource-block:nth-child(even) .resource-block-inner>*{direction:ltr;}
+.resource-tag{font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--teal);margin-bottom:1rem;display:block;}
+.resource-title{font-family:'Cormorant Garamond',serif;font-size:clamp(2.5rem,4.5vw,4rem);font-weight:300;line-height:1;color:var(--black);margin-bottom:1.5rem;}
+.resource-title em{font-style:italic;color:var(--teal);}
+.resource-desc{font-size:.95rem;color:var(--text-muted);line-height:1.8;margin-bottom:2rem;}
+.resource-features{list-style:none;margin-bottom:2.5rem;}
+.resource-features li{font-size:.85rem;color:var(--text-body);padding:.5rem 0;border-bottom:1px solid var(--sand);display:flex;align-items:center;gap:.6rem;}
+.resource-block:nth-child(even) .resource-features li{border-bottom-color:var(--sand-dark);}
+.resource-features li::before{content:'◆';color:var(--teal);font-size:.45rem;flex-shrink:0;}
+.resource-cta{display:inline-block;padding:1rem 2.5rem;background:var(--teal);color:var(--white);text-decoration:none;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;font-weight:500;transition:background .2s,transform .2s;border-radius:2px;}
+.resource-cta:hover{background:var(--teal-light);transform:translateY(-1px);}
+.resource-visual{aspect-ratio:4/3;background:var(--black);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+.resource-block:nth-child(odd) .resource-visual{background:linear-gradient(135deg,rgba(0,123,143,.15) 0%,var(--black) 100%);}
+.resource-block:nth-child(even) .resource-visual{background:linear-gradient(135deg,rgba(0,123,143,.1) 0%,rgba(10,10,10,.9) 100%);}
+.resource-visual-icon{font-size:4rem;opacity:.3;color:var(--teal-light);}
+.resource-visual-name{font-family:'Cormorant Garamond',serif;font-size:clamp(1.5rem,3vw,2.5rem);font-weight:300;color:var(--white);text-align:center;position:absolute;bottom:2rem;left:2rem;right:2rem;line-height:1.2;}
+
+/* FREE RESOURCES */
+.free-resources{padding:8rem 5rem;background:var(--black);}
+.free-inner{max-width:1100px;margin:0 auto;}
+.free-header{margin-bottom:4rem;}
+.free-header .section-label{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal-light);margin-bottom:1rem;display:block;}
+.free-header h2{font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,4vw,3.5rem);font-weight:300;color:var(--white);}
+.free-header h2 em{font-style:italic;color:var(--teal-light);}
+.free-header p{font-size:.9rem;color:rgba(249,247,244,.5);line-height:1.75;margin-top:1rem;max-width:560px;}
+.free-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(249,247,244,.07);}
+.free-card{background:var(--black);padding:2.5rem 2rem;border:1px solid rgba(249,247,244,.06);transition:background .3s,border-color .3s;}
+.free-card:hover{background:rgba(0,123,143,.08);border-color:rgba(0,123,143,.25);}
+.free-card-icon{font-size:1.5rem;margin-bottom:1rem;color:var(--teal-light);opacity:.7;}
+.free-card-label{font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.6rem;display:block;}
+.free-card h3{font-family:'Cormorant Garamond',serif;font-size:1.35rem;font-weight:300;color:var(--white);margin-bottom:.6rem;line-height:1.2;}
+.free-card p{font-size:.82rem;color:rgba(249,247,244,.45);line-height:1.7;}
+
+/* NEWSLETTER */
+.newsletter{padding:8rem 5rem;background:var(--white);border-top:1px solid var(--sand);}
+.newsletter-inner{max-width:600px;margin:0 auto;text-align:center;}
+.section-label-light{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal);margin-bottom:1rem;display:block;}
+.section-title{font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,4vw,3rem);font-weight:300;color:var(--black);}
+.section-title em{font-style:italic;color:var(--teal);}
+.newsletter-sub{font-size:.9rem;color:var(--text-muted);line-height:1.7;margin:1rem 0 2.5rem;}
+.newsletter-form{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center;}
+.nl-input{flex:1;min-width:180px;padding:.9rem 1.1rem;border:1px solid var(--sand-dark);background:var(--white);font-family:'DM Sans',sans-serif;font-size:.87rem;color:var(--black);outline:none;transition:border-color .2s;}
+.nl-input:focus{border-color:var(--teal);}
+.nl-input::placeholder{color:var(--text-muted);}
+.nl-btn{padding:.9rem 2rem;background:var(--teal);color:var(--white);border:none;font-family:'DM Sans',sans-serif;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:background .2s;white-space:nowrap;}
+.nl-btn:hover{background:var(--teal-light);}
+.nl-btn:disabled{opacity:.6;cursor:not-allowed;}
+.nl-msg{margin-top:1rem;font-size:.85rem;min-height:1.2em;}
+.nl-msg.success{color:var(--teal);}
+.nl-msg.error{color:#c0392b;}
+
+/* FOOTER */
+footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;}
+.footer-logo{font-family:'Cormorant Garamond',serif;font-size:1.2rem;letter-spacing:.08em;color:var(--white);text-decoration:none;}
+.footer-links{display:flex;gap:2rem;flex-wrap:wrap;}
+.footer-links a{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(249,247,244,.4);text-decoration:none;transition:color .2s;}
+.footer-links a:hover{color:var(--teal-light);}
+.footer-copy{font-size:.68rem;color:rgba(249,247,244,.28);}
+
+@media(max-width:960px){
+  .nav-links{display:none;}
+  .nav-hamburger{display:flex;}
+  .page-hero,.resource-block,.free-resources,.newsletter{padding:6rem 2.5rem;}
+  footer{padding:2.5rem;}
+  .resource-block-inner{grid-template-columns:1fr;gap:3rem;}
+  .resource-block:nth-child(even) .resource-block-inner{direction:ltr;}
+  .free-grid{grid-template-columns:1fr 1fr;}
+}
+@media(max-width:600px){
+  nav{width:calc(100% - 2rem);padding:.75rem 1.5rem;}
+  .page-hero,.resource-block,.free-resources,.newsletter{padding:5rem 1.5rem;}
+  footer{padding:2rem 1.5rem;flex-direction:column;align-items:flex-start;}
+  .footer-links{display:none;}
+  .free-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<nav id="navbar">
+  <a href="/" class="nav-logo">Omi Bell</a>
+  <button class="nav-hamburger" id="navHamburger" aria-label="Open menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+  <ul class="nav-links" id="navLinks">
+    <li><a href="/about">About</a></li>
+    <li><a href="/work-with-me">Work With Me</a></li>
+    <li><a href="/resources" class="active">Resources</a></li>
+    <li><a href="/blog">Blog</a></li>
+    <li><a href="/media">Media</a></li>
+    <li><a href="/contact" class="nav-cta">Contact</a></li>
+  </ul>
+</nav>
+<div class="nav-mobile-overlay" id="navOverlay"></div>
+<div class="nav-mobile-drawer" id="navDrawer">
+  <a href="/about" class="drawer-link">About</a>
+  <a href="/work-with-me" class="drawer-link">Work With Me</a>
+  <a href="/resources" class="drawer-link">Resources</a>
+  <a href="/blog" class="drawer-link">Blog</a>
+  <a href="/media" class="drawer-link">Media</a>
+  <a href="/contact" class="nav-cta">Contact</a>
+</div>
+
+<!-- HERO -->
+<section class="page-hero">
+  <div class="page-hero-inner">
+    <span class="page-eyebrow">Resources</span>
+    <h1>Enter the<br><em>ecosystem.</em></h1>
+    <div class="hero-rule"></div>
+    <p class="page-hero-sub">Everything here is organized around one idea: Body, Business, and Belonging. Tools, frameworks, and practices for building a life that holds.</p>
+  </div>
+</section>
+
+<!-- BREATHING BELL -->
+<section class="resource-block" id="breathing-bell">
+  <div class="resource-block-inner">
+    <div>
+      <span class="resource-tag">Wellness · Body</span>
+      <h2 class="resource-title">The Breathing<br><em>Bell</em></h2>
+      <p class="resource-desc">A companion for moments of uncertainty. The Breathing Bell offers tools and practices for nervous system regulation—designed for the moments when you need to come back to yourself.</p>
+      <ul class="resource-features">
+        <li>Guided breathwork practices</li>
+        <li>Yoga Nidra recordings</li>
+        <li>Nervous system regulation tools</li>
+        <li>Rest and recovery frameworks</li>
+        <li>Practices for high performers</li>
+      </ul>
+      <a href="/contact" class="resource-cta">Learn More</a>
+    </div>
+    <div class="resource-visual">
+      <div class="resource-visual-icon">◎</div>
+      <div class="resource-visual-name">The Breathing Bell</div>
+    </div>
+  </div>
+</section>
+
+<!-- SMOOTH OPERATOR -->
+<section class="resource-block" id="smooth-operator">
+  <div class="resource-block-inner">
+    <div>
+      <span class="resource-tag">Business · Operations</span>
+      <h2 class="resource-title">Smooth<br><em>Operator</em></h2>
+      <p class="resource-desc">Systems, operations, and leadership support for founders who are ready to build infrastructure that doesn't depend on them being everywhere. This is the work that lets you lead instead of just manage.</p>
+      <ul class="resource-features">
+        <li>Operational systems design</li>
+        <li>Decision-making frameworks</li>
+        <li>Leadership clarity tools</li>
+        <li>Delegation and team systems</li>
+        <li>Sustainable growth architecture</li>
+      </ul>
+      <a href="/work-with-me#operate" class="resource-cta">Explore Program</a>
+    </div>
+    <div class="resource-visual">
+      <div class="resource-visual-icon">◆</div>
+      <div class="resource-visual-name">Smooth Operator</div>
+    </div>
+  </div>
+</section>
+
+<!-- 30-DAY SHOW -->
+<section class="resource-block" id="30-day-show">
+  <div class="resource-block-inner">
+    <div>
+      <span class="resource-tag">Creativity · Media · Belonging</span>
+      <h2 class="resource-title">The 30-Day<br><em>Show</em></h2>
+      <p class="resource-desc">Frameworks and lessons for launching and sustaining a live show. Built by someone who did it, documented every step, and turned the experiment into a curriculum for founders and creators who want to build in public.</p>
+      <ul class="resource-features">
+        <li>30-day launch framework</li>
+        <li>Live show production templates</li>
+        <li>Audience building strategy</li>
+        <li>Content consistency systems</li>
+        <li>Lessons from 30+ days of live media</li>
+      </ul>
+      <a href="/contact" class="resource-cta">Learn More</a>
+    </div>
+    <div class="resource-visual">
+      <div class="resource-visual-icon">▶</div>
+      <div class="resource-visual-name">The 30-Day Show</div>
+    </div>
+  </div>
+</section>
+
+<!-- FREE RESOURCES -->
+<section class="free-resources" id="free">
+  <div class="free-inner">
+    <div class="free-header">
+      <span class="section-label">Free Downloads</span>
+      <h2 style="color:var(--white)">Tools for the <em style="color:var(--teal-light)">journey.</em></h2>
+      <p>Free frameworks, worksheets, and guides organized around Body, Business, and Belonging. Take what you need.</p>
+    </div>
+    <div class="free-grid">
+      <div class="free-card">
+        <div class="free-card-icon">◎</div>
+        <span class="free-card-label">Body</span>
+        <h3>Nervous System Starter Guide</h3>
+        <p>A simple introduction to nervous system regulation for people who have never heard of it—and people who have tried everything else.</p>
+      </div>
+      <div class="free-card">
+        <div class="free-card-icon">◆</div>
+        <span class="free-card-label">Business</span>
+        <h3>Founder Decision-Making Framework</h3>
+        <p>A worksheet for making clearer decisions faster. Built for founders who are making too many decisions with too little infrastructure.</p>
+      </div>
+      <div class="free-card">
+        <div class="free-card-icon">○</div>
+        <span class="free-card-label">Belonging</span>
+        <h3>Community Design Prompts</h3>
+        <p>Journal prompts and reflection questions for leaders building communities—whether that's a team, an organization, or a movement.</p>
+      </div>
+      <div class="free-card">
+        <div class="free-card-icon">✦</div>
+        <span class="free-card-label">Body</span>
+        <h3>Rest as Strategy Worksheet</h3>
+        <p>A framework for treating rest like the strategic resource it is. Because the most strategic thing you will ever do is stop.</p>
+      </div>
+      <div class="free-card">
+        <div class="free-card-icon">▶</div>
+        <span class="free-card-label">Business</span>
+        <h3>Operations Audit Template</h3>
+        <p>A simple diagnostic for founders who feel like they're always busy but never sure where the time is going.</p>
+      </div>
+      <div class="free-card">
+        <div class="free-card-icon">◎</div>
+        <span class="free-card-label">Belonging</span>
+        <h3>Storytelling for Leaders Guide</h3>
+        <p>Frameworks for leaders who want to communicate with clarity, connection, and conviction—without performing.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- NEWSLETTER -->
+<section class="newsletter">
+  <div class="newsletter-inner">
+    <span class="section-label-light">Stay Connected</span>
+    <h2 class="section-title">New resources,<br><em>delivered.</em></h2>
+    <p class="newsletter-sub">Join the journal for new frameworks, writing, and resources as they're created—organized around Body, Business, and Belonging.</p>
+    <form class="newsletter-form" id="nlForm">
+      <input type="text" class="nl-input" id="nlName" placeholder="Your name" autocomplete="given-name">
+      <input type="email" class="nl-input" id="nlEmail" placeholder="Your email" required autocomplete="email">
+      <button type="submit" class="nl-btn" id="nlBtn">Subscribe</button>
+    </form>
+    <p class="nl-msg" id="nlMsg"></p>
+  </div>
+</section>
+
+<footer>
+  <a href="/" class="footer-logo">Omi Bell</a>
+  <nav class="footer-links" aria-label="Footer navigation">
+    <a href="/about">About</a>
+    <a href="/work-with-me">Work With Me</a>
+    <a href="/resources">Resources</a>
+    <a href="/blog">Blog</a>
+    <a href="/media">Media</a>
+    <a href="/contact">Contact</a>
+  </nav>
+  <p class="footer-copy">© 2025 Omi Bell · All rights reserved</p>
+</footer>
+
+<script>
+const navbar=document.getElementById('navbar'),hamburger=document.getElementById('navHamburger'),overlay=document.getElementById('navOverlay'),drawer=document.getElementById('navDrawer');
+window.addEventListener('scroll',()=>navbar.classList.toggle('scrolled',window.scrollY>40));
+function openDrawer(){drawer.classList.add('open');overlay.classList.add('open');hamburger.classList.add('open');hamburger.setAttribute('aria-expanded','true');}
+function closeDrawer(){drawer.classList.remove('open');overlay.classList.remove('open');hamburger.classList.remove('open');hamburger.setAttribute('aria-expanded','false');}
+hamburger.addEventListener('click',()=>drawer.classList.contains('open')?closeDrawer():openDrawer());
+overlay.addEventListener('click',closeDrawer);
+drawer.querySelectorAll('a').forEach(a=>a.addEventListener('click',closeDrawer));
+
+document.getElementById('nlForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const btn=document.getElementById('nlBtn'),msg=document.getElementById('nlMsg');
+  btn.disabled=true;btn.textContent='Subscribing…';
+  try{
+    const r=await fetch('/api/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('nlName').value.trim(),email:document.getElementById('nlEmail').value.trim()})});
+    const d=await r.json();
+    if(r.ok){msg.className='nl-msg success';msg.textContent="Welcome! You're subscribed.";e.target.reset();}
+    else throw new Error(d.error||'Something went wrong.');
+  }catch(err){msg.className='nl-msg error';msg.textContent=err.message;}
+  finally{btn.disabled=false;btn.textContent='Subscribe';}
+});
+</script>
+</body>
+</html>
