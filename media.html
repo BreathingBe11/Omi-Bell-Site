@@ -13,26 +13,7 @@ html{scroll-behavior:smooth;}
 body{font-family:'DM Sans',sans-serif;background:var(--white);color:var(--text-body);overflow-x:hidden;-webkit-font-smoothing:antialiased;}
 
 /* NAV */
-nav{position:fixed;top:1rem;left:50%;transform:translateX(-50%);z-index:100;padding:.85rem 2rem;display:flex;justify-content:space-between;align-items:center;background:rgba(10,10,10,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(0,123,143,.2);border-radius:40px;width:calc(100% - 3rem);max-width:1100px;transition:box-shadow .3s ease;}
-nav.scrolled{box-shadow:0 8px 40px rgba(0,0,0,.4);border-color:rgba(0,123,143,.35);}
-.nav-logo{font-family:'Cormorant Garamond',serif;font-size:1.35rem;font-weight:300;letter-spacing:.08em;color:var(--white);text-decoration:none;}
-.nav-links{display:flex;gap:1.8rem;list-style:none;align-items:center;}
-.nav-links a{color:var(--white);text-decoration:none;font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;font-weight:400;transition:color .2s;}
-.nav-links a:hover,.nav-links a.active{color:var(--teal-light);}
-.nav-cta{background:var(--teal);color:var(--white)!important;padding:.5rem 1.3rem;border-radius:2px;letter-spacing:.1em!important;transition:background .2s!important;}
-.nav-cta:hover{background:var(--teal-light)!important;}
-.nav-hamburger{display:none;flex-direction:column;justify-content:space-between;width:22px;height:14px;background:none;border:none;cursor:pointer;padding:0;}
-.nav-hamburger span{display:block;height:1.5px;background:var(--white);transition:transform .3s,opacity .3s;}
-.nav-hamburger.open span:nth-child(1){transform:translateY(6.25px) rotate(45deg);}
-.nav-hamburger.open span:nth-child(2){opacity:0;}
-.nav-hamburger.open span:nth-child(3){transform:translateY(-6.25px) rotate(-45deg);}
-.nav-mobile-overlay{display:none;position:fixed;inset:0;background:rgba(10,10,10,.7);z-index:98;backdrop-filter:blur(4px);}
-.nav-mobile-overlay.open{display:block;}
-.nav-mobile-drawer{display:none;position:fixed;top:0;right:0;height:100%;width:280px;background:var(--black);z-index:99;padding:5rem 2.5rem 3rem;flex-direction:column;gap:1.8rem;border-left:1px solid rgba(0,123,143,.2);}
-.nav-mobile-drawer.open{display:flex;}
-.drawer-link{color:rgba(249,247,244,.8);text-decoration:none;font-size:.9rem;letter-spacing:.1em;text-transform:uppercase;font-weight:400;transition:color .2s;}
-.drawer-link:hover{color:var(--teal-light);}
-.nav-mobile-drawer .nav-cta{text-align:center;padding:.7rem;margin-top:1rem;text-decoration:none;display:block;}
+.nav-mobile-drawer
 
 /* HERO */
 .page-hero{background:var(--black);padding:10rem 5rem 7rem;position:relative;overflow:hidden;}
@@ -106,8 +87,6 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
 .footer-copy{font-size:.68rem;color:rgba(249,247,244,.28);}
 
 @media(max-width:960px){
-  .nav-links{display:none;}
-  .nav-hamburger{display:flex;}
   .page-hero,.featured-media,.appearances,.press,.reel-cta{padding:6rem 2.5rem;}
   footer{padding:2.5rem;}
   .featured-grid{grid-template-columns:1fr;}
@@ -116,7 +95,6 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
   .press-date{display:none;}
 }
 @media(max-width:600px){
-  nav{width:calc(100% - 2rem);padding:.75rem 1.5rem;}
   .page-hero,.featured-media,.appearances,.press,.reel-cta{padding:5rem 1.5rem;}
   footer{padding:2rem 1.5rem;flex-direction:column;align-items:flex-start;}
   .footer-links{display:none;}
@@ -126,32 +104,6 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
 </style>
 </head>
 <body>
-
-<nav id="navbar">
-  <a href="/" class="nav-logo">Omi Bell</a><ul class="nav-links" id="navLinks">
-    <li><a href="/">Home</a></li>
-    <li><a href="/about">About</a></li>
-    <li><a href="/work-with-me">Work With Me</a></li>
-    <li><a href="/resources">Resources</a></li>
-    <li><a href="/blog">Blog</a></li>
-    <li><a href="/media">Media</a></li>
-    <li><a href="/contact" class="nav-cta">Contact</a></li>
-  </ul>
-
-  <button class="nav-hamburger" id="navHamburger" aria-label="Open menu" aria-expanded="false">
-    <span></span><span></span><span></span>
-  </button>
-</nav>
-<div class="nav-mobile-overlay" id="navOverlay"></div>
-<div class="nav-mobile-drawer" id="navDrawer">
-  <a href="/" class="drawer-link">Home</a>
-  <a href="/about" class="drawer-link">About</a>
-  <a href="/work-with-me" class="drawer-link">Work With Me</a>
-  <a href="/resources" class="drawer-link">Resources</a>
-  <a href="/blog" class="drawer-link">Blog</a>
-  <a href="/media" class="drawer-link">Media</a>
-  <a href="/contact" class="nav-cta">Contact</a>
-</div>
 
 <!-- HERO -->
 <section class="page-hero">
@@ -300,15 +252,7 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
 </footer>
 
 <script>
-const navbar=document.getElementById('navbar'),hamburger=document.getElementById('navHamburger'),overlay=document.getElementById('navOverlay'),drawer=document.getElementById('navDrawer');
-window.addEventListener('scroll',()=>navbar.classList.toggle('scrolled',window.scrollY>40));
-function openDrawer(){drawer.classList.add('open');overlay.classList.add('open');hamburger.classList.add('open');hamburger.setAttribute('aria-expanded','true');}
-function closeDrawer(){drawer.classList.remove('open');overlay.classList.remove('open');hamburger.classList.remove('open');hamburger.setAttribute('aria-expanded','false');}
-hamburger.addEventListener('click',()=>drawer.classList.contains('open')?closeDrawer():openDrawer());
-overlay.addEventListener('click',closeDrawer);
-drawer.querySelectorAll('a').forEach(a=>a.addEventListener('click',closeDrawer));
-// Active nav link
-(function(){var p=window.location.pathname.replace(/\/$/,'');document.querySelectorAll('.nav-links a:not(.nav-cta)').forEach(function(a){var h=a.getAttribute('href').replace(/\/$/,'');if(h===p||(p===''&&h==='/'))a.classList.add('active');});})();
+})();
 </script>
 </body>
 </html>
