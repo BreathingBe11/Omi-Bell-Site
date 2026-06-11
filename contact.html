@@ -343,14 +343,34 @@
   }
   .footer-links a:hover { color: var(--teal-light); }
 
+  /* HAMBURGER */
+  .nav-hamburger{display:none;flex-direction:column;justify-content:space-between;width:22px;height:14px;background:none;border:none;cursor:pointer;padding:0;}
+  .nav-hamburger span{display:block;height:1.5px;background:var(--white);transition:transform .3s,opacity .3s;}
+  .nav-hamburger.open span:nth-child(1){transform:translateY(6.25px) rotate(45deg);}
+  .nav-hamburger.open span:nth-child(2){opacity:0;}
+  .nav-hamburger.open span:nth-child(3){transform:translateY(-6.25px) rotate(-45deg);}
+  .nav-mobile-overlay{display:none;position:fixed;inset:0;background:rgba(10,10,10,.7);z-index:98;backdrop-filter:blur(4px);}
+  .nav-mobile-overlay.open{display:block;}
+  .nav-mobile-drawer{display:none;position:fixed;top:0;right:0;height:100%;width:280px;background:var(--black);z-index:99;padding:5rem 2.5rem 3rem;flex-direction:column;gap:1.8rem;border-left:1px solid rgba(0,123,143,.2);}
+  .nav-mobile-drawer.open{display:flex;}
+  .drawer-link{color:var(--white);text-decoration:none;font-size:.88rem;letter-spacing:.1em;text-transform:uppercase;font-weight:400;transition:color .2s;}
+  .drawer-link:hover{color:var(--teal-light);}
+  .nav-mobile-drawer .nav-cta{text-align:center;padding:.7rem;margin-top:1rem;text-decoration:none;display:block;}
+
   /* RESPONSIVE */
-  @media (max-width: 768px) {
-    .contact-hero { padding: 8rem 1.5rem 4rem; }
-    .contact-body { padding: 4rem 1.5rem; }
+  @media (max-width: 960px) {
+    .nav-links { display: none; }
+    .nav-hamburger { display: flex; }
+    .contact-hero { padding: 8rem 2.5rem 4rem; }
+    .contact-body { padding: 4rem 2.5rem; }
     .form-grid { grid-template-columns: 1fr; }
     .form-group.full { grid-column: 1; }
-    nav { width: calc(100% - 2rem); padding: 0.8rem 1.5rem; }
-    .nav-links { display: none; }
+    footer { padding: 2.5rem; }
+  }
+  @media (max-width: 600px) {
+    nav { width: calc(100% - 2rem); padding: 0.75rem 1.5rem; }
+    .contact-hero { padding: 7rem 1.5rem 4rem; }
+    .contact-body { padding: 3rem 1.5rem; }
     footer { padding: 2rem 1.5rem; flex-direction: column; align-items: flex-start; }
   }
 </style>
@@ -369,7 +389,20 @@
     <li><a href="/media">Media</a></li>
     <li><a href="/contact" class="nav-cta">Contact</a></li>
   </ul>
+  <button class="nav-hamburger" id="navHamburger" aria-label="Open menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
 </nav>
+<div class="nav-mobile-overlay" id="navOverlay"></div>
+<div class="nav-mobile-drawer" id="navDrawer">
+  <a href="/" class="drawer-link">Home</a>
+  <a href="/about" class="drawer-link">About</a>
+  <a href="/work-with-me" class="drawer-link">Work With Me</a>
+  <a href="/resources" class="drawer-link">Resources</a>
+  <a href="/blog" class="drawer-link">Blog</a>
+  <a href="/media" class="drawer-link">Media</a>
+  <a href="/contact" class="nav-cta">Contact</a>
+</div>
 
 <!-- HERO STRIP -->
 <section class="contact-hero">
@@ -471,9 +504,17 @@
 
 <script>
   const navbar = document.getElementById('navbar');
+  const hamburger = document.getElementById('navHamburger');
+  const overlay = document.getElementById('navOverlay');
+  const drawer = document.getElementById('navDrawer');
   window.addEventListener('scroll', () => {
     navbar.classList.toggle('scrolled', window.scrollY > 60);
   });
+  function openDrawer(){drawer.classList.add('open');overlay.classList.add('open');hamburger.classList.add('open');hamburger.setAttribute('aria-expanded','true');}
+  function closeDrawer(){drawer.classList.remove('open');overlay.classList.remove('open');hamburger.classList.remove('open');hamburger.setAttribute('aria-expanded','false');}
+  hamburger.addEventListener('click',()=>drawer.classList.contains('open')?closeDrawer():openDrawer());
+  overlay.addEventListener('click',closeDrawer);
+  drawer.querySelectorAll('a').forEach(a=>a.addEventListener('click',closeDrawer));
   (function(){var p=window.location.pathname.replace(/\/$/,'');document.querySelectorAll('.nav-links a:not(.nav-cta)').forEach(function(a){var h=a.getAttribute('href').replace(/\/$/,'');if(h===p||(p===''&&h==='/'))a.classList.add('active');});})();
 
   const tabs = document.querySelectorAll('.inquiry-tab');
