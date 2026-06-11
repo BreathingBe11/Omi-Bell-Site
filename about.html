@@ -16,7 +16,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--white);color:var(--text-b
 .nav-mobile-drawer
 
 /* HERO */
-.page-hero{background:var(--black);padding:10rem 5rem 7rem;position:relative;overflow:hidden;}
+.page-hero{background:var(--black);padding:7rem 5rem 5rem;position:relative;overflow:hidden;}
 .page-hero::before{content:'';position:absolute;top:-30%;right:-15%;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(0,123,143,.12) 0%,transparent 65%);pointer-events:none;}
 .page-hero-inner{max-width:900px;margin:0 auto;position:relative;}
 .page-eyebrow{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal-light);margin-bottom:1.5rem;display:block;}
@@ -99,9 +99,53 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
   .chapters-grid{grid-template-columns:1fr;}
   .btn-outline{margin-left:0;margin-top:1rem;}
 }
+
+/* SITE NAV */
+#site-nav{position:fixed;top:0;left:0;right:0;z-index:100;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 2.5rem;background:#0A0A0A;border-bottom:1px solid rgba(0,123,143,0.25);}
+#site-nav .sn-logo{font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:300;color:#F9F7F4;text-decoration:none;letter-spacing:.08em;flex-shrink:0;}
+#site-nav .sn-links{display:flex;gap:2rem;list-style:none;align-items:center;margin:0;padding:0;}
+#site-nav .sn-links a{color:#F9F7F4;text-decoration:none;font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;font-weight:400;}
+#site-nav .sn-links a:hover,#site-nav .sn-links a.active{color:#0CB6D4;}
+#site-nav .sn-cta{background:#007B8F;color:#F9F7F4!important;padding:.4rem 1.1rem;border-radius:2px;}
+#site-nav .sn-cta:hover{background:#0CB6D4!important;}
+#site-nav .sn-burger{display:none;flex-direction:column;justify-content:space-between;width:22px;height:14px;background:none;border:none;cursor:pointer;padding:0;}
+#site-nav .sn-burger span{display:block;height:2px;background:#F9F7F4;border-radius:1px;}
+.sn-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:199;}
+.sn-overlay.open{display:block;}
+.sn-drawer{display:none;position:fixed;top:0;right:0;height:100%;width:260px;background:#0A0A0A;z-index:200;padding:4.5rem 2rem 2rem;flex-direction:column;gap:1.6rem;border-left:1px solid rgba(0,123,143,0.2);}
+.sn-drawer.open{display:flex;}
+.sn-drawer a{color:#F9F7F4;text-decoration:none;font-size:.82rem;letter-spacing:.1em;text-transform:uppercase;font-weight:400;}
+.sn-drawer a:hover{color:#0CB6D4;}
+.sn-drawer .sn-cta{background:#007B8F;padding:.6rem 1rem;text-align:center;border-radius:2px;margin-top:.5rem;}
+@media(max-width:768px){#site-nav .sn-links{display:none;}#site-nav .sn-burger{display:flex;}}
 </style>
 </head>
 <body>
+<nav id="site-nav">
+  <a href="/" class="sn-logo">Omi Bell</a>
+  <ul class="sn-links">
+    <li><a href="/">Home</a></li>
+    <li><a href="/about">About</a></li>
+    <li><a href="/work-with-me">Work With Me</a></li>
+    <li><a href="/resources">Resources</a></li>
+    <li><a href="/blog">Blog</a></li>
+    <li><a href="/media">Media</a></li>
+    <li><a href="/contact" class="sn-cta">Contact</a></li>
+  </ul>
+  <button class="sn-burger" id="snBurger" aria-label="Open menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+<div class="sn-overlay" id="snOverlay"></div>
+<div class="sn-drawer" id="snDrawer">
+  <a href="/">Home</a>
+  <a href="/about">About</a>
+  <a href="/work-with-me">Work With Me</a>
+  <a href="/resources">Resources</a>
+  <a href="/blog">Blog</a>
+  <a href="/media">Media</a>
+  <a href="/contact" class="sn-cta">Contact</a>
+</div>
 
 <!-- HERO -->
 <section class="page-hero">
@@ -251,6 +295,23 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
 </footer>
 
 <script>
+})();
+</script>
+<script>
+(function(){
+  var h=document.getElementById('snBurger'),
+      o=document.getElementById('snOverlay'),
+      d=document.getElementById('snDrawer');
+  function openNav(){d.classList.add('open');o.classList.add('open');}
+  function closeNav(){d.classList.remove('open');o.classList.remove('open');}
+  h.addEventListener('click',function(){d.classList.contains('open')?closeNav():openNav();});
+  o.addEventListener('click',closeNav);
+  d.querySelectorAll('a').forEach(function(a){a.addEventListener('click',closeNav);});
+  var p=location.pathname.replace(/\/$/,'');
+  document.querySelectorAll('#site-nav .sn-links a:not(.sn-cta)').forEach(function(a){
+    var h=a.getAttribute('href').replace(/\/$/,'');
+    if(h===p||(p===''&&h==='/'))a.classList.add('active');
+  });
 })();
 </script>
 </body>
