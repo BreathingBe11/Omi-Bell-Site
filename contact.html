@@ -474,6 +474,7 @@
   window.addEventListener('scroll', () => {
     navbar.classList.toggle('scrolled', window.scrollY > 60);
   });
+  (function(){var p=window.location.pathname.replace(/\/$/,'');document.querySelectorAll('.nav-links a:not(.nav-cta)').forEach(function(a){var h=a.getAttribute('href').replace(/\/$/,'');if(h===p||(p===''&&h==='/'))a.classList.add('active');});})();
 
   const tabs = document.querySelectorAll('.inquiry-tab');
   const inquiryInput = document.getElementById('inquiryTypeInput');

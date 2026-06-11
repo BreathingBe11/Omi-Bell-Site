@@ -132,7 +132,7 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
   </button>
   <ul class="nav-links" id="navLinks">
     <li><a href="/">Home</a></li>
-    <li><a href="/about" class="active">About</a></li>
+    <li><a href="/about">About</a></li>
     <li><a href="/work-with-me">Work With Me</a></li>
     <li><a href="/resources">Resources</a></li>
     <li><a href="/blog">Blog</a></li>
@@ -306,6 +306,8 @@ function closeDrawer(){drawer.classList.remove('open');overlay.classList.remove(
 hamburger.addEventListener('click',()=>drawer.classList.contains('open')?closeDrawer():openDrawer());
 overlay.addEventListener('click',closeDrawer);
 drawer.querySelectorAll('a').forEach(a=>a.addEventListener('click',closeDrawer));
+// Active nav link
+(function(){var p=window.location.pathname.replace(/\/$/,'');document.querySelectorAll('.nav-links a:not(.nav-cta)').forEach(function(a){var h=a.getAttribute('href').replace(/\/$/,'');if(h===p||(p===''&&h==='/'))a.classList.add('active');});})();
 </script>
 </body>
 </html>

@@ -127,7 +127,7 @@ footer{background:var(--black);color:var(--white);padding:2rem 3rem;display:flex
     <li><a href="/about">About</a></li>
     <li><a href="/work-with-me">Work With Me</a></li>
     <li><a href="/resources">Resources</a></li>
-    <li><a href="/blog" class="active">Blog</a></li>
+    <li><a href="/blog">Blog</a></li>
     <li><a href="/media">Media</a></li>
     <li><a href="/contact" class="nav-cta">Contact</a></li>
   </ul>
@@ -269,6 +269,7 @@ function renderPagination(){
 }
 
 window.addEventListener('scroll',()=>document.getElementById('navbar').classList.toggle('scrolled',window.scrollY>30),{passive:true});
+(function(){var p=window.location.pathname.replace(/\/$/,'');document.querySelectorAll('.nav-links a:not(.nav-cta)').forEach(function(a){var h=a.getAttribute('href').replace(/\/$/,'');if(h===p||(p===''&&h==='/'))a.classList.add('active');});})();
 
 function openSubscribeModal(){document.getElementById('subscribeModal').classList.add('open');document.body.style.overflow='hidden';}
 function closeSubscribeModal(){document.getElementById('subscribeModal').classList.remove('open');document.body.style.overflow='';}
