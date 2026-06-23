@@ -22,6 +22,28 @@ body{font-family:'DM Sans',sans-serif;background:var(--white);color:var(--text-b
 .page-hero-sub{font-size:1.05rem;color:rgba(249,247,244,.55);line-height:1.8;max-width:600px;font-weight:300;}
 .hero-rule{width:50px;height:1px;background:var(--teal);margin:2rem 0;}
 
+/* RESOURCE NAV */
+.resource-nav{position:sticky;top:56px;z-index:50;background:var(--white);border-bottom:1px solid var(--sand);display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.resource-tab{padding:1.2rem 2rem;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);text-decoration:none;font-weight:400;border-bottom:2px solid transparent;transition:color .2s,border-color .2s;white-space:nowrap;}
+.resource-tab:hover{color:var(--teal);}
+.resource-tab.active{color:var(--teal);border-bottom-color:var(--teal);}
+
+/* PAYWALL MODAL */
+.pw-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;align-items:center;justify-content:center;}
+.pw-overlay.open{display:flex;}
+.pw-modal{background:var(--white);max-width:480px;width:90%;padding:3rem 2.5rem;position:relative;}
+.pw-close{position:absolute;top:1rem;right:1.2rem;background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--text-muted);line-height:1;}
+.pw-eyebrow{font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--teal);margin-bottom:.8rem;display:block;}
+.pw-title{font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:300;color:var(--black);line-height:1.1;margin-bottom:1rem;}
+.pw-desc{font-size:.88rem;color:var(--text-muted);line-height:1.7;margin-bottom:1.5rem;}
+.pw-price{font-family:'Cormorant Garamond',serif;font-size:2.5rem;font-weight:300;color:var(--teal);margin-bottom:1.5rem;}
+.pw-price span{font-size:.9rem;font-family:'DM Sans',sans-serif;color:var(--text-muted);margin-left:.4rem;}
+.pw-btn{display:block;width:100%;padding:1.1rem 2rem;background:var(--teal);color:var(--white);border:none;font-family:'DM Sans',sans-serif;font-size:.8rem;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;transition:background .2s;font-weight:500;border-radius:2px;text-align:center;}
+.pw-btn:hover{background:var(--teal-light);}
+.pw-btn:disabled{opacity:.6;cursor:not-allowed;}
+.pw-note{font-size:.72rem;color:var(--text-muted);margin-top:.8rem;text-align:center;}
+.pw-err{font-size:.82rem;color:#c0392b;margin-top:.6rem;text-align:center;min-height:1em;}
+
 /* RESOURCE SECTIONS */
 .resource-block{padding:8rem 5rem;scroll-margin-top:5rem;}
 .resource-block:nth-child(odd){background:var(--white);}
@@ -148,6 +170,20 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
   <a href="/contact" class="sn-cta">Contact</a>
 </div>
 
+<!-- PAYWALL MODAL -->
+<div class="pw-overlay" id="pwOverlay">
+  <div class="pw-modal" role="dialog" aria-modal="true" aria-labelledby="pwTitle">
+    <button class="pw-close" id="pwClose" aria-label="Close">×</button>
+    <span class="pw-eyebrow">Digital Download</span>
+    <h2 class="pw-title" id="pwTitle">The 30-Day Show<br>Playbook</h2>
+    <p class="pw-desc">The complete framework for launching and sustaining a live show—built from 30+ days of doing it live. Templates, systems, and every lesson from the experiment.</p>
+    <div class="pw-price">$2.99 <span>one-time</span></div>
+    <button class="pw-btn" id="pwBtn">Pay $2.99 · Download Playbook</button>
+    <p class="pw-note">Secure checkout via Stripe. PDF delivered instantly after payment.</p>
+    <p class="pw-err" id="pwErr"></p>
+  </div>
+</div>
+
 <!-- HERO -->
 <section class="page-hero">
   <div class="page-hero-inner">
@@ -157,6 +193,13 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
     <p class="page-hero-sub">Everything here is organized around one idea: Body, Business, and Belonging. Tools, frameworks, and practices for building a life that holds.</p>
   </div>
 </section>
+
+<!-- RESOURCE NAV -->
+<nav class="resource-nav" id="resourceNav" aria-label="Resource sections">
+  <a href="#breathing-bell" class="resource-tab" data-target="breathing-bell">01 · Breathwork App</a>
+  <a href="#smooth-operator" class="resource-tab" data-target="smooth-operator">02 · Smooth Operator</a>
+  <a href="#30-day-show" class="resource-tab" data-target="30-day-show">03 · 30-Day Show</a>
+</nav>
 
 <!-- BREATHING BELL -->
 <section class="resource-block" id="breathing-bell">
@@ -218,7 +261,7 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
         <li>Content consistency systems</li>
         <li>Lessons from 30+ days of live media</li>
       </ul>
-      <a href="/contact" class="resource-cta">Learn More</a>
+      <button class="resource-cta" id="openPaywall">Download the Playbook</button>
     </div>
     <div class="resource-visual">
       <div class="resource-visual-icon">▶</div>
@@ -304,6 +347,49 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
   <p class="footer-copy">© 2025 Omi Bell · All rights reserved</p>
 </footer>
 
+<script>
+/* Resource tab scroll-spy */
+(function(){
+  var tabs=document.querySelectorAll('.resource-tab');
+  var sections=['breathing-bell','smooth-operator','30-day-show'].map(function(id){return document.getElementById(id);});
+  function setActive(id){tabs.forEach(function(t){t.classList.toggle('active',t.dataset.target===id);});}
+  window.addEventListener('scroll',function(){
+    var scrollY=window.scrollY+120;
+    var active=null;
+    sections.forEach(function(s){if(s&&s.offsetTop<=scrollY)active=s.id;});
+    if(active)setActive(active);
+  },{passive:true});
+  tabs.forEach(function(t){
+    t.addEventListener('click',function(e){
+      e.preventDefault();
+      var target=document.getElementById(t.dataset.target);
+      if(target)target.scrollIntoView({behavior:'smooth'});
+    });
+  });
+})();
+
+/* Paywall modal */
+(function(){
+  var overlay=document.getElementById('pwOverlay');
+  var btn=document.getElementById('pwBtn');
+  var err=document.getElementById('pwErr');
+  document.getElementById('openPaywall').addEventListener('click',function(){overlay.classList.add('open');});
+  document.getElementById('pwClose').addEventListener('click',function(){overlay.classList.remove('open');err.textContent='';});
+  overlay.addEventListener('click',function(e){if(e.target===overlay){overlay.classList.remove('open');err.textContent='';}});
+  btn.addEventListener('click',async function(){
+    btn.disabled=true;btn.textContent='Redirecting to checkout…';err.textContent='';
+    try{
+      var r=await fetch('/api/create-checkout',{method:'POST',headers:{'Content-Type':'application/json'}});
+      var d=await r.json();
+      if(!r.ok)throw new Error(d.error||'Something went wrong.');
+      window.location.href=d.url;
+    }catch(e){
+      err.textContent=e.message;
+      btn.disabled=false;btn.textContent='Pay $2.99 · Download Playbook';
+    }
+  });
+})();
+</script>
 <script>
 document.getElementById('nlForm').addEventListener('submit',async e=>{
   e.preventDefault();

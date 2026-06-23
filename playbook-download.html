@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Download Your Playbook — Omi Bell</title>
+<meta name="robots" content="noindex,nofollow">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--black:#0A0A0A;--white:#F9F7F4;--teal:#007B8F;--teal-light:#0CB6D4;--sand:#E8E0D4;--text-body:#2A2A2A;--text-muted:rgba(10,10,10,0.5);}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--black);color:var(--white);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;-webkit-font-smoothing:antialiased;}
+.dl-card{background:rgba(249,247,244,.04);border:1px solid rgba(0,123,143,.2);max-width:520px;width:100%;padding:3.5rem 3rem;text-align:center;}
+.dl-icon{font-size:3rem;margin-bottom:1.5rem;color:var(--teal-light);opacity:.8;}
+.dl-eyebrow{font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--teal-light);margin-bottom:1rem;display:block;}
+.dl-title{font-family:'Cormorant Garamond',serif;font-size:2.4rem;font-weight:300;line-height:1.1;margin-bottom:1rem;}
+.dl-sub{font-size:.9rem;color:rgba(249,247,244,.55);line-height:1.7;margin-bottom:2rem;}
+.dl-btn{display:inline-block;padding:1.1rem 2.5rem;background:var(--teal);color:var(--white);text-decoration:none;font-size:.8rem;letter-spacing:.15em;text-transform:uppercase;font-weight:500;border-radius:2px;transition:background .2s;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.dl-btn:hover{background:var(--teal-light);}
+.dl-btn:disabled{opacity:.5;cursor:not-allowed;}
+.dl-note{font-size:.72rem;color:rgba(249,247,244,.35);margin-top:1.2rem;line-height:1.6;}
+.dl-err{font-size:.85rem;color:#e57373;margin-top:1rem;line-height:1.6;}
+.dl-spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(249,247,244,.2);border-top-color:var(--teal-light);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:.5rem;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.dl-logo{font-family:'Cormorant Garamond',serif;font-size:1rem;letter-spacing:.1em;color:rgba(249,247,244,.3);text-decoration:none;margin-top:2.5rem;display:block;}
+</style>
+</head>
+<body>
+<div class="dl-card" id="dlCard">
+  <div class="dl-icon">▶</div>
+  <span class="dl-eyebrow">Payment Confirmed</span>
+  <h1 class="dl-title">The 30-Day Show<br>Playbook</h1>
+  <p class="dl-sub" id="dlSub"><span class="dl-spinner"></span> Verifying your payment…</p>
+  <div id="dlAction"></div>
+  <p class="dl-note" id="dlNote"></p>
+  <p class="dl-err" id="dlErr"></p>
+</div>
+<a href="/" class="dl-logo">Omi Bell</a>
+
+<script>
+(async function(){
+  var params=new URLSearchParams(location.search);
+  var sid=params.get('session_id');
+  var sub=document.getElementById('dlSub');
+  var action=document.getElementById('dlAction');
+  var note=document.getElementById('dlNote');
+  var err=document.getElementById('dlErr');
+
+  if(!sid){
+    sub.textContent='';
+    err.textContent='No payment session found. Please return to the resources page and try again.';
+    action.innerHTML='<a href="/resources#30-day-show" class="dl-btn">Back to Resources</a>';
+    return;
+  }
+
+  try{
+    var r=await fetch('/api/verify-download?session_id='+encodeURIComponent(sid));
+    var d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Verification failed.');
+    sub.textContent='Your payment was confirmed. Your download is ready.';
+    action.innerHTML='<a href="'+d.download_url+'" class="dl-btn" download>Download Playbook (PDF)</a>';
+    note.textContent='This link expires in 1 hour. Save your PDF after downloading.';
+  }catch(e){
+    sub.textContent='';
+    err.innerHTML=e.message+'<br><br>Need help? Email <a href="mailto:hello@omisworld.com" style="color:var(--teal-light)">hello@omisworld.com</a>';
+  }
+})();
+</script>
+</body>
+</html>
