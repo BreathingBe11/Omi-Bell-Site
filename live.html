@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join Omi Bell's Inner Circle</title>
+  <meta name="description" content="Get insights on Body, Business & Belonging delivered to your inbox.">
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --black: #0A0A0A;
+      --white: #F9F7F4;
+      --teal: #007B8F;
+      --teal-light: #0CB6D4;
+      --sand: #F0EBE3;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--black);
+      color: var(--white);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Ambient glow */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 900px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,123,143,0.18) 0%, transparent 65%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -10%;
+      right: -10%;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(12,182,212,0.07) 0%, transparent 65%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1.5rem;
+      text-align: center;
+    }
+
+    /* Badge */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.62rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--teal-light);
+      border: 1px solid rgba(12,182,212,0.3);
+      padding: 0.4rem 1rem;
+      border-radius: 100px;
+      margin-bottom: 2rem;
+      font-weight: 400;
+    }
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--teal-light);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.7); }
+    }
+
+    /* Headline */
+    .headline {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(3.2rem, 10vw, 7rem);
+      font-weight: 300;
+      line-height: 0.92;
+      color: var(--white);
+      margin-bottom: 1.8rem;
+      letter-spacing: -0.01em;
+    }
+    .headline em {
+      font-style: italic;
+      color: rgba(249,247,244,0.45);
+    }
+
+    /* Rule */
+    .rule {
+      width: 40px;
+      height: 1px;
+      background: var(--teal);
+      margin: 0 auto 1.8rem;
+    }
+
+    /* Sub */
+    .sub {
+      font-size: clamp(0.95rem, 2.5vw, 1.1rem);
+      color: rgba(249,247,244,0.52);
+      line-height: 1.75;
+      max-width: 440px;
+      margin: 0 auto 2.8rem;
+      font-weight: 300;
+    }
+
+    /* Pillars */
+    .pillars {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 3rem;
+    }
+    .pillar-tag {
+      font-size: 0.65rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(249,247,244,0.35);
+      border: 1px solid rgba(249,247,244,0.1);
+      padding: 0.35rem 0.8rem;
+      border-radius: 100px;
+    }
+
+    /* Form card */
+    .form-card {
+      width: 100%;
+      max-width: 420px;
+      background: rgba(249,247,244,0.04);
+      border: 1px solid rgba(249,247,244,0.09);
+      border-radius: 16px;
+      padding: 2rem 1.8rem;
+      margin: 0 auto;
+    }
+
+    .form-label-text {
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: rgba(249,247,244,0.4);
+      margin-bottom: 1rem;
+      display: block;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+      margin-bottom: 0.9rem;
+    }
+
+    .field {
+      width: 100%;
+      background: rgba(249,247,244,0.05);
+      border: 1px solid rgba(249,247,244,0.1);
+      border-radius: 8px;
+      padding: 0.9rem 1.1rem;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      font-weight: 300;
+      color: var(--white);
+      outline: none;
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+    }
+    .field::placeholder { color: rgba(249,247,244,0.28); }
+    .field:focus { border-color: var(--teal); }
+    .field.error { border-color: #e05252; }
+
+    .submit-btn {
+      width: 100%;
+      background: var(--teal);
+      color: var(--white);
+      border: none;
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .submit-btn:hover { background: var(--teal-light); }
+    .submit-btn:active { transform: scale(0.99); }
+    .submit-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .privacy {
+      font-size: 0.67rem;
+      color: rgba(249,247,244,0.25);
+      margin-top: 0.9rem;
+      line-height: 1.6;
+    }
+
+    /* Success state */
+    .success-state {
+      display: none;
+      padding: 1rem 0;
+    }
+    .success-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.8rem;
+    }
+    .success-heading {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.8rem;
+      font-weight: 300;
+      color: var(--white);
+      margin-bottom: 0.5rem;
+    }
+    .success-sub {
+      font-size: 0.85rem;
+      color: rgba(249,247,244,0.45);
+      line-height: 1.6;
+    }
+
+    /* Footer mark */
+    .mark {
+      margin-top: 3rem;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.9rem;
+      font-weight: 300;
+      color: rgba(249,247,244,0.2);
+      letter-spacing: 0.06em;
+    }
+    .mark a {
+      color: rgba(249,247,244,0.2);
+      text-decoration: none;
+    }
+
+    /* Fade-in */
+    .fade { opacity: 0; transform: translateY(20px); animation: fadeUp 0.7s ease forwards; }
+    .fade:nth-child(1) { animation-delay: 0.05s; }
+    .fade:nth-child(2) { animation-delay: 0.15s; }
+    .fade:nth-child(3) { animation-delay: 0.22s; }
+    .fade:nth-child(4) { animation-delay: 0.3s; }
+    .fade:nth-child(5) { animation-delay: 0.38s; }
+    .fade:nth-child(6) { animation-delay: 0.46s; }
+    .fade:nth-child(7) { animation-delay: 0.54s; }
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 480px) {
+      .page { padding: 2.5rem 1.2rem; justify-content: flex-start; padding-top: 3.5rem; }
+      .form-card { padding: 1.6rem 1.3rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <div class="badge fade">
+      <span class="badge-dot"></span>
+      Live Event
+    </div>
+
+    <h1 class="headline fade">
+      You're in<br>the <em>room.</em><br>Stay in it.
+    </h1>
+
+    <div class="rule fade"></div>
+
+    <p class="sub fade">
+      Join Omi's inner circle and get ideas on body, business, and belonging delivered straight to you.
+    </p>
+
+    <div class="pillars fade">
+      <span class="pillar-tag">Body</span>
+      <span class="pillar-tag">Business</span>
+      <span class="pillar-tag">Belonging</span>
+    </div>
+
+    <div class="form-card fade">
+      <div id="formWrap">
+        <span class="form-label-text">Drop your info below</span>
+        <div class="field-group">
+          <input type="text" id="firstName" class="field" placeholder="First name" autocomplete="given-name">
+          <input type="email" id="emailField" class="field" placeholder="Email address" autocomplete="email">
+        </div>
+        <button class="submit-btn" id="submitBtn" onclick="handleSubmit()">I'm In &rarr;</button>
+        <p class="privacy">No spam. Unsubscribe anytime. Your info stays with Omi.</p>
+      </div>
+      <div class="success-state" id="successState">
+        <div class="success-icon">&#x1F514;</div>
+        <div class="success-heading">Welcome to the room.</div>
+        <p class="success-sub">You're in. Check your inbox for a note from Omi.</p>
+      </div>
+    </div>
+
+    <div class="mark fade">
+      <a href="https://omibell.com">omibell.com</a>
+    </div>
+
+  </div>
+
+  <script>
+    async function handleSubmit() {
+      var btn = document.getElementById('submitBtn');
+      var emailEl = document.getElementById('emailField');
+      var firstNameEl = document.getElementById('firstName');
+
+      emailEl.classList.remove('error');
+
+      var email = emailEl.value.trim();
+      var firstName = firstNameEl.value.trim();
+
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        emailEl.classList.add('error');
+        emailEl.focus();
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Joining…';
+
+      try {
+        var res = await fetch('/api/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email, firstName: firstName, source: 'live-event' })
+        });
+
+        if (res.ok) {
+          document.getElementById('formWrap').style.display = 'none';
+          document.getElementById('successState').style.display = 'block';
+        } else {
+          throw new Error('non-ok');
+        }
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = "I'm In →";
+        emailEl.classList.add('error');
+        emailEl.placeholder = 'Something went wrong — try again';
+      }
+    }
+
+    document.getElementById('emailField').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') handleSubmit();
+    });
+    document.getElementById('firstName').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') document.getElementById('emailField').focus();
+    });
+  </script>
+</body>
+</html>
