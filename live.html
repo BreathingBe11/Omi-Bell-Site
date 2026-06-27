@@ -399,7 +399,7 @@
         var res = await fetch('/api/subscribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email, firstName: firstName, source: 'live-event' })
+          body: JSON.stringify({ email: email, name: firstName, source: 'live-event' })
         });
 
         if (res.ok) {
