@@ -308,7 +308,7 @@ async function handleSubscribe(e,form,msgId){
     const r=await fetch('/api/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email})});
     const d=await r.json();
     if(!r.ok)throw new Error(d.error||'Something went wrong.');
-    msgEl.textContent='You\'re in! Watch your inbox for the next essay.';
+    msgEl.textContent='You\'re in! Watch your inbox for the next post.';
     msgEl.className='subscribe-msg success';
     form.reset();
     if(msgId==='modalMsg')setTimeout(closeSubscribeModal,2500);
