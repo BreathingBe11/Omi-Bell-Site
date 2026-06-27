@@ -15,16 +15,13 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'Password required' });
   }
 
-  const hash      = process.env.ADMIN_PASSWORD_HASH;
-  const plaintext = process.env.ADMIN_PASSWORD;
-  const secret    = process.env.SESSION_SECRET;
-  if ((!hash && !plaintext) || !secret) {
+  const hash   = process.env.ADMIN_PASSWORD_HASH;
+  const secret = process.env.SESSION_SECRET;
+  if (!hash || !secret) {
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
-  const ok = hash
-    ? verifyPassword(password, hash)
-    : password === plaintext;
+  const ok = verifyPassword(password, hash);
 
   if (!ok) {
     return res.status(401).json({ error: 'Incorrect password' });

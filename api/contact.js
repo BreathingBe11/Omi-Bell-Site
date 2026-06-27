@@ -1,6 +1,13 @@
+'use strict';
+const { checkRateLimit, clientIp } = require('./_lib/auth');
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  if (!checkRateLimit(clientIp(req))) {
+    return res.status(429).json({ error: 'Too many requests. Try again later.' });
   }
 
   const { firstName, lastName, email, company, inquiryType, message } = req.body || {};
