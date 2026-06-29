@@ -22,50 +22,33 @@ body{font-family:'DM Sans',sans-serif;background:var(--white);color:var(--text-b
 .page-hero-sub{font-size:1.05rem;color:rgba(249,247,244,.55);line-height:1.8;max-width:600px;font-weight:300;}
 .hero-rule{width:50px;height:1px;background:var(--teal);margin:2rem 0;}
 
-/* RESOURCE SECTIONS */
-.resource-block{padding:8rem 5rem;scroll-margin-top:5rem;}
-.resource-block:nth-child(odd){background:var(--white);}
-.resource-block:nth-child(even){background:var(--sand);}
-.resource-block-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1.4fr;gap:6rem;align-items:center;}
-.resource-block:nth-child(even) .resource-block-inner{direction:rtl;}
-.resource-block:nth-child(even) .resource-block-inner>*{direction:ltr;}
-.resource-tag{font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--teal);margin-bottom:1rem;display:block;}
-.resource-title{font-family:'Cormorant Garamond',serif;font-size:clamp(2.5rem,4.5vw,4rem);font-weight:300;line-height:1;color:var(--black);margin-bottom:1.5rem;}
-.resource-title em{font-style:italic;color:var(--teal);}
-.resource-desc{font-size:.95rem;color:var(--text-muted);line-height:1.8;margin-bottom:2rem;}
-.resource-features{list-style:none;margin-bottom:2.5rem;}
-.resource-features li{font-size:.85rem;color:var(--text-body);padding:.5rem 0;border-bottom:1px solid var(--sand);display:flex;align-items:center;gap:.6rem;}
-.resource-block:nth-child(even) .resource-features li{border-bottom-color:var(--sand-dark);}
-.resource-features li::before{content:'◆';color:var(--teal);font-size:.45rem;flex-shrink:0;}
-.resource-cta{display:inline-block;padding:1rem 2.5rem;background:var(--teal);color:var(--white);text-decoration:none;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;font-weight:500;transition:background .2s,transform .2s;border-radius:2px;}
-.resource-cta:hover{background:var(--teal-light);transform:translateY(-1px);}
-.resource-visual{aspect-ratio:4/3;background:var(--black);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
-.resource-block:nth-child(odd) .resource-visual{background:linear-gradient(135deg,rgba(0,123,143,.15) 0%,var(--black) 100%);}
-.resource-block:nth-child(even) .resource-visual{background:linear-gradient(135deg,rgba(0,123,143,.1) 0%,rgba(10,10,10,.9) 100%);}
-.resource-visual-icon{font-size:4rem;opacity:.3;color:var(--teal-light);}
-.resource-visual-name{font-family:'Cormorant Garamond',serif;font-size:clamp(1.5rem,3vw,2.5rem);font-weight:300;color:var(--white);text-align:center;position:absolute;bottom:2rem;left:2rem;right:2rem;line-height:1.2;}
+/* RESOURCE GRID */
+.resource-grid-section{padding:8rem 5rem;background:var(--black);}
+.rg-inner{max-width:1100px;margin:0 auto;}
+.rg-header{margin-bottom:4rem;}
+.rg-header .section-label{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal-light);margin-bottom:1rem;display:block;}
+.rg-header h2{font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,4vw,3.5rem);font-weight:300;color:var(--white);}
+.rg-header h2 em{font-style:italic;color:var(--teal-light);}
+.rg-header p{font-size:.9rem;color:rgba(249,247,244,.5);line-height:1.75;margin-top:1rem;max-width:560px;}
+.rg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(249,247,244,.07);}
+.rc{background:var(--black);padding:2.5rem 2rem;border:1px solid rgba(249,247,244,.06);transition:background .3s,border-color .3s;display:flex;flex-direction:column;}
+.rc:hover{background:rgba(0,123,143,.08);border-color:rgba(0,123,143,.25);}
+.rc-icon{font-size:1.5rem;margin-bottom:1rem;color:var(--teal-light);opacity:.7;}
+.rc-label{font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.6rem;display:block;}
+.rc h3{font-family:'Cormorant Garamond',serif;font-size:1.35rem;font-weight:300;color:var(--white);margin-bottom:.6rem;line-height:1.2;}
+.rc p{font-size:.82rem;color:rgba(249,247,244,.45);line-height:1.7;flex:1;}
+.rc-cta{display:inline-block;margin-top:1.5rem;padding:.6rem 1.5rem;background:var(--teal);color:var(--white);text-decoration:none;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;font-weight:500;border-radius:2px;transition:background .2s,transform .2s;align-self:flex-start;}
+.rc-cta:hover{background:var(--teal-light);transform:translateY(-1px);}
+.rc-badge{display:inline-block;font-size:.58rem;letter-spacing:.16em;text-transform:uppercase;color:var(--teal-light);border:1px solid rgba(12,182,212,.35);padding:.2rem .55rem;border-radius:2px;margin-bottom:.75rem;}
 
-/* PAID DOWNLOADS */
-.paid-downloads{padding:8rem 5rem;background:var(--black);}
-.pd-inner{max-width:1100px;margin:0 auto;}
-.pd-header{margin-bottom:4rem;}
-.pd-header .section-label{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal-light);margin-bottom:1rem;display:block;}
-.pd-header h2{font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,4vw,3.5rem);font-weight:300;color:var(--white);}
-.pd-header h2 em{font-style:italic;color:var(--teal-light);}
-.pd-header p{font-size:.9rem;color:rgba(249,247,244,.5);line-height:1.75;margin-top:1rem;max-width:560px;}
-.pd-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(249,247,244,.07);}
-.pd-card{background:var(--black);padding:2.5rem 2rem;border:1px solid rgba(249,247,244,.06);transition:background .3s,border-color .3s;display:flex;flex-direction:column;}
-.pd-card:hover{background:rgba(0,123,143,.08);border-color:rgba(0,123,143,.25);}
-.pd-card-icon{font-size:1.5rem;margin-bottom:1rem;color:var(--teal-light);opacity:.7;}
-.pd-card-label{font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.6rem;display:block;}
-.pd-card h3{font-family:'Cormorant Garamond',serif;font-size:1.35rem;font-weight:300;color:var(--white);margin-bottom:.6rem;line-height:1.2;}
-.pd-card p{font-size:.82rem;color:rgba(249,247,244,.45);line-height:1.7;flex:1;}
-.pd-price{font-size:.82rem;font-weight:500;color:var(--teal-light);margin-top:1.25rem;}
-.pd-cta{display:inline-block;margin-top:1rem;padding:.7rem 1.75rem;background:var(--teal);color:var(--white);text-decoration:none;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;font-weight:500;border-radius:2px;transition:background .2s,transform .2s;align-self:flex-start;}
-.pd-cta:hover{background:var(--teal-light);transform:translateY(-1px);}
-
-/* COMING SOON BUTTON */
-.resource-cta-disabled{display:inline-block;padding:1rem 2.5rem;background:rgba(249,247,244,.1);color:rgba(249,247,244,.35);font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;font-weight:500;border-radius:2px;cursor:default;pointer-events:none;}
+/* SMOOTH OPERATOR TEASER */
+.so-teaser{padding:6rem 5rem;background:var(--sand);text-align:center;}
+.so-teaser-inner{max-width:600px;margin:0 auto;}
+.so-label{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal);margin-bottom:1rem;display:block;}
+.so-title{font-family:'Cormorant Garamond',serif;font-size:clamp(2rem,4vw,3rem);font-weight:300;color:var(--black);margin-bottom:1rem;}
+.so-title em{font-style:italic;color:var(--teal);}
+.so-desc{font-size:.9rem;color:var(--text-muted);line-height:1.75;margin-bottom:1.75rem;}
+.so-badge{display:inline-block;padding:.6rem 1.75rem;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;font-weight:500;color:rgba(10,10,10,.3);background:rgba(10,10,10,.06);border-radius:2px;cursor:default;}
 
 /* NEWSLETTER */
 .newsletter{padding:8rem 5rem;background:var(--white);border-top:1px solid var(--sand);}
@@ -94,17 +77,15 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
 .footer-copy{font-size:.68rem;color:rgba(249,247,244,.28);}
 
 @media(max-width:960px){
-  .page-hero,.paid-downloads,.resource-block,.newsletter{padding:6rem 2.5rem;}
+  .page-hero,.resource-grid-section,.so-teaser,.newsletter{padding:6rem 2.5rem;}
   footer{padding:2.5rem;}
-  .resource-block-inner{grid-template-columns:1fr;gap:3rem;}
-  .resource-block:nth-child(even) .resource-block-inner{direction:ltr;}
-  .pd-grid{grid-template-columns:1fr 1fr;}
+  .rg-grid{grid-template-columns:1fr 1fr;}
 }
 @media(max-width:600px){
-  .page-hero,.paid-downloads,.resource-block,.newsletter{padding:5rem 1.5rem;}
+  .page-hero,.resource-grid-section,.so-teaser,.newsletter{padding:5rem 1.5rem;}
   footer{padding:2rem 1.5rem;flex-direction:column;align-items:flex-start;}
   .footer-links{display:none;}
-  .pd-grid{grid-template-columns:1fr;}
+  .rg-grid{grid-template-columns:1fr;}
 }
 
 /* SITE NAV */
@@ -164,109 +145,84 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
   </div>
 </section>
 
-<!-- PAID DOWNLOADS -->
-<section class="paid-downloads" id="downloads">
-  <div class="pd-inner">
-    <div class="pd-header">
-      <span class="section-label">Downloads · 30-Day Show</span>
-      <h2>The SOPs. The Templates.<br><em>The Real Stuff.</em></h2>
-      <p>The actual documents from inside a 30-day live show build. Buy what you need and get straight to work.</p>
+<!-- RESOURCE GRID -->
+<section class="resource-grid-section" id="downloads">
+  <div class="rg-inner">
+    <div class="rg-header">
+      <span class="section-label">Resources</span>
+      <h2>Tools for the <em>work.</em></h2>
+      <p>Frameworks, guides, and SOPs built from real experience. Take what you need and put it to work.</p>
     </div>
-    <div class="pd-grid">
-      <div class="pd-card">
-        <div class="pd-card-icon">◆</div>
-        <span class="pd-card-label">Finance</span>
-        <h3>Budget Template</h3>
-        <p>A line-by-line show budget for planning 30 days of live production. Built from the actual numbers, not guesses.</p>
-        <div class="pd-price">$—</div>
-        <a href="#" class="pd-cta">Buy Now</a>
+    <div class="rg-grid">
+
+      <div class="rc">
+        <div class="rc-icon">◎</div>
+        <div class="rc-badge">Free</div>
+        <span class="rc-label">Wellness · Body</span>
+        <h3>The Breathing Bell</h3>
+        <p>Tools and practices for nervous system regulation — guided breathwork, Yoga Nidra, and rest frameworks for high performers.</p>
+        <a href="https://www.thebreathingbell.com" target="_blank" rel="noopener" class="rc-cta">Learn More</a>
       </div>
-      <div class="pd-card">
-        <div class="pd-card-icon">▶</div>
-        <span class="pd-card-label">Operations</span>
-        <h3>Guest Booking SOP</h3>
-        <p>The exact process for sourcing, pitching, and confirming guests — from first outreach to show day.</p>
-        <div class="pd-price">$—</div>
-        <a href="#" class="pd-cta">Buy Now</a>
+
+      <div class="rc">
+        <div class="rc-icon">▶</div>
+        <span class="rc-label">Creativity · Media</span>
+        <h3>30 Day Show Framework</h3>
+        <p>The full curriculum for launching and sustaining a live show — from day one through thirty, built by someone who did it.</p>
+        <a href="#" class="rc-cta">Download</a>
       </div>
-      <div class="pd-card">
-        <div class="pd-card-icon">○</div>
-        <span class="pd-card-label">Team</span>
-        <h3>Content Producer Role</h3>
-        <p>Full role description and responsibilities for a content producer — everything you need to hire or delegate the job.</p>
-        <div class="pd-price">$—</div>
-        <a href="#" class="pd-cta">Buy Now</a>
+
+      <div class="rc">
+        <div class="rc-icon">◎</div>
+        <span class="rc-label">Body · Wellness</span>
+        <h3>Nervous System Regulation Guide</h3>
+        <p>A practical guide to understanding and regulating your nervous system — for people who have tried everything else.</p>
+        <a href="#" class="rc-cta">Download</a>
       </div>
+
+      <div class="rc">
+        <div class="rc-icon">○</div>
+        <span class="rc-label">Body · Belonging</span>
+        <h3>Work Life Balance Integration Guide</h3>
+        <p>A framework for integrating — not just balancing — the demands of work, leadership, and a full human life.</p>
+        <a href="#" class="rc-cta">Download</a>
+      </div>
+
+      <div class="rc">
+        <div class="rc-icon">✦</div>
+        <span class="rc-label">Body · Belonging</span>
+        <h3>Prompts for 30 Days of Peace</h3>
+        <p>Thirty daily prompts for cultivating peace as a practice — not a destination. Built for leaders who move fast.</p>
+        <a href="#" class="rc-cta">Download</a>
+      </div>
+
+      <div class="rc">
+        <div class="rc-icon">◆</div>
+        <span class="rc-label">Belonging · Creativity</span>
+        <h3>How to Have a Whimsical Week</h3>
+        <p>A guided framework for injecting delight, play, and intention into an ordinary week. Because joy is also a strategy.</p>
+        <a href="#" class="rc-cta">Download</a>
+      </div>
+
+      <div class="rc">
+        <div class="rc-icon">◆</div>
+        <span class="rc-label">Business</span>
+        <h3>Founder Decision-Making Framework</h3>
+        <p>A worksheet for making clearer decisions faster — built for founders who are making too many calls with too little infrastructure.</p>
+        <a href="#" class="rc-cta">Download</a>
+      </div>
+
     </div>
   </div>
 </section>
 
-<!-- BREATHING BELL -->
-<section class="resource-block" id="breathing-bell">
-  <div class="resource-block-inner">
-    <div>
-      <span class="resource-tag">Wellness · Body</span>
-      <h2 class="resource-title">The Breathing<br><em>Bell</em></h2>
-      <p class="resource-desc">A companion for moments of uncertainty. The Breathing Bell offers tools and practices for nervous system regulation—designed for the moments when you need to come back to yourself.</p>
-      <ul class="resource-features">
-        <li>Guided breathwork practices</li>
-        <li>Yoga Nidra recordings</li>
-        <li>Nervous system regulation tools</li>
-        <li>Rest and recovery frameworks</li>
-        <li>Practices for high performers</li>
-      </ul>
-      <a href="https://www.thebreathingbell.com" target="_blank" rel="noopener" class="resource-cta">Learn More</a>
-    </div>
-    <div class="resource-visual">
-      <img src="/images/DSC04349-Edit copy.jpg" alt="The Breathing Bell" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.75;">
-      <div class="resource-visual-name">The Breathing Bell</div>
-    </div>
-  </div>
-</section>
-
-<!-- 30-DAY SHOW -->
-<section class="resource-block" id="30-day-show">
-  <div class="resource-block-inner">
-    <div>
-      <span class="resource-tag">Creativity · Media · Belonging</span>
-      <h2 class="resource-title">The 30-Day<br><em>Show</em></h2>
-      <p class="resource-desc">Frameworks and lessons for launching and sustaining a live show. Built by someone who did it, documented every step, and turned the experiment into a curriculum for founders and creators who want to build in public.</p>
-      <ul class="resource-features">
-        <li>30-day launch framework</li>
-        <li>Live show production templates</li>
-        <li>Audience building strategy</li>
-        <li>Content consistency systems</li>
-        <li>Lessons from 30+ days of live media</li>
-      </ul>
-      <a href="/contact" class="resource-cta">Learn More</a>
-    </div>
-    <div class="resource-visual">
-      <img src="/images/2026BGV-KAW135 copy.jpg" alt="The 30-Day Show" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.75;">
-      <div class="resource-visual-name">The 30-Day Show</div>
-    </div>
-  </div>
-</section>
-
-<!-- SMOOTH OPERATOR -->
-<section class="resource-block" id="smooth-operator">
-  <div class="resource-block-inner">
-    <div>
-      <span class="resource-tag">Business · Operations</span>
-      <h2 class="resource-title">Smooth<br><em>Operator</em></h2>
-      <p class="resource-desc">Systems, operations, and leadership support for founders who are ready to build infrastructure that doesn't depend on them being everywhere. This is the work that lets you lead instead of just manage.</p>
-      <ul class="resource-features">
-        <li>Operational systems design</li>
-        <li>Decision-making frameworks</li>
-        <li>Leadership clarity tools</li>
-        <li>Delegation and team systems</li>
-        <li>Sustainable growth architecture</li>
-      </ul>
-      <span class="resource-cta-disabled">Coming Soon</span>
-    </div>
-    <div class="resource-visual">
-      <img src="/images/2026BGV-KAW034 copy.jpg" alt="Smooth Operator" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.75;">
-      <div class="resource-visual-name">Smooth Operator</div>
-    </div>
+<!-- SMOOTH OPERATOR TEASER -->
+<section class="so-teaser">
+  <div class="so-teaser-inner">
+    <span class="so-label">Business · Operations</span>
+    <h2 class="so-title">Smooth <em>Operator</em></h2>
+    <p class="so-desc">Systems, operations, and leadership support for founders who are ready to build infrastructure that doesn't depend on them being everywhere.</p>
+    <span class="so-badge">Coming Soon</span>
   </div>
 </section>
 
