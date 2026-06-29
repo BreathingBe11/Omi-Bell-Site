@@ -45,21 +45,27 @@ body{font-family:'DM Sans',sans-serif;background:var(--white);color:var(--text-b
 .resource-visual-icon{font-size:4rem;opacity:.3;color:var(--teal-light);}
 .resource-visual-name{font-family:'Cormorant Garamond',serif;font-size:clamp(1.5rem,3vw,2.5rem);font-weight:300;color:var(--white);text-align:center;position:absolute;bottom:2rem;left:2rem;right:2rem;line-height:1.2;}
 
-/* FREE RESOURCES */
-.free-resources{padding:8rem 5rem;background:var(--black);}
-.free-inner{max-width:1100px;margin:0 auto;}
-.free-header{margin-bottom:4rem;}
-.free-header .section-label{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal-light);margin-bottom:1rem;display:block;}
-.free-header h2{font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,4vw,3.5rem);font-weight:300;color:var(--white);}
-.free-header h2 em{font-style:italic;color:var(--teal-light);}
-.free-header p{font-size:.9rem;color:rgba(249,247,244,.5);line-height:1.75;margin-top:1rem;max-width:560px;}
-.free-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(249,247,244,.07);}
-.free-card{background:var(--black);padding:2.5rem 2rem;border:1px solid rgba(249,247,244,.06);transition:background .3s,border-color .3s;}
-.free-card:hover{background:rgba(0,123,143,.08);border-color:rgba(0,123,143,.25);}
-.free-card-icon{font-size:1.5rem;margin-bottom:1rem;color:var(--teal-light);opacity:.7;}
-.free-card-label{font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.6rem;display:block;}
-.free-card h3{font-family:'Cormorant Garamond',serif;font-size:1.35rem;font-weight:300;color:var(--white);margin-bottom:.6rem;line-height:1.2;}
-.free-card p{font-size:.82rem;color:rgba(249,247,244,.45);line-height:1.7;}
+/* PAID DOWNLOADS */
+.paid-downloads{padding:8rem 5rem;background:var(--black);}
+.pd-inner{max-width:1100px;margin:0 auto;}
+.pd-header{margin-bottom:4rem;}
+.pd-header .section-label{font-size:.68rem;letter-spacing:.24em;text-transform:uppercase;color:var(--teal-light);margin-bottom:1rem;display:block;}
+.pd-header h2{font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,4vw,3.5rem);font-weight:300;color:var(--white);}
+.pd-header h2 em{font-style:italic;color:var(--teal-light);}
+.pd-header p{font-size:.9rem;color:rgba(249,247,244,.5);line-height:1.75;margin-top:1rem;max-width:560px;}
+.pd-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(249,247,244,.07);}
+.pd-card{background:var(--black);padding:2.5rem 2rem;border:1px solid rgba(249,247,244,.06);transition:background .3s,border-color .3s;display:flex;flex-direction:column;}
+.pd-card:hover{background:rgba(0,123,143,.08);border-color:rgba(0,123,143,.25);}
+.pd-card-icon{font-size:1.5rem;margin-bottom:1rem;color:var(--teal-light);opacity:.7;}
+.pd-card-label{font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.6rem;display:block;}
+.pd-card h3{font-family:'Cormorant Garamond',serif;font-size:1.35rem;font-weight:300;color:var(--white);margin-bottom:.6rem;line-height:1.2;}
+.pd-card p{font-size:.82rem;color:rgba(249,247,244,.45);line-height:1.7;flex:1;}
+.pd-price{font-size:.82rem;font-weight:500;color:var(--teal-light);margin-top:1.25rem;}
+.pd-cta{display:inline-block;margin-top:1rem;padding:.7rem 1.75rem;background:var(--teal);color:var(--white);text-decoration:none;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;font-weight:500;border-radius:2px;transition:background .2s,transform .2s;align-self:flex-start;}
+.pd-cta:hover{background:var(--teal-light);transform:translateY(-1px);}
+
+/* COMING SOON BUTTON */
+.resource-cta-disabled{display:inline-block;padding:1rem 2.5rem;background:rgba(249,247,244,.1);color:rgba(249,247,244,.35);font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;font-weight:500;border-radius:2px;cursor:default;pointer-events:none;}
 
 /* NEWSLETTER */
 .newsletter{padding:8rem 5rem;background:var(--white);border-top:1px solid var(--sand);}
@@ -88,17 +94,17 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
 .footer-copy{font-size:.68rem;color:rgba(249,247,244,.28);}
 
 @media(max-width:960px){
-  .page-hero,.resource-block,.free-resources,.newsletter{padding:6rem 2.5rem;}
+  .page-hero,.paid-downloads,.resource-block,.newsletter{padding:6rem 2.5rem;}
   footer{padding:2.5rem;}
   .resource-block-inner{grid-template-columns:1fr;gap:3rem;}
   .resource-block:nth-child(even) .resource-block-inner{direction:ltr;}
-  .free-grid{grid-template-columns:1fr 1fr;}
+  .pd-grid{grid-template-columns:1fr 1fr;}
 }
 @media(max-width:600px){
-  .page-hero,.resource-block,.free-resources,.newsletter{padding:5rem 1.5rem;}
+  .page-hero,.paid-downloads,.resource-block,.newsletter{padding:5rem 1.5rem;}
   footer{padding:2rem 1.5rem;flex-direction:column;align-items:flex-start;}
   .footer-links{display:none;}
-  .free-grid{grid-template-columns:1fr;}
+  .pd-grid{grid-template-columns:1fr;}
 }
 
 /* SITE NAV */
@@ -158,6 +164,43 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
   </div>
 </section>
 
+<!-- PAID DOWNLOADS -->
+<section class="paid-downloads" id="downloads">
+  <div class="pd-inner">
+    <div class="pd-header">
+      <span class="section-label">Downloads · 30-Day Show</span>
+      <h2>The SOPs. The Templates.<br><em>The Real Stuff.</em></h2>
+      <p>The actual documents from inside a 30-day live show build. Buy what you need and get straight to work.</p>
+    </div>
+    <div class="pd-grid">
+      <div class="pd-card">
+        <div class="pd-card-icon">◆</div>
+        <span class="pd-card-label">Finance</span>
+        <h3>Budget Template</h3>
+        <p>A line-by-line show budget for planning 30 days of live production. Built from the actual numbers, not guesses.</p>
+        <div class="pd-price">$—</div>
+        <a href="#" class="pd-cta">Buy Now</a>
+      </div>
+      <div class="pd-card">
+        <div class="pd-card-icon">▶</div>
+        <span class="pd-card-label">Operations</span>
+        <h3>Guest Booking SOP</h3>
+        <p>The exact process for sourcing, pitching, and confirming guests — from first outreach to show day.</p>
+        <div class="pd-price">$—</div>
+        <a href="#" class="pd-cta">Buy Now</a>
+      </div>
+      <div class="pd-card">
+        <div class="pd-card-icon">○</div>
+        <span class="pd-card-label">Team</span>
+        <h3>Content Producer Role</h3>
+        <p>Full role description and responsibilities for a content producer — everything you need to hire or delegate the job.</p>
+        <div class="pd-price">$—</div>
+        <a href="#" class="pd-cta">Buy Now</a>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- BREATHING BELL -->
 <section class="resource-block" id="breathing-bell">
   <div class="resource-block-inner">
@@ -177,29 +220,6 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
     <div class="resource-visual">
       <img src="/images/DSC04349-Edit copy.jpg" alt="The Breathing Bell" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.75;">
       <div class="resource-visual-name">The Breathing Bell</div>
-    </div>
-  </div>
-</section>
-
-<!-- SMOOTH OPERATOR -->
-<section class="resource-block" id="smooth-operator">
-  <div class="resource-block-inner">
-    <div>
-      <span class="resource-tag">Business · Operations</span>
-      <h2 class="resource-title">Smooth<br><em>Operator</em></h2>
-      <p class="resource-desc">Systems, operations, and leadership support for founders who are ready to build infrastructure that doesn't depend on them being everywhere. This is the work that lets you lead instead of just manage.</p>
-      <ul class="resource-features">
-        <li>Operational systems design</li>
-        <li>Decision-making frameworks</li>
-        <li>Leadership clarity tools</li>
-        <li>Delegation and team systems</li>
-        <li>Sustainable growth architecture</li>
-      </ul>
-      <a href="/work-with-me#operate" class="resource-cta">Explore Program</a>
-    </div>
-    <div class="resource-visual">
-      <img src="/images/2026BGV-KAW034 copy.jpg" alt="Smooth Operator" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.75;">
-      <div class="resource-visual-name">Smooth Operator</div>
     </div>
   </div>
 </section>
@@ -227,51 +247,25 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
   </div>
 </section>
 
-<!-- FREE RESOURCES -->
-<section class="free-resources" id="free">
-  <div class="free-inner">
-    <div class="free-header">
-      <span class="section-label">Free Downloads</span>
-      <h2 style="color:var(--white)">Tools for the <em style="color:var(--teal-light)">journey.</em></h2>
-      <p>Free frameworks, worksheets, and guides organized around Body, Business, and Belonging. Take what you need.</p>
+<!-- SMOOTH OPERATOR -->
+<section class="resource-block" id="smooth-operator">
+  <div class="resource-block-inner">
+    <div>
+      <span class="resource-tag">Business · Operations</span>
+      <h2 class="resource-title">Smooth<br><em>Operator</em></h2>
+      <p class="resource-desc">Systems, operations, and leadership support for founders who are ready to build infrastructure that doesn't depend on them being everywhere. This is the work that lets you lead instead of just manage.</p>
+      <ul class="resource-features">
+        <li>Operational systems design</li>
+        <li>Decision-making frameworks</li>
+        <li>Leadership clarity tools</li>
+        <li>Delegation and team systems</li>
+        <li>Sustainable growth architecture</li>
+      </ul>
+      <span class="resource-cta-disabled">Coming Soon</span>
     </div>
-    <div class="free-grid">
-      <div class="free-card">
-        <div class="free-card-icon">◎</div>
-        <span class="free-card-label">Body</span>
-        <h3>Nervous System Starter Guide</h3>
-        <p>A simple introduction to nervous system regulation for people who have never heard of it—and people who have tried everything else.</p>
-      </div>
-      <div class="free-card">
-        <div class="free-card-icon">◆</div>
-        <span class="free-card-label">Business</span>
-        <h3>Founder Decision-Making Framework</h3>
-        <p>A worksheet for making clearer decisions faster. Built for founders who are making too many decisions with too little infrastructure.</p>
-      </div>
-      <div class="free-card">
-        <div class="free-card-icon">○</div>
-        <span class="free-card-label">Belonging</span>
-        <h3>Community Design Prompts</h3>
-        <p>Journal prompts and reflection questions for leaders building communities—whether that's a team, an organization, or a movement.</p>
-      </div>
-      <div class="free-card">
-        <div class="free-card-icon">✦</div>
-        <span class="free-card-label">Body</span>
-        <h3>Rest as Strategy Worksheet</h3>
-        <p>A framework for treating rest like the strategic resource it is. Because the most strategic thing you will ever do is stop.</p>
-      </div>
-      <div class="free-card">
-        <div class="free-card-icon">▶</div>
-        <span class="free-card-label">Business</span>
-        <h3>Operations Audit Template</h3>
-        <p>A simple diagnostic for founders who feel like they're always busy but never sure where the time is going.</p>
-      </div>
-      <div class="free-card">
-        <div class="free-card-icon">◎</div>
-        <span class="free-card-label">Belonging</span>
-        <h3>Storytelling for Leaders Guide</h3>
-        <p>Frameworks for leaders who want to communicate with clarity, connection, and conviction—without performing.</p>
-      </div>
+    <div class="resource-visual">
+      <img src="/images/2026BGV-KAW034 copy.jpg" alt="Smooth Operator" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.75;">
+      <div class="resource-visual-name">Smooth Operator</div>
     </div>
   </div>
 </section>
