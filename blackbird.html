@@ -75,7 +75,7 @@
 
   /* technique cards */
   .techwrap{position:absolute;left:84px;right:84px;bottom:56px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
-  .tech{background:rgba(30,10,22,.42);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.18);border-radius:4px;padding:24px 22px;}
+  .tech{background:rgba(30,10,22,.42);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.18);border-radius:4px;padding:24px 22px;}
   .tech .n{font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--orange);line-height:1;}
   .tech h3{font-size:29px;color:#fff;margin:8px 0 9px;}
   .tech p{font-family:'Jost';font-weight:400;font-size:13.5px;line-height:1.5;color:rgba(255,255,255,.98);}
@@ -105,6 +105,110 @@
   #bb-gate-box button:hover{background:var(--plum2);}
   #bb-gate-box button:disabled{opacity:.6;cursor:default;}
   #bb-gate-error{color:var(--soda);font-size:13px;margin-top:12px;min-height:16px;font-family:'Jost',sans-serif;}
+
+  /* ---------- MOBILE ---------- */
+  @media (max-width:860px){
+    body{overflow-x:hidden;}
+
+    .slide{
+      width:100%;
+      height:auto;
+      min-height:0;
+      margin:0;
+      box-shadow:none;
+    }
+
+    /* content wrappers that were pixel-anchored inside a fixed 1280x720 stage
+       become normal flowing blocks so the slide grows to fit its content
+       instead of clipping it. bg images stay absolute/inset:0 and stretch
+       to match whatever height the flowing text ends up needing. */
+    .pad,
+    #s1 .title,
+    .techwrap,
+    .loves,
+    #s9 .tag{
+      position:relative !important;
+      inset:auto !important;
+      left:auto !important;
+      right:auto !important;
+      top:auto !important;
+      bottom:auto !important;
+      z-index:1;
+    }
+    #s7 > div{
+      position:static !important;
+      inset:auto !important;
+    }
+    .pad{padding:40px 24px !important;}
+
+    .eyebrow{font-size:11px;letter-spacing:.24em;}
+
+    /* --- s1 cover --- */
+    #s1{display:flex;flex-direction:column;min-height:440px;}
+    #s1 .top,#s1 .host{position:relative;z-index:1;left:auto !important;top:auto !important;right:auto !important;bottom:auto !important;display:block;padding:20px 24px 0;text-align:center;}
+    #s1 .host{margin-top:6px;}
+    #s1 .title{margin-top:auto !important;padding:24px 24px 32px;text-align:center;}
+    #s1 h1{font-size:44px !important;}
+    #s1 .sub{font-size:16px !important;margin-top:12px !important;}
+
+    /* --- s2 / s5 experience + meet omi (split layout) --- */
+    .split{display:block !important;height:auto !important;}
+    .split .imgcol{position:relative;height:220px;}
+    .split .txtcol{padding:32px 24px !important;}
+    #s2 h2{font-size:30px !important;margin:12px 0 4px !important;}
+    #s2 .split .serif-it{font-size:19px !important;}
+    #s5 .txtcol{padding:32px 24px !important;}
+    #s5 h2{font-size:30px !important;}
+    #s5 .serif-it{font-size:17px !important;}
+    #s5 [style*="gap:40px"]{flex-wrap:wrap !important;gap:20px !important;}
+    #s5 [style*="font-size:40px"]{font-size:30px !important;}
+
+    /* --- s3 the energy --- */
+    #s3{display:flex;flex-direction:column;justify-content:center;min-height:460px;}
+    #s3 h2{font-size:32px !important;margin:14px 0 14px !important;}
+    #s3 .pad p{font-size:16px !important;}
+
+    /* --- s4 three techniques --- */
+    #s4 h2{font-size:28px !important;margin:10px 0 0 !important;}
+    .techwrap{display:grid !important;grid-template-columns:1fr !important;gap:14px;padding:24px 24px 40px;}
+    .tech{padding:20px 18px;}
+    .tech h3{font-size:22px;}
+
+    /* --- s6 who it's for --- */
+    #s6{min-height:520px;}
+    #s6 h2{font-size:26px !important;margin:12px 0 4px !important;}
+    .loves{display:grid !important;grid-template-columns:1fr !important;gap:16px;padding:16px 24px 32px;}
+    .loves p{font-size:16px !important;}
+
+    /* --- s7 proof at scale --- */
+    #s7 > div{display:block !important;}
+    #s7 > div > div:first-child{position:relative;height:220px;}
+    #s7 > div > div:last-child{padding:28px 24px !important;}
+    #s7 h2{font-size:26px !important;}
+    #s7 .serif-it{font-size:18px !important;}
+    #s7 [style*="gap:34px"]{flex-wrap:wrap !important;gap:20px !important;}
+    #s7 [style*="font-size:44px"]{font-size:32px !important;}
+
+    /* --- s8 partnership --- */
+    #s8 h2{font-size:28px !important;margin:14px 0 24px !important;}
+    #s8 [style*="repeat(3,1fr)"]{grid-template-columns:1fr !important;gap:22px !important;max-width:none !important;}
+    #s8 .stat{font-size:44px !important;}
+    #s8 [style*="font-size:38px"]{font-size:24px !important;}
+    #s8 .serif-it{font-size:18px !important;}
+
+    /* --- s9 close --- */
+    #s9{display:flex;flex-direction:column;justify-content:flex-end;min-height:420px;}
+    #s9 h2{font-size:28px !important;}
+    #s9 .pad p{font-size:15px !important;}
+    #s9 .tag{padding:0 24px 24px;text-align:center;}
+  }
+
+  @media (max-width:420px){
+    #s1 h1{font-size:36px !important;}
+    #s2 h2,#s5 h2{font-size:26px !important;}
+    #s3 h2{font-size:27px !important;}
+    #s8 .stat{font-size:36px !important;}
+  }
 </style>
 </head>
 <body>
