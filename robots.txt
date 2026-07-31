@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /blackbird
 
 Sitemap: https://omibell.com/sitemap.xml
