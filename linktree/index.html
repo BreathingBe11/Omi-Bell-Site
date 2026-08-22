@@ -233,6 +233,10 @@
     }
     .link-btn:hover::before { width: 4px; }
 
+    .link-btn.is-pending { opacity: 0.55; cursor: default; }
+    .link-btn.is-pending:hover { transform: none; background: rgba(255,255,255,0.03); }
+    .link-btn.is-pending:hover::before { width: 0; }
+
     .link-btn[data-color="teal"]::before { background: var(--teal); }
     .link-btn[data-color="rose"]::before { background: var(--rose); }
     .link-btn[data-color="sage"]::before { background: var(--sage); }
@@ -325,27 +329,41 @@
         </div>
         <div class="link-arrow">&rsaquo;</div>
       </a>
-      <a href="https://wuum.as.me/schedule/1bf0ae10/?appointmentTypeIds[]=96635319" target="_blank" rel="noopener" class="link-btn fade-up" data-color="gold">
+      <a href="https://clients.mindbodyonline.com/classic/mainclass?studioid=99714&tg=&vt=&lvl=&stype=-7&view=day&trn=100000949&page=&catid=&prodid=&date=08%2f22%2f26&classid=0&prodGroupId=&sSU=&optForwardingLink=&qParam=&justloggedin=&nLgIn=&pMode=0&loc=1" target="_blank" rel="noopener" class="link-btn fade-up" data-color="gold" data-date="2026-08-22">
         <div class="link-icon">&#x1F4C5;</div>
         <div class="link-text">
-          <div class="link-title">Breathe to the Beat Live LA at WUUM - 8/15</div>
-          <div class="link-subtitle">Sat, Aug 15 &middot; 11am&ndash;12:30pm &mdash; reserve your spot</div>
+          <div class="link-title">Breathwork at Unplug Meditation LA - 8/22</div>
+          <div class="link-subtitle">Sat, Aug 22 &mdash; reserve your spot</div>
         </div>
         <div class="link-arrow">&rsaquo;</div>
       </a>
-      <a href="https://www.bgvhomecoming.com/wellness" target="_blank" rel="noopener" class="link-btn fade-up" data-color="gold">
+      <a href="https://clients.mindbodyonline.com/classic/mainclass?studioid=99714&tg=&vt=&lvl=&stype=-7&view=day&trn=100000949&page=&catid=&prodid=&date=08%2f29%2f26&classid=0&prodGroupId=&sSU=&optForwardingLink=&qParam=&justloggedin=&nLgIn=&pMode=0&loc=1" target="_blank" rel="noopener" class="link-btn fade-up" data-color="gold" data-date="2026-08-29">
+        <div class="link-icon">&#x1F4C5;</div>
+        <div class="link-text">
+          <div class="link-title">Breathwork at Unplug Meditation LA - 8/29</div>
+          <div class="link-subtitle">Sat, Aug 29 &mdash; reserve your spot</div>
+        </div>
+        <div class="link-arrow">&rsaquo;</div>
+      </a>
+      <div class="link-btn is-pending fade-up" data-color="gold" data-date="2026-09-01">
+        <div class="link-icon">&#x1F4C5;</div>
+        <div class="link-text">
+          <div class="link-title">Breathe to the Beat @ Black Bird House - 9/1</div>
+          <div class="link-subtitle">Tue, Sep 1, Culver City &mdash; link coming soon</div>
+        </div>
+      </div>
+      <div class="link-btn is-pending fade-up" data-color="gold" data-date="2026-09-07">
+        <div class="link-icon">&#x1F4C5;</div>
+        <div class="link-text">
+          <div class="link-title">Breathwork at Unplug Meditation LA - 9/7</div>
+          <div class="link-subtitle">Mon, Sep 7 &mdash; link coming soon</div>
+        </div>
+      </div>
+      <a href="https://www.bgvhomecoming.com/wellness" target="_blank" rel="noopener" class="link-btn fade-up" data-color="gold" data-date="2026-09-11">
         <div class="link-icon">&#x1F4C5;</div>
         <div class="link-text">
           <div class="link-title">Breathe to the Beat Live DC at BGV Homecoming - 9/11</div>
           <div class="link-subtitle">Fri, Sep 11 &middot; 9&ndash;11am &mdash; reserve your spot</div>
-        </div>
-        <div class="link-arrow">&rsaquo;</div>
-      </a>
-      <a href="https://www.eventbrite.com/e/breathe-to-the-beat-live-virtual-tickets-1996961081351?aff=oddtdtcreator&keep_tld=true" target="_blank" rel="noopener" class="link-btn fade-up" data-color="gold">
-        <div class="link-icon">&#x1F4C5;</div>
-        <div class="link-text">
-          <div class="link-title">Breathe to the Beat Live Virtual - 10/11</div>
-          <div class="link-subtitle">Sun, Oct 11 &middot; 1pm PST/4pm EST &mdash; grab your spot</div>
         </div>
         <div class="link-arrow">&rsaquo;</div>
       </a>
@@ -391,6 +409,16 @@
   </div>
 
   <script>
+    // Remove event links whose date has passed
+    (function() {
+      var today = new Date();
+      today.setHours(0, 0, 0, 0);
+      document.querySelectorAll('[data-date]').forEach(function(el) {
+        var d = new Date(el.getAttribute('data-date') + 'T00:00:00');
+        if (d < today) el.remove();
+      });
+    })();
+
     // Staggered fade-up on load
     document.addEventListener('DOMContentLoaded', function() {
       var items = document.querySelectorAll('.fade-up');

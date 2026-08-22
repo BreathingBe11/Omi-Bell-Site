@@ -50,6 +50,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--white);color:var(--text-b
 .event-cta{display:inline-block;padding:.8rem 1.8rem;background:var(--teal);color:var(--white);text-decoration:none;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;font-weight:500;transition:background .2s;border-radius:2px;align-self:flex-start;}
 .event-cta:hover{background:var(--teal-light);}
 .event-cta.is-private{background:none;border:1px solid var(--sand-dark);color:var(--text-muted);}
+.event-status.pending{background:var(--sand);color:var(--text-muted);}
+.event-cta.is-pending{background:none;border:1px solid var(--sand-dark);color:var(--text-muted);}
 
 /* CTA STRIP */
 .events-cta{padding:7rem 5rem;background:var(--teal);}
@@ -154,22 +156,67 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
     </div>
     <div class="events-grid">
 
-      <div class="event-card">
+      <div class="event-card" data-date="2026-08-22">
         <div class="event-date">
           <span class="event-month">Aug</span>
-          <span class="event-day">15</span>
+          <span class="event-day">22</span>
         </div>
         <div class="event-body">
           <span class="event-status open">Open for Registration</span>
-          <h3 class="event-title">Breathe to the Beat Live LA at WUUM</h3>
-          <p class="event-meta"><span class="em-label">📅</span> Saturday, August 15 · 11:00 AM – 12:30 PM</p>
-          <p class="event-meta"><span class="em-label">📍</span> WUUM LA</p>
-          <p class="event-desc">A live, in-person breathwork journey—move through rhythm, regulate your nervous system, and reset in community.</p>
-          <a href="https://wuum.as.me/schedule/1bf0ae10/?appointmentTypeIds[]=96635319" target="_blank" rel="noopener" class="event-cta">Reserve Your Spot →</a>
+          <h3 class="event-title">Breathwork at Unplug Meditation LA</h3>
+          <p class="event-meta"><span class="em-label">📅</span> Saturday, August 22</p>
+          <p class="event-meta"><span class="em-label">📍</span> Unplug Meditation, LA</p>
+          <p class="event-desc">A guided breathwork session to regulate your nervous system and reset in community.</p>
+          <a href="https://clients.mindbodyonline.com/classic/mainclass?studioid=99714&tg=&vt=&lvl=&stype=-7&view=day&trn=100000949&page=&catid=&prodid=&date=08%2f22%2f26&classid=0&prodGroupId=&sSU=&optForwardingLink=&qParam=&justloggedin=&nLgIn=&pMode=0&loc=1" target="_blank" rel="noopener" class="event-cta">Reserve Your Spot →</a>
         </div>
       </div>
 
-      <div class="event-card">
+      <div class="event-card" data-date="2026-08-29">
+        <div class="event-date">
+          <span class="event-month">Aug</span>
+          <span class="event-day">29</span>
+        </div>
+        <div class="event-body">
+          <span class="event-status open">Open for Registration</span>
+          <h3 class="event-title">Breathwork at Unplug Meditation LA</h3>
+          <p class="event-meta"><span class="em-label">📅</span> Saturday, August 29</p>
+          <p class="event-meta"><span class="em-label">📍</span> Unplug Meditation, LA</p>
+          <p class="event-desc">A guided breathwork session to regulate your nervous system and reset in community.</p>
+          <a href="https://clients.mindbodyonline.com/classic/mainclass?studioid=99714&tg=&vt=&lvl=&stype=-7&view=day&trn=100000949&page=&catid=&prodid=&date=08%2f29%2f26&classid=0&prodGroupId=&sSU=&optForwardingLink=&qParam=&justloggedin=&nLgIn=&pMode=0&loc=1" target="_blank" rel="noopener" class="event-cta">Reserve Your Spot →</a>
+        </div>
+      </div>
+
+      <div class="event-card" data-date="2026-09-01">
+        <div class="event-date">
+          <span class="event-month">Sep</span>
+          <span class="event-day">1</span>
+        </div>
+        <div class="event-body">
+          <span class="event-status pending">Details Coming Soon</span>
+          <h3 class="event-title">Breathe to the Beat Live at Black Bird House</h3>
+          <p class="event-meta"><span class="em-label">📅</span> Tuesday, September 1</p>
+          <p class="event-meta"><span class="em-label">📍</span> Black Bird House, Culver City</p>
+          <p class="event-desc">A live, in-person Breathe to the Beat journey—move through rhythm, regulate your nervous system, and reset in community.</p>
+          <span class="event-cta is-pending">Link Coming Soon</span>
+        </div>
+      </div>
+
+      <div class="event-card" data-date="2026-09-07">
+        <div class="event-date">
+          <span class="event-month">Sep</span>
+          <span class="event-day">7</span>
+        </div>
+        <div class="event-body">
+          <span class="event-status pending">Details Coming Soon</span>
+          <h3 class="event-title">Breathwork at Unplug Meditation LA</h3>
+          <p class="event-meta"><span class="em-label">📅</span> Monday, September 7</p>
+          <p class="event-meta"><span class="em-label">📍</span> Unplug Meditation, LA</p>
+          <p class="event-desc">A guided breathwork session to regulate your nervous system and reset in community.</p>
+          <span class="event-cta is-pending">Link Coming Soon</span>
+        </div>
+      </div>
+
+      <div class="event-card" data-date="2026-09-11">
         <div class="event-date">
           <span class="event-month">Sep</span>
           <span class="event-day">11</span>
@@ -184,7 +231,7 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
         </div>
       </div>
 
-      <div class="event-card">
+      <div class="event-card" data-date="2026-09-26">
         <div class="event-date">
           <span class="event-month">Sep</span>
           <span class="event-day">26</span>
@@ -196,21 +243,6 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
           <p class="event-meta"><span class="em-label">📍</span> Child Care Provider Fund of SEIU</p>
           <p class="event-desc">A keynote breathwork &amp; sound bath experience with Omi. Private event—invitation only.</p>
           <span class="event-cta is-private">Invitation Only</span>
-        </div>
-      </div>
-
-      <div class="event-card">
-        <div class="event-date">
-          <span class="event-month">Oct</span>
-          <span class="event-day">11</span>
-        </div>
-        <div class="event-body">
-          <span class="event-status virtual">Virtual · Open for Registration</span>
-          <h3 class="event-title">Breathe to the Beat Live Virtual</h3>
-          <p class="event-meta"><span class="em-label">📅</span> Sunday, October 11 · 1:00 PM PST / 4:00 PM EST</p>
-          <p class="event-meta"><span class="em-label">📍</span> Online</p>
-          <p class="event-desc">Can't make it in person? Join Omi live online for a guided breathwork session you can do from anywhere.</p>
-          <a href="https://www.eventbrite.com/e/breathe-to-the-beat-live-virtual-tickets-1996961081351?aff=oddtdtcreator&keep_tld=true" target="_blank" rel="noopener" class="event-cta">Grab Your Spot →</a>
         </div>
       </div>
 
@@ -245,6 +277,14 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
 </footer>
 
 <script>
+(function(){
+  var today=new Date();
+  today.setHours(0,0,0,0);
+  document.querySelectorAll('.event-card[data-date]').forEach(function(card){
+    var d=new Date(card.getAttribute('data-date')+'T00:00:00');
+    if(d<today)card.remove();
+  });
+})();
 (function(){
   var h=document.getElementById('snBurger'),
       o=document.getElementById('snOverlay'),
