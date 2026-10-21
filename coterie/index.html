@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Coterie — Omi Bell</title>
+<meta name="description" content="Reserve a 20-minute session with Omi in Omi's Layer, the second floor speakeasy room.">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #111720;
+    --teal: #2AB5C5;
+    --cream: #F5EFE6;
+    --plum: #4A2040;
+    --sage: #8AA68C;
+  }
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Jost', sans-serif;
+    background: var(--bg);
+    color: var(--cream);
+    overflow-x: hidden;
+    line-height: 1.7;
+    min-height: 100vh;
+    position: relative;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    top: -20%; left: -10%;
+    width: 60%; height: 80%;
+    background: radial-gradient(ellipse at center, rgba(74,32,64,0.35) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  h1, h2, h3 { font-family: 'Cormorant Garamond', serif; font-weight: 300; }
+  a { color: var(--teal); text-decoration: none; }
+
+  .wrap {
+    position: relative;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 5rem 1.25rem 4rem;
+  }
+
+  .back { font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(245,239,230,0.5); }
+  .back:hover { color: var(--teal); }
+
+  .label {
+    font-size: 0.72rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin: 2.5rem 0 0.75rem;
+  }
+
+  h1 {
+    font-size: clamp(2.6rem, 8vw, 4rem);
+    line-height: 1.05;
+    margin-bottom: 1.25rem;
+  }
+  .intro {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(1.15rem, 3vw, 1.4rem);
+    color: rgba(245,239,230,0.85);
+    margin-bottom: 0.75rem;
+  }
+  .note { font-size: 0.9rem; color: rgba(245,239,230,0.55); font-weight: 300; }
+
+  .step {
+    margin-top: 2.75rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(245,239,230,0.08);
+  }
+  .step h2 { font-size: 1.7rem; margin-bottom: 1rem; }
+  .step h2 span { color: var(--teal); font-size: 1rem; font-family: 'Jost', sans-serif; margin-right: 0.5rem; }
+
+  .choice {
+    background: rgba(245,239,230,0.03);
+    border: 1px solid rgba(245,239,230,0.12);
+    border-radius: 4px;
+    color: var(--cream);
+    font-family: 'Jost', sans-serif;
+    font-size: 0.92rem;
+    padding: 0.7rem 0.5rem;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, color 0.2s;
+  }
+  .choice:hover { border-color: rgba(42,181,197,0.5); }
+  .choice[aria-pressed="true"] {
+    background: var(--teal);
+    border-color: var(--teal);
+    color: var(--bg);
+    font-weight: 500;
+  }
+  .choice:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+  .days { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem; }
+  .days .choice { padding: 0.9rem 0.5rem; }
+  .days small { display: block; font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.75; }
+
+  .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 0.5rem; }
+  .slots-empty { color: rgba(245,239,230,0.55); font-size: 0.92rem; }
+
+  .services { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .services .choice { text-align: left; padding: 1rem; }
+  .services .choice small { display: block; font-size: 0.78rem; opacity: 0.7; font-weight: 300; }
+
+  .fields { display: grid; gap: 0.75rem; }
+  .fields input {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    background: rgba(245,239,230,0.05);
+    border: 1px solid rgba(245,239,230,0.15);
+    border-radius: 3px;
+    color: var(--cream);
+    font-family: 'Jost', sans-serif;
+    font-size: 1rem;
+    outline: none;
+  }
+  .fields input:focus { border-color: var(--teal); }
+  .fields input::placeholder { color: rgba(245,239,230,0.35); }
+
+  .summary { margin-top: 2rem; font-size: 0.95rem; color: rgba(245,239,230,0.75); min-height: 1.5em; }
+  .error { color: #E8877C; margin-top: 0.75rem; font-size: 0.92rem; min-height: 1.4em; }
+
+  .btn {
+    display: block;
+    width: 100%;
+    margin-top: 1rem;
+    padding: 1rem 2rem;
+    border: none;
+    border-radius: 3px;
+    background: var(--teal);
+    color: var(--bg);
+    font-family: 'Jost', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s, opacity 0.2s;
+  }
+  .btn:hover { background: #23a0ae; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .done { display: none; text-align: center; padding: 3rem 0; }
+  .done h2 { font-size: 2.4rem; margin-bottom: 1rem; }
+  .done p { color: rgba(245,239,230,0.8); }
+
+  @media (max-width: 480px) {
+    .services { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<main class="wrap">
+  <a href="/" class="back">&larr; Omi Bell</a>
+
+  <div id="booking">
+    <p class="label">Coterie</p>
+    <h1>Join me in Omi&rsquo;s Layer</h1>
+    <p class="intro">Reserve a 20-minute session with me in Omi&rsquo;s Layer, the second floor speakeasy room.</p>
+    <p class="note">All times are Central. Sessions are 20 minutes with 10 minutes in between for transition.</p>
+
+    <form id="form" novalidate>
+      <section class="step">
+        <h2><span>01</span>Choose a time</h2>
+        <div class="days" id="days"></div>
+        <div class="slots" id="slots"><p class="slots-empty">Loading times&hellip;</p></div>
+      </section>
+
+      <section class="step">
+        <h2><span>02</span>Choose a service</h2>
+        <div class="services" id="services">
+          <button type="button" class="choice" data-service="Reiki" aria-pressed="false">Reiki</button>
+          <button type="button" class="choice" data-service="Breathwork" aria-pressed="false">Breathwork</button>
+          <button type="button" class="choice" data-service="Sound healing" aria-pressed="false">Sound healing</button>
+          <button type="button" class="choice" data-service="Combo" aria-pressed="false">A combo<small>We&rsquo;ll decide together when you arrive</small></button>
+        </div>
+      </section>
+
+      <section class="step">
+        <h2><span>03</span>Your details</h2>
+        <div class="fields">
+          <input type="text" id="name" placeholder="Name" autocomplete="name" required>
+          <input type="tel" id="phone" placeholder="Phone (we&rsquo;ll text you when it&rsquo;s time)" autocomplete="tel" required>
+          <input type="email" id="email" placeholder="Email" autocomplete="email" required>
+        </div>
+      </section>
+
+      <p class="summary" id="summary"></p>
+      <button type="submit" class="btn" id="submit" disabled>Reserve my session</button>
+      <p class="error" id="error" role="alert"></p>
+    </form>
+  </div>
+
+  <div class="done" id="done">
+    <p class="label">You&rsquo;re in</p>
+    <h2>See you in Omi&rsquo;s Layer</h2>
+    <p id="doneText"></p>
+  </div>
+</main>
+
+<script>
+(function () {
+  const DAYS = [
+    { key: '2026-10-21', label: 'Wed, Oct 21' },
+    { key: '2026-10-22', label: 'Thu, Oct 22' },
+  ];
+  const state = { slots: [], day: null, slot: null, service: null };
+
+  const daysEl = document.getElementById('days');
+  const slotsEl = document.getElementById('slots');
+  const servicesEl = document.getElementById('services');
+  const form = document.getElementById('form');
+  const submitBtn = document.getElementById('submit');
+  const errorEl = document.getElementById('error');
+  const summaryEl = document.getElementById('summary');
+
+  const dayOf = iso => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const timeOf = iso => new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit' });
+  const labelOf = key => DAYS.find(d => d.key === key).label;
+
+  function press(container, btn) {
+    container.querySelectorAll('.choice').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+  }
+
+  function renderDays() {
+    daysEl.innerHTML = '';
+    DAYS.forEach(d => {
+      const count = state.slots.filter(s => dayOf(s) === d.key).length;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'choice';
+      b.setAttribute('aria-pressed', String(state.day === d.key));
+      b.innerHTML = `${d.label}<small>${count ? count + ' open' : 'Full'}</small>`;
+      b.disabled = !count;
+      b.addEventListener('click', () => { state.day = d.key; state.slot = null; renderDays(); renderSlots(); update(); });
+      daysEl.appendChild(b);
+    });
+  }
+
+  function renderSlots() {
+    slotsEl.innerHTML = '';
+    const daySlots = state.slots.filter(s => dayOf(s) === state.day);
+    if (!daySlots.length) {
+      slotsEl.innerHTML = '<p class="slots-empty">No open times left. Please check back.</p>';
+      return;
+    }
+    daySlots.forEach(s => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'choice';
+      b.textContent = timeOf(s);
+      b.setAttribute('aria-pressed', String(state.slot === s));
+      b.addEventListener('click', () => { state.slot = s; press(slotsEl, b); update(); });
+      slotsEl.appendChild(b);
+    });
+  }
+
+  servicesEl.querySelectorAll('.choice').forEach(b => {
+    b.addEventListener('click', () => { state.service = b.dataset.service; press(servicesEl, b); update(); });
+  });
+
+  function serviceLabel() {
+    return state.service === 'Combo' ? 'a combo' : state.service;
+  }
+
+  function update() {
+    const parts = [];
+    if (state.slot) parts.push(`${labelOf(state.day)} at ${timeOf(state.slot)} CT`);
+    if (state.service) parts.push(serviceLabel());
+    summaryEl.textContent = parts.join(' · ');
+    submitBtn.disabled = !(state.slot && state.service);
+  }
+
+  async function loadSlots() {
+    try {
+      const res = await fetch('/api/coterie');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      state.slots = data.slots;
+    } catch {
+      slotsEl.innerHTML = '<p class="slots-empty">Couldn&rsquo;t load times. Please refresh.</p>';
+      return;
+    }
+    if (state.slot && !state.slots.includes(state.slot)) state.slot = null;
+    if (!state.day || !state.slots.some(s => dayOf(s) === state.day)) {
+      const first = DAYS.find(d => state.slots.some(s => dayOf(s) === d.key));
+      state.day = first ? first.key : DAYS[DAYS.length - 1].key;
+    }
+    renderDays();
+    renderSlots();
+    update();
+  }
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    errorEl.textContent = '';
+    const name = document.getElementById('name').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const email = document.getElementById('email').value.trim();
+    if (!name || !phone || !email) {
+      errorEl.textContent = 'Please add your name, phone and email.';
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Reserving…';
+    try {
+      const res = await fetch('/api/coterie', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone, email, service: state.service, slot: state.slot }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errorEl.textContent = data.error || 'Something went wrong. Please try again.';
+        if (res.status === 409 || res.status === 400) await loadSlots();
+        return;
+      }
+      document.getElementById('doneText').textContent =
+        `${name.split(' ')[0]}, you're booked for ${serviceLabel()} on ${labelOf(state.day)} at ${timeOf(state.slot)} CT. ` +
+        `Head to the second floor speakeasy room. We'll text you at ${phone} when it's time.`;
+      document.getElementById('booking').style.display = 'none';
+      document.getElementById('done').style.display = 'block';
+      window.scrollTo(0, 0);
+    } catch {
+      errorEl.textContent = 'Something went wrong. Please try again.';
+    } finally {
+      submitBtn.textContent = 'Reserve my session';
+      update();
+    }
+  });
+
+  loadSlots();
+  setInterval(loadSlots, 60 * 1000);
+})();
+</script>
+</body>
+</html>
