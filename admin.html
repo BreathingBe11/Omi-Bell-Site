@@ -28,6 +28,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .login-btn{width:100%;padding:0.8rem;background:var(--teal);color:var(--white);border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:0.78rem;letter-spacing:0.14em;text-transform:uppercase;transition:background 0.2s;}
 .login-btn:hover{background:var(--teal-light);}
 .login-error{color:var(--danger);font-size:0.82rem;margin-top:0.6rem;text-align:center;display:none;}
+.login-link{display:block;margin:1rem auto 0;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:0.8rem;text-decoration:underline;cursor:pointer;}
+.login-link:hover{color:var(--teal);}
+.login-msg{font-size:0.85rem;text-align:center;margin-top:0.8rem;color:var(--muted);line-height:1.5;}
 
 /* SHELL */
 #adminShell{display:none;min-height:100vh;}
@@ -164,11 +167,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 <div id="loginScreen">
   <div class="login-logo">Omi Bell</div>
-  <div class="login-card">
+  <div class="login-card" id="loginCard">
     <span class="login-label">Super Admin</span>
     <input type="password" id="pwInput" class="login-input" placeholder="Admin password" onkeydown="if(event.key==='Enter')login()">
     <button class="login-btn" onclick="login()">Enter</button>
     <p class="login-error" id="loginErr">Incorrect password.</p>
+    <button class="login-link" id="forgotBtn" onclick="forgotPassword()">Forgot password?</button>
+    <p class="login-msg" id="forgotMsg"></p>
+  </div>
+  <div class="login-card" id="resetCard" style="display:none">
+    <span class="login-label">New Password</span>
+    <input type="password" id="newPw" class="login-input" placeholder="New password (8+ characters)" autocomplete="new-password">
+    <input type="password" id="newPw2" class="login-input" placeholder="Type it again" autocomplete="new-password" onkeydown="if(event.key==='Enter')resetPassword()">
+    <button class="login-btn" id="resetBtn" onclick="resetPassword()">Save password</button>
+    <p class="login-msg" id="resetMsg"></p>
   </div>
 </div>
 
@@ -344,7 +356,59 @@ let posts = [];
 let currentId = null;
 let currentFilter = 'all';
 
-window.onload = () => { if (sessionStorage.getItem('ob_admin_token')) showAdmin(); };
+let resetToken = new URLSearchParams(location.search).get('reset');
+window.onload = () => {
+  if (resetToken) {
+    history.replaceState(null, '', location.pathname);
+    document.getElementById('loginCard').style.display = 'none';
+    document.getElementById('resetCard').style.display = 'block';
+    return;
+  }
+  if (sessionStorage.getItem('ob_admin_token')) showAdmin();
+};
+
+async function forgotPassword() {
+  const btn = document.getElementById('forgotBtn');
+  const msg = document.getElementById('forgotMsg');
+  btn.disabled = true;
+  msg.textContent = 'Sending…';
+  try {
+    const r = await fetch('/api/admin-reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'request' }),
+    });
+    const d = await r.json();
+    msg.textContent = r.ok ? 'Check your email for a reset link. It expires in 30 minutes.' : (d.error || 'Something went wrong.');
+  } catch {
+    msg.textContent = 'Something went wrong. Please try again.';
+  }
+  btn.disabled = false;
+}
+
+async function resetPassword() {
+  const pw = document.getElementById('newPw').value;
+  const msg = document.getElementById('resetMsg');
+  if (pw.length < 8) { msg.textContent = 'Password must be at least 8 characters.'; return; }
+  if (pw !== document.getElementById('newPw2').value) { msg.textContent = "Those passwords don't match."; return; }
+  document.getElementById('resetBtn').disabled = true;
+  try {
+    const r = await fetch('/api/admin-reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reset', token: resetToken, password: pw }),
+    });
+    const d = await r.json();
+    if (!r.ok) { msg.textContent = d.error || 'Something went wrong.'; document.getElementById('resetBtn').disabled = false; return; }
+    resetToken = null;
+    document.getElementById('resetCard').style.display = 'none';
+    document.getElementById('loginCard').style.display = 'block';
+    document.getElementById('forgotMsg').textContent = 'Password saved. Log in with your new password.';
+  } catch {
+    msg.textContent = 'Something went wrong. Please try again.';
+    document.getElementById('resetBtn').disabled = false;
+  }
+}
 
 async function login() {
   const pw = document.getElementById('pwInput').value;

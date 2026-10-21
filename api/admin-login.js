@@ -1,5 +1,6 @@
 'use strict';
 const { verifyPassword, signToken, checkRateLimit, clientIp } = require('./_lib/auth');
+const { getAdminPasswordHash } = require('./_lib/admin-password');
 
 const TOKEN_TTL = 8 * 60 * 60 * 1000; // 8 hours
 
@@ -15,7 +16,7 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'Password required' });
   }
 
-  const hash   = process.env.ADMIN_PASSWORD_HASH;
+  const hash   = await getAdminPasswordHash();
   const secret = process.env.SESSION_SECRET;
   if (!hash || !secret) {
     return res.status(500).json({ error: 'Server configuration error' });
