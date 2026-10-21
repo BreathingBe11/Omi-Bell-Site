@@ -12,6 +12,7 @@ const STEP_MIN    = 30;            // 20 min session + 10 min transition
 const BLOCKED     = ['2026-10-21T15:00']; // 3:00–3:30 PM today
 const SERVICES    = ['Reiki', 'Breathwork', 'Sound healing', 'Combo'];
 const COTERIE_GROUP = '201963862928393795'; // MailerLite "Coterie" group
+const OWNER_EMAIL   = process.env.ADMIN_EMAIL || 'hello@omisworld.com';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -57,11 +58,22 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-// Welcome email via Resend (skipped if RESEND_API_KEY isn't set).
-async function sendWelcomeEmail({ name, email, service, slot_start }) {
+// Sends an email via Resend (skipped if RESEND_API_KEY isn't set).
+async function sendEmail(message) {
   const key = process.env.RESEND_API_KEY;
   if (!key) return;
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${key}`,
+    },
+    body: JSON.stringify({ from: process.env.RESEND_FROM || 'Omi Bell <hello@omibell.com>', ...message }),
+  });
+  if (!res.ok) console.error('Resend coterie error:', res.status, await res.text());
+}
 
+async function sendWelcomeEmail({ name, email, service, slot_start }) {
   const first = escapeHtml(name.split(' ')[0]);
   const when  = escapeHtml(sessionWhen(slot_start));
   const what  = escapeHtml(serviceText(service));
@@ -88,22 +100,33 @@ async function sendWelcomeEmail({ name, email, service, slot_start }) {
     `Sessions are 20 minutes, so please come a few minutes early. I'll reach out when it's time.\n\n` +
     `With love,\nOmi`;
 
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'Authorization': `Bearer ${key}`,
-    },
-    body: JSON.stringify({
-      from:     process.env.RESEND_FROM || 'Omi Bell <hello@omibell.com>',
-      to:       [email],
-      reply_to: 'hello@omisworld.com',
-      subject:  `Welcome to the Coterie, ${name.split(' ')[0]}`,
-      html,
-      text,
-    }),
+  await sendEmail({
+    to:       [email],
+    reply_to: OWNER_EMAIL,
+    subject:  `Welcome to the Coterie, ${name.split(' ')[0]}`,
+    html,
+    text,
   });
-  if (!res.ok) console.error('Resend coterie error:', res.status, await res.text());
+}
+
+// Lets Omi know a new booking came in; replying goes straight to the guest.
+async function sendOwnerNotice({ name, phone, email, service, slot_start }) {
+  const rows = [
+    ['When', sessionWhen(slot_start)],
+    ['Session', serviceText(service)],
+    ['Name', name],
+    ['Phone', phone],
+    ['Email', email],
+  ];
+  await sendEmail({
+    to:       [OWNER_EMAIL],
+    reply_to: email,
+    subject:  `New Coterie booking: ${name}, ${sessionWhen(slot_start)}`,
+    html:     `<p>New booking for Omi's Layer:</p><table style="font-size:15px">` +
+              rows.map(([k, v]) => `<tr><td style="padding:2px 12px 2px 0;color:#6b7280">${k}</td><td>${escapeHtml(v)}</td></tr>`).join('') +
+              `</table><p><a href="https://www.omibell.com/coterie/list">See all bookings</a></p>`,
+    text:     rows.map(([k, v]) => `${k}: ${v}`).join('\n') + '\n\nAll bookings: https://www.omibell.com/coterie/list',
+  });
 }
 
 // Adds the guest to the MailerLite "Coterie" group so you can email them later.
@@ -205,7 +228,9 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to save booking.' });
   }
 
-  const results = await Promise.allSettled([sendWelcomeEmail(booking), addToMailerLite(booking)]);
+  const results = await Promise.allSettled([
+    sendWelcomeEmail(booking), sendOwnerNotice(booking), addToMailerLite(booking),
+  ]);
   results.filter(r => r.status === 'rejected').forEach(r => console.error('Coterie follow-up error:', r.reason));
 
   return res.status(200).json({ success: true });
