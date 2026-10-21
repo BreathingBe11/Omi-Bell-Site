@@ -11,6 +11,7 @@ const SESSION_MIN = 20;
 const STEP_MIN    = 30;            // 20 min session + 10 min transition
 const BLOCKED     = ['2026-10-21T15:00']; // 3:00–3:30 PM today
 const SERVICES    = ['Reiki', 'Breathwork', 'Sound healing', 'Combo'];
+const COTERIE_GROUP = '201963862928393795'; // MailerLite "Coterie" group
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -45,7 +46,7 @@ function normalizePhone(raw) {
 // group sends the welcome email, using the coterie_time and coterie_service fields.
 async function addToMailerLite({ name, phone, email, service, slot_start }) {
   const token   = process.env.MAILERLITE_API_TOKEN;
-  const groupId = process.env.MAILERLITE_GROUP_ID_COTERIE;
+  const groupId = process.env.MAILERLITE_GROUP_ID_COTERIE || COTERIE_GROUP;
   if (!token || !groupId) return;
 
   const when = new Date(slot_start).toLocaleString('en-US', {
