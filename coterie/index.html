@@ -188,7 +188,7 @@
         <h2><span>03</span>Your details</h2>
         <div class="fields">
           <input type="text" id="name" placeholder="Name" autocomplete="name" required>
-          <input type="tel" id="phone" placeholder="Phone (we&rsquo;ll text you when it&rsquo;s time)" autocomplete="tel" required>
+          <input type="tel" id="phone" placeholder="Phone" autocomplete="tel" required>
           <input type="email" id="email" placeholder="Email" autocomplete="email" required>
         </div>
       </section>
@@ -326,7 +326,7 @@
       }
       document.getElementById('doneText').textContent =
         `${name.split(' ')[0]}, you're booked for ${serviceLabel()} on ${labelOf(state.day)} at ${timeOf(state.slot)} CT. ` +
-        `Head to the second floor speakeasy room. We'll text you at ${phone} when it's time.`;
+        `Head to the second floor speakeasy room. We'll reach out when it's time.`;
       document.getElementById('booking').style.display = 'none';
       document.getElementById('done').style.display = 'block';
       window.scrollTo(0, 0);

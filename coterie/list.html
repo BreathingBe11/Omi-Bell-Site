@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Coterie Bookings — Omi Bell</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #111720;
+    --teal: #2AB5C5;
+    --cream: #F5EFE6;
+  }
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Jost', sans-serif;
+    background: var(--bg);
+    color: var(--cream);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  h1, h2 { font-family: 'Cormorant Garamond', serif; font-weight: 300; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 2.5rem 1rem 4rem; }
+
+  .top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1.5rem; }
+  h1 { font-size: 2.2rem; }
+  .ghost { background: none; border: none; color: rgba(245,239,230,0.5); font-family: inherit; font-size: 0.8rem; cursor: pointer; text-decoration: underline; }
+
+  input {
+    width: 100%; padding: 0.85rem 1rem; margin-bottom: 0.75rem;
+    background: rgba(245,239,230,0.05); border: 1px solid rgba(245,239,230,0.15);
+    border-radius: 3px; color: var(--cream); font-family: inherit; font-size: 1rem; outline: none;
+  }
+  input:focus { border-color: var(--teal); }
+  .btn {
+    display: inline-block; padding: 0.85rem 1.4rem; border: none; border-radius: 3px;
+    background: var(--teal); color: var(--bg); font-family: inherit; font-size: 0.82rem;
+    font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; text-decoration: none;
+    cursor: pointer; text-align: center;
+  }
+  .error { color: #E8877C; font-size: 0.9rem; min-height: 1.4em; }
+
+  h2 { font-size: 1.5rem; margin: 2rem 0 0.75rem; color: rgba(245,239,230,0.8); }
+  .empty { color: rgba(245,239,230,0.5); font-size: 0.92rem; }
+
+  .card {
+    display: grid; grid-template-columns: 1fr auto; gap: 0.75rem; align-items: center;
+    padding: 1rem; margin-bottom: 0.6rem;
+    background: rgba(245,239,230,0.03); border: 1px solid rgba(245,239,230,0.1); border-radius: 4px;
+  }
+  .card.next { border-color: var(--teal); background: rgba(42,181,197,0.08); }
+  .card.past { opacity: 0.45; }
+  .time { font-size: 1.15rem; font-weight: 500; }
+  .time small { font-weight: 300; color: var(--teal); margin-left: 0.4rem; font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; }
+  .who { font-size: 0.95rem; }
+  .meta { font-size: 0.8rem; color: rgba(245,239,230,0.55); word-break: break-all; }
+  .actions { display: flex; flex-direction: column; gap: 0.4rem; align-items: stretch; }
+  .texted { font-size: 0.75rem; color: var(--teal); text-align: center; }
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <div id="login">
+    <h1>Coterie Bookings</h1>
+    <p class="empty" style="margin:0.5rem 0 1.25rem">Log in with your admin password.</p>
+    <form id="loginForm">
+      <input type="password" id="password" placeholder="Password" autocomplete="current-password" required>
+      <button class="btn" type="submit">Log in</button>
+      <p class="error" id="loginErr"></p>
+    </form>
+  </div>
+
+  <div id="list" style="display:none">
+    <div class="top">
+      <h1>Coterie Bookings</h1>
+      <button class="ghost" id="logout">Log out</button>
+    </div>
+    <div id="days"></div>
+  </div>
+
+</main>
+
+<script>
+(function () {
+  const TOKEN_KEY = 'ob_admin_token';
+  const TEXTED_KEY = 'coterie_texted';
+  const DAYS = [
+    { key: '2026-10-21', label: 'Wednesday, Oct 21' },
+    { key: '2026-10-22', label: 'Thursday, Oct 22' },
+  ];
+
+  const loginEl = document.getElementById('login');
+  const listEl = document.getElementById('list');
+  const daysEl = document.getElementById('days');
+
+  const getToken = () => { try { return sessionStorage.getItem(TOKEN_KEY); } catch { return null; } };
+  const setToken = t => { try { t ? sessionStorage.setItem(TOKEN_KEY, t) : sessionStorage.removeItem(TOKEN_KEY); } catch {} };
+  const getTexted = () => { try { return JSON.parse(localStorage.getItem(TEXTED_KEY)) || []; } catch { return []; } };
+  const markTexted = id => { try { localStorage.setItem(TEXTED_KEY, JSON.stringify([...new Set([...getTexted(), id])])); } catch {} };
+
+  const dayOf = iso => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const timeOf = iso => new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit' });
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  function smsLink(b) {
+    const first = b.name.split(' ')[0];
+    const what = b.service === 'Combo' ? 'combo' : b.service.toLowerCase();
+    const msg = `Hi ${first}, it's Omi! Your ${what} session starts at ${timeOf(b.slot_start)}. ` +
+      `Come on up to Omi's Layer, the second floor speakeasy room. See you soon!`;
+    return `sms:${b.phone}?&body=${encodeURIComponent(msg)}`;
+  }
+
+  function render(bookings) {
+    const texted = getTexted();
+    const now = Date.now();
+    // Sessions are 20 min; a booking counts as past once its session is over.
+    const next = bookings.find(b => new Date(b.slot_start).getTime() + 20 * 60 * 1000 > now);
+    daysEl.innerHTML = '';
+
+    DAYS.forEach(d => {
+      const items = bookings.filter(b => dayOf(b.slot_start) === d.key);
+      const h = document.createElement('h2');
+      h.textContent = `${d.label} · ${items.length} booked`;
+      daysEl.appendChild(h);
+      if (!items.length) {
+        daysEl.insertAdjacentHTML('beforeend', '<p class="empty">No bookings yet.</p>');
+        return;
+      }
+      items.forEach(b => {
+        const past = new Date(b.slot_start).getTime() + 20 * 60 * 1000 <= now;
+        const card = document.createElement('div');
+        card.className = 'card' + (b === next ? ' next' : '') + (past ? ' past' : '');
+        card.innerHTML = `
+          <div>
+            <div class="time">${timeOf(b.slot_start)}${b === next ? '<small>Up next</small>' : ''}</div>
+            <div class="who">${esc(b.name)} · ${esc(b.service === 'Combo' ? 'Combo' : b.service)}</div>
+            <div class="meta">${esc(b.phone)} · ${esc(b.email)}</div>
+          </div>
+          <div class="actions">
+            <a class="btn" href="${esc(smsLink(b))}">Text</a>
+            ${texted.includes(b.id) ? '<span class="texted">Texted ✓</span>' : ''}
+          </div>`;
+        card.querySelector('a').addEventListener('click', () => {
+          markTexted(b.id);
+          setTimeout(() => render(bookings), 500);
+        });
+        daysEl.appendChild(card);
+      });
+    });
+  }
+
+  async function load() {
+    const res = await fetch('/api/coterie?list=1', { headers: { 'Authorization': `Bearer ${getToken()}` } });
+    if (res.status === 401) { setToken(null); showLogin(); return; }
+    const data = await res.json();
+    if (!res.ok) { daysEl.innerHTML = `<p class="error">${esc(data.error || 'Failed to load bookings.')}</p>`; return; }
+    render(data.bookings);
+  }
+
+  function showLogin() { loginEl.style.display = 'block'; listEl.style.display = 'none'; }
+  function showList() { loginEl.style.display = 'none'; listEl.style.display = 'block'; load(); }
+
+  document.getElementById('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const err = document.getElementById('loginErr');
+    err.textContent = '';
+    const res = await fetch('/api/admin-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: document.getElementById('password').value }),
+    });
+    const data = await res.json();
+    if (!res.ok) { err.textContent = data.error || 'Login failed.'; return; }
+    setToken(data.token);
+    showList();
+  });
+
+  document.getElementById('logout').addEventListener('click', () => { setToken(null); showLogin(); });
+
+  if (getToken()) showList();
+  setInterval(() => { if (getToken()) load(); }, 60 * 1000);
+})();
+</script>
+</body>
+</html>
