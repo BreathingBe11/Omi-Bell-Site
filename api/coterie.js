@@ -42,17 +42,75 @@ function normalizePhone(raw) {
   return null;
 }
 
-// Adds the guest to the MailerLite "Coterie" group. A MailerLite automation on that
-// group sends the welcome email, using the coterie_time and coterie_service fields.
+function sessionWhen(slot_start) {
+  return new Date(slot_start).toLocaleString('en-US', {
+    timeZone: 'America/Chicago', weekday: 'long', month: 'long',
+    day: 'numeric', hour: 'numeric', minute: '2-digit',
+  }) + ' CT';
+}
+
+function serviceText(service) {
+  return service === 'Combo' ? "A combo (we'll decide together when you arrive)" : service;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Welcome email via Resend (skipped if RESEND_API_KEY isn't set).
+async function sendWelcomeEmail({ name, email, service, slot_start }) {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return;
+
+  const first = escapeHtml(name.split(' ')[0]);
+  const when  = escapeHtml(sessionWhen(slot_start));
+  const what  = escapeHtml(serviceText(service));
+
+  const html = `
+<div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;padding:32px 24px;color:#1d2430;line-height:1.7">
+  <p style="font-size:13px;letter-spacing:3px;text-transform:uppercase;color:#2AB5C5;margin:0 0 8px">Coterie</p>
+  <h1 style="font-weight:normal;font-size:28px;margin:0 0 24px">Welcome, ${first}</h1>
+  <p>Thank you for reserving a session with me. I'm so glad you're joining me in Omi's Layer.</p>
+  <table style="margin:24px 0;border-collapse:collapse;font-size:16px">
+    <tr><td style="padding:4px 16px 4px 0;color:#6b7280">When</td><td>${when}</td></tr>
+    <tr><td style="padding:4px 16px 4px 0;color:#6b7280">Session</td><td>${what}</td></tr>
+    <tr><td style="padding:4px 16px 4px 0;color:#6b7280">Where</td><td>Omi's Layer, the second floor speakeasy room</td></tr>
+  </table>
+  <p>Sessions are 20 minutes, so please come a few minutes early. I'll reach out when it's time.</p>
+  <p style="margin-top:32px">With love,<br>Omi</p>
+</div>`;
+
+  const text =
+    `Welcome, ${name.split(' ')[0]}\n\n` +
+    `Thank you for reserving a session with me. I'm so glad you're joining me in Omi's Layer.\n\n` +
+    `When: ${sessionWhen(slot_start)}\nSession: ${serviceText(service)}\n` +
+    `Where: Omi's Layer, the second floor speakeasy room\n\n` +
+    `Sessions are 20 minutes, so please come a few minutes early. I'll reach out when it's time.\n\n` +
+    `With love,\nOmi`;
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      from:     process.env.RESEND_FROM || 'Omi Bell <hello@omibell.com>',
+      to:       [email],
+      reply_to: 'hello@omisworld.com',
+      subject:  `Welcome to the Coterie, ${name.split(' ')[0]}`,
+      html,
+      text,
+    }),
+  });
+  if (!res.ok) console.error('Resend coterie error:', res.status, await res.text());
+}
+
+// Adds the guest to the MailerLite "Coterie" group so you can email them later.
 async function addToMailerLite({ name, phone, email, service, slot_start }) {
   const token   = process.env.MAILERLITE_API_TOKEN;
   const groupId = process.env.MAILERLITE_GROUP_ID_COTERIE || COTERIE_GROUP;
   if (!token || !groupId) return;
-
-  const when = new Date(slot_start).toLocaleString('en-US', {
-    timeZone: 'America/Chicago', weekday: 'long', month: 'long',
-    day: 'numeric', hour: 'numeric', minute: '2-digit',
-  });
 
   const res = await fetch('https://connect.mailerlite.com/api/subscribers', {
     method: 'POST',
@@ -68,8 +126,8 @@ async function addToMailerLite({ name, phone, email, service, slot_start }) {
         name:            name.split(' ')[0],
         last_name:       name.split(' ').slice(1).join(' '),
         phone,
-        coterie_time:    `${when} CT`,
-        coterie_service: service === 'Combo' ? "a combo (we'll decide together when you arrive)" : service,
+        coterie_time:    sessionWhen(slot_start),
+        coterie_service: serviceText(service),
       },
     }),
   });
@@ -147,11 +205,8 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to save booking.' });
   }
 
-  try {
-    await addToMailerLite(booking);
-  } catch (err) {
-    console.error('MailerLite coterie error:', err);
-  }
+  const results = await Promise.allSettled([sendWelcomeEmail(booking), addToMailerLite(booking)]);
+  results.filter(r => r.status === 'rejected').forEach(r => console.error('Coterie follow-up error:', r.reason));
 
   return res.status(200).json({ success: true });
 };
