@@ -194,7 +194,7 @@
       </section>
 
       <p class="summary" id="summary"></p>
-      <button type="submit" class="btn" id="submit" disabled>Reserve my session</button>
+      <button type="submit" class="btn" id="submit">Reserve my session</button>
       <p class="error" id="error" role="alert"></p>
     </form>
   </div>
@@ -276,7 +276,6 @@
     if (state.slot) parts.push(`${labelOf(state.day)} at ${timeOf(state.slot)} CT`);
     if (state.service) parts.push(serviceLabel());
     summaryEl.textContent = parts.join(' · ');
-    submitBtn.disabled = !(state.slot && state.service);
   }
 
   async function loadSlots() {
@@ -305,8 +304,14 @@
     const name = document.getElementById('name').value.trim();
     const phone = document.getElementById('phone').value.trim();
     const email = document.getElementById('email').value.trim();
-    if (!name || !phone || !email) {
-      errorEl.textContent = 'Please add your name, phone and email.';
+    const missing = [];
+    if (!state.slot) missing.push('a time');
+    if (!state.service) missing.push('a service');
+    if (!name) missing.push('your name');
+    if (!phone) missing.push('your phone');
+    if (!email) missing.push('your email');
+    if (missing.length) {
+      errorEl.textContent = `Still needed: ${missing.join(', ')}.`;
       return;
     }
 
@@ -334,7 +339,7 @@
       errorEl.textContent = 'Something went wrong. Please try again.';
     } finally {
       submitBtn.textContent = 'Reserve my session';
-      update();
+      submitBtn.disabled = false;
     }
   });
 
