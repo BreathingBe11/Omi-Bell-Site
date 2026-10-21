@@ -41,6 +41,40 @@ function normalizePhone(raw) {
   return null;
 }
 
+// Adds the guest to the MailerLite "Coterie" group. A MailerLite automation on that
+// group sends the welcome email, using the coterie_time and coterie_service fields.
+async function addToMailerLite({ name, phone, email, service, slot_start }) {
+  const token   = process.env.MAILERLITE_API_TOKEN;
+  const groupId = process.env.MAILERLITE_GROUP_ID_COTERIE;
+  if (!token || !groupId) return;
+
+  const when = new Date(slot_start).toLocaleString('en-US', {
+    timeZone: 'America/Chicago', weekday: 'long', month: 'long',
+    day: 'numeric', hour: 'numeric', minute: '2-digit',
+  });
+
+  const res = await fetch('https://connect.mailerlite.com/api/subscribers', {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${token}`,
+      'Accept':        'application/json',
+    },
+    body: JSON.stringify({
+      email,
+      groups: [groupId],
+      fields: {
+        name:            name.split(' ')[0],
+        last_name:       name.split(' ').slice(1).join(' '),
+        phone,
+        coterie_time:    `${when} CT`,
+        coterie_service: service === 'Combo' ? "a combo (we'll decide together when you arrive)" : service,
+      },
+    }),
+  });
+  if (!res.ok) console.error('MailerLite coterie error:', res.status, await res.text());
+}
+
 module.exports = async function handler(req, res) {
   const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -110,6 +144,12 @@ module.exports = async function handler(req, res) {
     }
     console.error('Coterie insert error:', error);
     return res.status(500).json({ error: 'Failed to save booking.' });
+  }
+
+  try {
+    await addToMailerLite(booking);
+  } catch (err) {
+    console.error('MailerLite coterie error:', err);
   }
 
   return res.status(200).json({ success: true });
