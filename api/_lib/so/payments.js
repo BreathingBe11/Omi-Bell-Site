@@ -73,8 +73,8 @@ async function offerPayload(sql, now, viewerId = null) {
       access_terms: content.isPublished('purchase.access_terms') ? content.get('purchase.access_terms') : null,
       tax_treatment: content.isPublished('purchase.tax_treatment') ? content.get('purchase.tax_treatment') : null,
       extra: content.isPublished('purchase.disclosure') ? content.get('purchase.disclosure') : null,
-      terms_published: content.isPublished('legal.terms'),
-      privacy_published: content.isPublished('legal.privacy'),
+      terms_published: !!content.get('legal.terms'),
+      privacy_published: !!content.get('legal.privacy'),
     },
     support_email: content.isPublished('support.email') ? content.get('support.email') : null,
   };

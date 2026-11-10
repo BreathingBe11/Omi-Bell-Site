@@ -52,7 +52,14 @@ module.exports = async function handler(req, res) {
   }
   if (!matched) return H.sendJson(res, methodMismatch ? 405 : 404, { error: methodMismatch ? 'method_not_allowed' : 'not_found' });
   try {
-    const out = await matched.r.fn({ req, res, sql: getSql(), now: new Date(), params: matched.params, query: req.query || {} });
+    // If the database isn't configured, routes still run and get an error on first use,
+    // so public pages (landing, terms, privacy) can fall back to built-in text.
+    let sql;
+    try { sql = getSql(); } catch (e) {
+      const fail = () => { throw e; };
+      sql = new Proxy(fail, { apply: fail, get: () => fail });
+    }
+    const out = await matched.r.fn({ req, res, sql, now: new Date(), params: matched.params, query: req.query || {} });
     if (out === H.HANDLED) return;
     H.sendJson(res, 200, out);
   } catch (err) {

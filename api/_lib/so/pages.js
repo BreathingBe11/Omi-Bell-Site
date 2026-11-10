@@ -18,6 +18,18 @@ function paras(s) {
   return String(s || '').split(/\n\s*\n/).map(p => p.trim()).filter(Boolean)
     .map(p => `<p>${e(p).replace(/\n/g, '<br>')}</p>`).join('');
 }
+// Legal documents: "## " headings, "- " bullets, blank-line paragraphs. Everything is escaped.
+function legalHtml(text) {
+  return String(text || '').split(/\n\s*\n/).map(block => {
+    const ls = block.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!ls.length) return '';
+    if (ls.length === 1 && ls[0].startsWith('## ')) return `<h2>${e(ls[0].slice(3))}</h2>`;
+    if (ls.every(l => l.startsWith('- '))) return `<ul>${ls.map(l => `<li>${e(l.slice(2))}</li>`).join('')}</ul>`;
+    const head = ls[0].startsWith('## ') ? `<h2>${e(ls.shift().slice(3))}</h2>` : '';
+    return `${head}<p>${ls.map(e).join('<br>')}</p>`;
+  }).join('\n');
+}
+
 function lines(s) { return String(s || '').split('\n').map(x => x.trim()).filter(Boolean); }
 
 function fmtDate(dateStr, opts = {}) {
@@ -69,9 +81,9 @@ function header(signInHref = `${B}/login`) {
 
 function footer(content) {
   const links = [];
-  if (content.isPublished('legal.terms')) links.push(`<a href="${B}/terms">Terms</a>`);
-  if (content.isPublished('legal.privacy')) links.push(`<a href="${B}/privacy">Privacy</a>`);
-  if (content.isPublished('support.email')) {
+  if (content.get('legal.terms')) links.push(`<a href="${B}/terms">Terms</a>`);
+  if (content.get('legal.privacy')) links.push(`<a href="${B}/privacy">Privacy</a>`);
+  if (content.get('support.email')) {
     const em = content.get('support.email');
     links.push(`<a href="mailto:${e(em)}">${e(em)}</a>`);
   }
@@ -103,14 +115,38 @@ function priceDetail(offer, tz) {
   return '';
 }
 
+// Used only if the database can't be reached: the public page still loads
+// (with the default copy and the seeded cohort dates) and checkout stays off.
+function fallbackOffer(now) {
+  const S = require('./schedule');
+  const cohort = { start_date: '2027-01-04', days_count: 21, timezone: 'America/Los_Angeles', unlock_time: '00:00',
+    regular_price_cents: 149700, intro_price_cents: 99900, price_cutoff_at: '2026-12-01T08:00:00Z', currency: 'usd' };
+  const sched = S.schedule(cohort);
+  const p = S.priceAt(cohort, now);
+  return {
+    cohort: { name: 'Smooth Operators', timezone: cohort.timezone, start_date: sched.start_date, end_date: sched.end_date },
+    price: { ...p, cutoff_at: p.cutoff_at ? p.cutoff_at.toISOString() : null },
+    sales: { mode: 'disabled', can_checkout: false, reason: 'not_ready', test_mode: false },
+    disclosure: {},
+  };
+}
+
 async function landing({ sql, now, res }) {
-  const offer = await payments.offerPayload(sql, now);
-  const content = await C.loadContent(sql);
+  let offer, content, faqs = [];
+  try {
+    offer = await payments.offerPayload(sql, now);
+    content = await C.loadContent(sql);
+    faqs = await sql`select question, answer from so_faqs where status = 'published' and audience in ('public', 'both') order by sort, question`;
+  } catch (err) {
+    console.error('[so] landing fallback:', err.code || err.message);
+    const { SITE_CONTENT } = require('./content');
+    offer = fallbackOffer(now);
+    content = { get: k => (SITE_CONTENT.find(c => c.key === k) || {}).default || '', isPublished: () => false };
+  }
   const g = k => content.get(k);
   const tz = offer.cohort.timezone;
   const start = offer.cohort.start_date, end = offer.cohort.end_date;
   const dates = `${fmtDate(start)}–${start.slice(5, 7) === end.slice(5, 7) ? Number(end.slice(8)) : fmtDate(end)}, ${end.slice(0, 4)}`;
-  const faqs = await sql`select question, answer from so_faqs where status = 'published' and audience in ('public', 'both') order by sort, question`;
   const credentials = lines(g('about.credentials'));
   const photo = g('about.photo_url');
   const testBanner = offer.sales.test_mode
@@ -274,28 +310,34 @@ function weekRange(start, i) {
   return m(a) === m(b) ? `${m(a)} ${Number(a.slice(8))}–${Number(b.slice(8))}` : `${fmtDate(a)}–${fmtDate(b)}`;
 }
 
+// Always available (Google sign-in and buyers need them), even before the
+// database is configured: falls back to the built-in default text.
 function legalPage(key, title) {
   return async ({ sql, res }) => {
-    const content = await C.loadContent(sql);
-    const published = content.isPublished(key);
+    let content;
+    try { content = await C.loadContent(sql); } catch {
+      const { SITE_CONTENT } = require('./content');
+      const get = k => (SITE_CONTENT.find(c => c.key === k) || {}).default || '';
+      content = { get, isPublished: () => false };
+    }
     const body = `${header()}
 <main id="main" class="band"><div class="wrap narrow legal">
   <h1>${e(title)}</h1>
-  ${published ? paras(content.get(key)) : `<p>This page is being finalized and will be published before enrollment opens.</p>`}
+  ${legalHtml(content.get(key))}
 </div></main>
 ${footer(content)}`;
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60');
-    res.statusCode = published ? 200 : 404;
-    res.end(shell({ title: `${title} — Smooth Operators`, description: title, body, robots: published ? null : 'noindex' }));
+    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=300');
+    res.statusCode = 200;
+    res.end(shell({ title: `${title} — Smooth Operators`, description: `${title} for Smooth Operators, a live cohort with Omi Bell.`, body }));
     return require('./http').HANDLED;
   };
 }
 
 const routes = {
   'GET page/landing': landing,
-  'GET page/terms': legalPage('legal.terms', 'Terms'),
-  'GET page/privacy': legalPage('legal.privacy', 'Privacy'),
+  'GET page/terms': legalPage('legal.terms', 'Terms of Purchase and Use'),
+  'GET page/privacy': legalPage('legal.privacy', 'Privacy Policy'),
   // Public, non-secret client configuration (the anon key is designed to be public).
   'GET public-config': async () => ({
     supabase_url: process.env.SUPABASE_URL || null,

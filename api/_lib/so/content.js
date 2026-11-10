@@ -10,6 +10,8 @@
 // seeded as draft + is_sample so it can be previewed but is never shown to
 // members until an admin reviews and publishes each day.
 
+const LEGAL = require('./legal');
+
 const SITE_CONTENT = [
   // key, default, label, group, multiline
   ['hero.eyebrow', 'SMOOTH OPERATORS · LIVE 21-DAY COHORT', 'Hero eyebrow', 'Landing: hero'],
@@ -41,15 +43,15 @@ const SITE_CONTENT = [
   ['enroll.headline', 'Join the cohort', 'Enrollment headline', 'Landing: enrollment'],
   ['enroll.includes', 'A daily business reflection and practical action\nToolkit templates for the work\nGuided breathwork and meditation practices\nLive Solutions Seat calls\nA private journal that keeps your reflections in one place', 'What’s included (one per line)', 'Landing: enrollment', true],
   ['enroll.footer_cta_note', 'One-time payment. Live cohort; everyone follows the same 21-day calendar.', 'Footer CTA note', 'Landing: enrollment'],
-  ['purchase.refund_policy', 'After you enroll, our team reviews your fit check. If we decide Smooth Operators isn’t the right fit for where your business is right now, we’ll refund your payment in full. Once you’re approved, your enrollment is non-refundable.', 'Refund policy (publish before live sales)', 'Purchase & legal', true],
+  ['purchase.refund_policy', 'After you pay, our team reviews your fit check. If we decide Smooth Operators isn’t the right fit, or if you cancel before you’re approved and before the program starts, we’ll refund your payment in full. Once you’re approved, or once the program has started, your enrollment is non-refundable.', 'Refund policy summary shown at checkout (publish before live sales)', 'Purchase & legal', true],
   ['purchase.refund_timing', 'Depending on your bank, refunds usually appear within 5–10 business days.', 'Refund timing sentence used in refund emails (owner to approve)', 'Purchase & legal'],
   ['purchase.access_terms', '', 'Access duration statement (required before live sales)', 'Purchase & legal', true],
   ['purchase.tax_treatment', '', 'Tax treatment statement (required before live sales)', 'Purchase & legal', true],
   ['purchase.disclosure', '', 'Additional purchase disclosure shown at checkout', 'Purchase & legal', true],
   ['calls.recording_policy', '', 'Call recording & replay policy (required before live sales)', 'Purchase & legal', true],
-  ['legal.terms', '', 'Terms of purchase / use (full text)', 'Purchase & legal', true],
-  ['legal.privacy', '', 'Privacy policy (full text)', 'Purchase & legal', true],
-  ['support.email', '', 'Support email address', 'Support'],
+  ['legal.terms', LEGAL.TERMS, 'Terms of purchase / use (full text; "## " = heading, "- " = bullet)', 'Purchase & legal', true],
+  ['legal.privacy', LEGAL.PRIVACY, 'Privacy policy (full text; "## " = heading, "- " = bullet)', 'Purchase & legal', true],
+  ['support.email', 'hello@omisworld.com', 'Support email address', 'Support'],
   ['support.note', '', 'Support expectations (e.g. response time)', 'Support', true],
 ].map(([key, def, label, group, multiline]) => ({ key, default: def, label, group, multiline: !!multiline }));
 

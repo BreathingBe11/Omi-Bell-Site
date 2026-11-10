@@ -306,3 +306,20 @@ test('hidden seat limit: site says "All seats are full" without revealing the nu
   assert.equal((await h.api('GET', 'offer', { token: holder.token })).body.sales.can_checkout, true);
   await h.setCohort({ seat_limit: 30 });
 });
+
+test('terms and privacy pages are public, complete, and linked from the home page', async () => {
+  const home = await (await fetch(`${h.appBase}/smoothoperators`)).text();
+  assert.match(home, /href="\/smoothoperators\/privacy"/);
+  assert.match(home, /href="\/smoothoperators\/terms"/);
+  const privacy = await fetch(`${h.appBase}/smoothoperators/privacy`);
+  assert.equal(privacy.status, 200);
+  const p = await privacy.text();
+  assert.match(p, /We do not sell your personal information/);
+  assert.match(p, /Limited Use requirements/);
+  assert.match(p, /3126 S\. Sepulveda Blvd\., #1226/);
+  assert.match(p, /hello@omisworld\.com/);
+  const terms = (await (await fetch(`${h.appBase}/smoothoperators/terms`)).text()).replace(/&#39;/g, "'");
+  assert.match(terms, /before you're approved and before the Program's start date, we'll refund your payment in full/);
+  assert.match(terms, /Once you're approved, or once the Program has started, your payment is non-refundable/);
+  assert.doesNotMatch(terms, /<script>alert/);
+});

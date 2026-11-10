@@ -61,7 +61,7 @@ test('founder pays, gets verified access and saves a private reflection', async 
   await page.getByLabel('What are your most pressing questions about operations?').fill('How do I hand off client onboarding?');
   await page.getByRole('button', { name: 'Save and continue to payment' }).click();
   await expect(page.getByRole('alert')).toContainText(/refund policy/);
-  await page.getByLabel(/I understand: if it isn’t the right fit/).check();
+  await page.getByLabel(/I understand the review and refund policy/).check();
   await page.getByRole('button', { name: 'Save and continue to payment' }).click();
   await expect(page.getByText('Fit check complete.')).toBeVisible();
 

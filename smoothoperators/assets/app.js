@@ -642,7 +642,7 @@ ${fit.intake.early_stage ? '<div class="notice notice-warn"><p>Smooth Operators 
   <div class="field"><label for="ops_questions">What are your most pressing questions about operations?</label>
   <textarea id="ops_questions" name="ops_questions" maxlength="3000" required>${esc(v.ops_questions || '')}</textarea></div>
   <div class="notice"><p><strong>How review works.</strong> ${esc(fit.refund_policy || '')} We review ${esc(fit.review_turnaround || '')}.</p>
-  <label class="check"><input type="checkbox" id="policy_ack"><span>I understand: if it isn’t the right fit I’ll be refunded in full, and once I’m approved my enrollment is non-refundable.</span></label></div>
+  <label class="check"><input type="checkbox" id="policy_ack"><span>I understand the review and refund policy above, and I agree to the <a href="${B}/terms" target="_blank" rel="noopener">Terms</a> and <a href="${B}/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span></label></div>
   <p class="form-error" id="fit-err" role="alert"></p>
   <button class="btn btn-primary btn-lg btn-block" type="submit">Save and continue to payment</button>
   <p style="text-align:center;margin-top:.75rem"><button class="linklike" type="button" id="save-draft">Save my answers and finish later</button></p>

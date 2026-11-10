@@ -420,3 +420,7 @@ dialog.slide-over .dialog-inner { max-height: none; min-height: 100%; padding-bo
 .or-divider::before, .or-divider::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
 
 .google-slot { display: flex; justify-content: center; min-height: 44px; }
+
+.legal h2 { font-size: 1.5rem; margin: 2rem 0 .6rem; }
+.legal ul { padding-left: 1.2rem; max-width: 70ch; }
+.legal li { margin: .35rem 0; }
