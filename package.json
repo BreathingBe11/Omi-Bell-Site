@@ -4,7 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Run tests locally with playwright\""
+    "test": "echo \"Run tests locally with playwright\"",
+    "so:db": "scripts/so-test-db.sh start",
+    "so:test": "node --test --test-concurrency=1 \"tests-so/*.test.js\"",
+    "so:e2e": "playwright test -c playwright.so.config.js --trace off",
+    "so:dev": "node scripts/so-dev-server.js",
+    "so:seed": "node scripts/so-generate-seed.js > supabase/smooth_operators_seed.sql"
   },
   "repository": {
     "type": "git",
@@ -15,6 +20,10 @@
   "license": "ISC",
   "dependencies": {
     "@playwright/test": "^1.61.0",
-    "@supabase/supabase-js": "^2.106.1"
+    "@supabase/supabase-js": "^2.106.1",
+    "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.2"
   }
 }
