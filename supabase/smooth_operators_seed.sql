@@ -2,14 +2,14 @@
 -- Run after supabase/smooth_operators.sql. Safe to re-run: existing rows are left untouched.
 --
 -- Cohort values are the build brief's RECOMMENDED DEFAULTS, not owner-confirmed:
---   start 2027-01-01, 21 days, America/Los_Angeles, days unlock 00:00 cohort time,
+--   start 2027-01-04 (Jan 4–24), 21 days, America/Los_Angeles, days unlock 00:00 cohort time,
 --   introductions open and intro price ends 2026-12-01 00:00 America/Los_Angeles (08:00 UTC),
 --   $999 intro / $1,497 regular, sales disabled, access policy unset.
 -- The 21 days below are PROVISIONAL draft curriculum (is_sample = true, status = draft).
 
 insert into so_cohorts (slug, name, start_date, days_count, timezone, unlock_time, intro_opens_at,
   regular_price_cents, intro_price_cents, price_cutoff_at, checkout_ttl_minutes, is_default)
-values ('2027-01', 'Smooth Operators', '2027-01-01', 21, 'America/Los_Angeles', '00:00',
+values ('2027-01', 'Smooth Operators', '2027-01-04', 21, 'America/Los_Angeles', '00:00',
   '2026-12-01T08:00:00Z', 149700, 99900, '2026-12-01T08:00:00Z', 60, true)
 on conflict (slug) do nothing;
 

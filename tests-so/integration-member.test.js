@@ -22,12 +22,12 @@ async function publishDay(n, extra = {}) {
 
 test('before introductions open: countdown state, no intro form, no cohort feed', async () => {
   // Seed defaults: today (Nov 2026) is before Dec 1.
-  await h.setCohort({ intro_opens_at: new Date(Date.now() + 5 * 86400000), start_date: '2027-01-01' });
+  await h.setCohort({ intro_opens_at: new Date(Date.now() + 5 * 86400000), start_date: '2027-01-04' });
   const home = await h.api('GET', 'home', { token: A.token });
   assert.equal(home.status, 200);
   assert.equal(home.body.phase, 'pre_intros');
   assert.equal(home.body.intros_open, false);
-  assert.equal(home.body.cohort.starts_at, '2027-01-01T08:00:00.000Z');
+  assert.equal(home.body.cohort.starts_at, '2027-01-04T08:00:00.000Z');
   assert.equal(home.body.today, null);
   assert.equal((await h.api('GET', 'introductions', { token: A.token })).status, 403);
   assert.equal((await h.api('PUT', 'introductions/mine', { token: A.token, body: { preferred_name: 'x' } })).status, 403);

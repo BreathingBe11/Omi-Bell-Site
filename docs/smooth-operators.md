@@ -122,6 +122,8 @@ The integration and e2e tests boot a fresh database from the real migration and 
 The admin **Overview** shows these live. Checkout stays off until every "blocks live sales" item is done.
 
 ### Blocks live sales
+Default cohort dates are **January 4–24, 2027** (Week 1 Jan 4–10, Week 2 Jan 11–17, Week 3 Jan 18–24). If the seed was already run with an earlier start date, change Day 1 in admin Cohort settings (or run `update so_cohorts set start_date = '2027-01-04' where slug = '2027-01';`).
+
 - [ ] Stripe **live** secret key and live webhook signing secret. Optionally, live Price IDs.
 - [ ] Tax treatment decided (Stripe Tax on or off), and a "Tax treatment statement" published.
 - [ ] Cohort settings confirmed by Omi in admin. This means "Save and confirm as owner" on these values:

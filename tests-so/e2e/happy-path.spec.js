@@ -12,7 +12,7 @@ test.beforeAll(() => { sql = postgres(process.env.SO_DATABASE_URL, { max: 1, onn
 test.afterAll(async () => { await sql.end({ timeout: 1 }); });
 
 async function setPreCohort() {
-  await sql`update so_cohorts set start_date = '2027-01-01', intro_opens_at = '2026-12-01T08:00:00Z', price_cutoff_at = '2026-12-01T08:00:00Z' where is_default`;
+  await sql`update so_cohorts set start_date = '2027-01-04', intro_opens_at = '2026-12-01T08:00:00Z', price_cutoff_at = '2026-12-01T08:00:00Z' where is_default`;
 }
 async function setLiveDay1AndPublish() {
   await sql`update so_cohorts set start_date = (now() at time zone timezone)::date, intro_opens_at = now() - interval '30 days' where is_default`;
@@ -29,7 +29,7 @@ test('founder pays, gets verified access and saves a private reflection', async 
 
   await page.goto(`${base()}/smoothoperators`);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('You’ve built a business. Now stop being what holds it together.');
-  await expect(page.getByText('January 1–21, 2027').first()).toBeVisible();
+  await expect(page.getByText('January 4–24, 2027').first()).toBeVisible();
   expect(await axe(page)).toEqual([]);
   await page.locator('#hero-cta').click();
 

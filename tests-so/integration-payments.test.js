@@ -18,7 +18,7 @@ test('landing page shows dates, host, server price and test-mode label', async (
   assert.equal(res.status, 200);
   assert.match(html, /You’ve built a business\. Now stop being what holds it together\./);
   assert.match(html, /SMOOTH OPERATORS · LIVE 21-DAY COHORT/);
-  assert.match(html, /January 1–21, 2027/);
+  assert.match(html, /January 4–24, 2027/);
   assert.match(html, /Omi Bell/);
   assert.match(html, /Join the Cohort — \$999/);
   assert.match(html, /Save \$498 through November 30\. Regular enrollment: \$1,497\./);

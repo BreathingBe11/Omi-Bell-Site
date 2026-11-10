@@ -96,7 +96,7 @@
     const d = new Date(iso);
     return `${d.toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' })} ${tzName(d, tz)}`;
   };
-  // 'YYYY-MM-DD' (a cohort calendar date) -> "Friday, January 1, 2027"
+  // 'YYYY-MM-DD' (a cohort calendar date) -> "Monday, January 4, 2027"
   SO.fmtCohortDate = function (dateStr, opts) {
     return new Date(`${dateStr}T12:00:00Z`).toLocaleDateString('en-US', Object.assign({ timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }, opts || {}));
   };
