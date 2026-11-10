@@ -24,9 +24,60 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net fonts.googleapis.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com fonts.gstatic.com; img-src 'self' data: blob: https:; font-src 'self' fonts.gstatic.com; connect-src 'self' https://*.supabase.co https://connect.mailerlite.com; frame-ancestors 'none';"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net fonts.googleapis.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com fonts.gstatic.com; img-src 'self' data: blob: https:; font-src 'self' fonts.gstatic.com; media-src 'self' blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co https://connect.mailerlite.com; frame-ancestors 'none';"
         }
       ]
+    },
+    {
+      "source": "/smoothoperators/:section(app|admin|checkout|login)(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/so/:path*",
+      "destination": "/api/smoothoperators?route=:path*"
+    },
+    {
+      "source": "/smoothoperators",
+      "destination": "/api/smoothoperators?route=page/landing"
+    },
+    {
+      "source": "/smoothoperators/terms",
+      "destination": "/api/smoothoperators?route=page/terms"
+    },
+    {
+      "source": "/smoothoperators/privacy",
+      "destination": "/api/smoothoperators?route=page/privacy"
+    },
+    {
+      "source": "/smoothoperators/admin/:path*",
+      "destination": "/smoothoperators/admin.html"
+    },
+    {
+      "source": "/smoothoperators/app/:path*",
+      "destination": "/smoothoperators/app.html"
+    },
+    {
+      "source": "/smoothoperators/checkout",
+      "destination": "/smoothoperators/app.html"
+    },
+    {
+      "source": "/smoothoperators/checkout/:path*",
+      "destination": "/smoothoperators/app.html"
+    },
+    {
+      "source": "/smoothoperators/login",
+      "destination": "/smoothoperators/app.html"
+    },
+    {
+      "source": "/smoothoperators/login/:path*",
+      "destination": "/smoothoperators/app.html"
     }
   ]
 }
