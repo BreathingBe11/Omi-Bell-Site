@@ -355,7 +355,7 @@ routes['GET admin/home'] = can(async ({ sql, query, now, admin: who }) => {
   }
   const ef = await sql`select template_key, count(*)::int as n from so_email_outbox where cohort_id = ${cohort.id} and status in ('failed', 'bounced', 'complained') group by 1`;
   const efTotal = ef.reduce((a, r) => a + r.n, 0);
-  if (efTotal) add('email', `${efTotal} email${efTotal === 1 ? '' : 's'} failed or bounced${ef.some(r => ['approval', 'rejection'].includes(r.template_key)) ? ', including decision emails' : ''}.`, '#settings/emails-failed', 'high');
+  if (efTotal) add('email', `${efTotal} email${efTotal === 1 ? '' : 's'} failed or bounced${ef.some(r => ['approval', 'rejection'].includes(r.template_key)) ? ', including decision emails' : ''}.`, '#settings/emails/failed', 'high');
   if (newQuestions) add('question', `${newQuestions} new question${newQuestions === 1 ? '' : 's'} from members.`, '#settings/questions');
   // Content readiness for days unlocking within 7 days.
   const sched = S.schedule(cohort);

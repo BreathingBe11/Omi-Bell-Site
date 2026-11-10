@@ -17,12 +17,15 @@ test('admin overview, day publishing, impact preview and lifecycle preview', asy
   await page.addInitScript(t => sessionStorage.setItem('ob_admin_token', t), process.env.SO_E2E_ADMIN_TOKEN);
   await page.goto(`${base()}/smoothoperators/admin#overview`);
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
-  await expect(page.getByText('Blocks live sales')).toBeVisible();
-  await expect(page.getByText('Post-cohort access policy')).toBeVisible();
+  await expect(page.getByText('Needs your attention')).toBeVisible();
+  await expect(page.locator('.admin-nav a')).toHaveText(['Overview', 'Members', 'Sales', 'Program', 'Solutions Seat', 'Progress', 'Emails & Settings']);
   const v = (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations;
   expect(v.map(x => x.id)).toEqual([]);
 
-  await page.goto(`${base()}/smoothoperators/admin#days/7`);
+  await page.goto(`${base()}/smoothoperators/admin#settings/readiness`);
+  await expect(page.getByText('Blocks live sales')).toBeVisible();
+  await expect(page.getByText('Post-cohort access policy')).toBeVisible();
+  await page.goto(`${base()}/smoothoperators/admin#program/days/7`);
   await expect(page.getByRole('heading', { name: 'Day 7' })).toBeVisible();
   await page.getByLabel('Status').selectOption('published');
   await page.getByRole('button', { name: 'Save day' }).click();
@@ -31,13 +34,13 @@ test('admin overview, day publishing, impact preview and lifecycle preview', asy
   await page.getByRole('button', { name: 'Save day' }).click();
   await expect(page.locator('#dmsg')).toHaveText('Saved.');
 
-  await page.goto(`${base()}/smoothoperators/admin#cohort`);
+  await page.goto(`${base()}/smoothoperators/admin#settings/cohort`);
   await page.getByLabel('Daily unlock time').fill('06:00');
   await page.getByRole('button', { name: 'Preview impact' }).click();
   await expect(page.getByText('Impact preview (not saved)')).toBeVisible();
   await expect(page.locator('td.changed').first()).toBeVisible();
 
-  await page.goto(`${base()}/smoothoperators/admin#preview`);
+  await page.goto(`${base()}/smoothoperators/admin#program/preview`);
   await page.getByRole('button', { name: 'Before introductions' }).click();
   await expect(page.getByText(/Welcome \+ countdown; introductions teaser/)).toBeVisible();
   await page.getByRole('button', { name: 'After the cohort' }).click();
@@ -54,7 +57,8 @@ test('/admin hub leads to the blog admin or the Smooth Operators admin; members 
             postal_code, business_stage, revenue_to_date, years_in_business, prior_ops_work, has_full_time_staff, team_size, ops_questions, policy_ack_at)
             values (${uid}, ${c.id}, 'Grace', 'Hopper', 'Compiler Co', 'https://compiler.example.com', '555-555-0199', '9 Navy Rd', 'Arlington', 'VA',
             '22201', 'growing', '100k_250k', '6_10', true, true, '6_10', 'How do I build a weekly review?', now())`;
-  await sql`insert into so_enrollments (user_id, cohort_id, source) values (${uid}, ${c.id}, 'stripe')`;
+  await sql`update so_intakes set status = 'submitted', submitted_at = now(), version = 1 where user_id = ${uid}`;
+  await sql`insert into so_enrollments (user_id, cohort_id, source) values (${uid}, ${c.id}, 'manual')`;
   await sql.end();
   await page.addInitScript(t => sessionStorage.setItem('ob_admin_token', t), process.env.SO_E2E_ADMIN_TOKEN);
   // The existing /admin loads a CDN script; the offline test sandbox can't reach it.
@@ -66,20 +70,30 @@ test('/admin hub leads to the blog admin or the Smooth Operators admin; members 
   await expect(page.getByRole('button', { name: /Blog admin/ })).toBeVisible();
   await page.getByRole('link', { name: /Smooth Operators admin/ }).click();
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
-  await expect(page.getByText('Seats (private)')).toBeVisible();
-  await page.getByRole('navigation', { name: 'Admin sections' }).getByRole('link', { name: 'Members' }).click();
-  await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
-  const card = page.locator('[data-member]').filter({ hasText: 'Grace Hopper' }).first();
-  await expect(card).toBeVisible();
-  await expect(card).toContainText('Pending review');
+  await expect(page.getByText('Profiles awaiting review')).toBeVisible();
+  await page.getByRole('link', { name: /waiting for your review/ }).click();
+  await expect(page.getByRole('heading', { name: /Awaiting review/ })).toBeVisible();
+  const row = page.locator('.member-table tr').filter({ hasText: 'Grace Hopper' });
+  await row.getByRole('button', { name: 'Grace Hopper' }).click();
+  const card = page.getByRole('dialog');
+  await expect(card.getByRole('heading', { name: 'Grace Hopper' })).toBeVisible();
   await expect(card).toContainText('$100K–$250K');
   await expect(card).toContainText('22201');
   await expect(card).toContainText('How do I build a weekly review?');
   const v = (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations;
   expect(v.map(x => x.id)).toEqual([]);
-  page.on('dialog', d => (d.type() === 'prompt' ? d.accept('') : d.accept()));
-  await card.getByRole('button', { name: 'Approve' }).click();
-  await expect(page.locator('[data-member]').filter({ hasText: 'Grace Hopper' }).first()).toContainText('Approved');
+  // Rejection needs a member-facing explanation and states the refund.
+  await card.getByRole('button', { name: 'Reject' }).click();
+  await expect(card.getByText(/refunds .* in full through Stripe/)).toBeVisible();
+  await card.getByRole('button', { name: 'Cancel' }).click();
+  await card.getByRole('button', { name: 'Approve', exact: true }).click();
+  await card.getByLabel('Personal note to include (optional)').fill('Welcome aboard, Grace.');
+  await expect(card.locator('#cp-prev')).toContainText('Welcome aboard, Grace.');
+  await card.getByRole('button', { name: 'Approve & Send Email' }).click();
+  await expect(card.locator('.notice-success').getByText('Approved.')).toBeVisible();
+  await card.getByRole('button', { name: 'Close' }).click();
+  await expect(card).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Grace Hopper' })).toHaveCount(0); // left the awaiting list
   await page.getByRole('link', { name: '← Omi Bell admin' }).click();
   await page.getByRole('button', { name: /Blog admin/ }).click();
   await expect(page.getByRole('button', { name: '+ New Post' })).toBeVisible();

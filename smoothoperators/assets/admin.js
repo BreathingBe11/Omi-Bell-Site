@@ -7,17 +7,30 @@
   const esc = SO.esc;
   const root = document.getElementById('admin-root');
   const TOKEN_KEY = 'ob_admin_token';
+  // Seven primary sections; some have sub-sections (#section/sub/arg).
   const SECTIONS = [
-    ['overview', 'Overview'], ['people', 'Members'], ['cohort', 'Cohort settings'], ['days', '21 days'], ['resources', 'Resources'],
-    ['calls', 'Calls'], ['members', 'Payments & access'], ['intros', 'Introductions'], ['content', 'Site content & FAQs'],
-    ['preview', 'Preview'], ['log', 'Audit log'],
+    ['overview', 'Overview'], ['members', 'Members'], ['sales', 'Sales'], ['program', 'Program'],
+    ['seat', 'Solutions Seat'], ['progress', 'Progress'], ['settings', 'Emails & Settings'],
   ];
+  const SUBS = {
+    members: [['all', 'All'], ['incomplete', 'Info incomplete'], ['awaiting', 'Awaiting review'], ['approved', 'Approved'], ['rejected', 'Rejected'], ['intros', 'Introductions']],
+    sales: [['summary', 'Sales'], ['access', 'Payments & access tools']],
+    program: [['days', '21 days'], ['resources', 'Resources'], ['preview', 'Preview']],
+    seat: [['sessions', 'Sessions'], ['challenges', 'Challenges'], ['prep', 'Session prep']],
+    settings: [['questions', 'Questions'], ['emails', 'Email log'], ['templates', 'Templates & reminders'], ['cohort', 'Cohort settings'],
+      ['content', 'Site content & FAQs'], ['readiness', 'Launch readiness'], ['staff', 'Staff'], ['log', 'Audit log']],
+  };
+  let ARG = null;
+  let ME = { perms: [] };
+  let COHORT = null;
+  const canDo = perm => ME.perms.includes(perm);
   const q = (s, el = document) => el.querySelector(s);
   const qa = (s, el = document) => Array.from(el.querySelectorAll(s));
   const token = () => { try { return sessionStorage.getItem(TOKEN_KEY); } catch { return null; } };
   let cohortTz = 'America/Los_Angeles';
 
   async function api(method, path, body) {
+    if (COHORT && COHORT.id && path.startsWith('admin/') && path !== 'admin/cohorts') path += `${path.includes('?') ? '&' : '?'}cohort=${encodeURIComponent(COHORT.id)}`;
     const res = await fetch(`/api/so/${path}`, {
       method,
       headers: { Authorization: `Bearer ${token()}`, ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
@@ -53,38 +66,59 @@ ${msg ? `<div class="notice notice-warn"><p>${esc(msg)}</p></div>` : ''}
   }
 
   // --------------------------------------------------------------- shell
-  function section() { const s = location.hash.replace('#', '').split('/')[0]; return SECTIONS.some(x => x[0] === s) ? s : 'overview'; }
-  function hashArg() { return location.hash.split('/')[1] || null; }
+  function parts() { return location.hash.replace(/^#/, '').split('/'); }
+  function hashArg() { return ARG; }
   async function route() {
     if (!token()) return showLogin();
-    const s = section();
+    const [sec0, sub0, ...rest] = parts();
+    const s = SECTIONS.some(x => x[0] === sec0) ? sec0 : 'overview';
+    const subs = SUBS[s];
+    let sub = subs ? (subs.some(x => x[0] === sub0) ? sub0 : subs[0][0]) : null;
+    // Legacy filters like #sales/refunds land on the sales summary with that filter.
+    if (s === 'sales' && sub0 && !subs.some(x => x[0] === sub0)) sub = 'summary';
+    ARG = subs ? (rest.join('/') || (s === 'sales' && sub === 'summary' && sub0 !== 'summary' ? sub0 : null)) : (sub0 || null);
+    if (!COHORT) {
+      try {
+        const c = await api('GET', 'admin/cohorts');
+        ME = c.me;
+        let saved = null; try { saved = sessionStorage.getItem('so_admin_cohort'); } catch { /* ignore */ }
+        COHORT = { list: c.cohorts, id: (c.cohorts.find(x => x.id === saved) || c.cohorts[0] || {}).id };
+      } catch (e) { if (!token()) return; COHORT = { list: [], id: null }; }
+    }
     root.innerHTML = `<header class="admin-top"><span class="wordmark">Smooth Operators · Admin</span>
-<div class="row"><a href="/admin">← Omi Bell admin</a><a href="/smoothoperators" target="_blank" rel="noopener">View landing page</a><button class="btn btn-ghost btn-sm" id="logout">Log out</button></div></header>
-<nav class="admin-nav" aria-label="Admin sections">${SECTIONS.map(([k, l]) => `<a href="#${k}"${k === s ? ' aria-current="page"' : ''}>${l}</a>`).join('')}</nav>
+<div class="row">${COHORT.list.length > 1 ? `<label class="small" for="cohort-pick">Cohort</label><select id="cohort-pick" style="min-height:40px;width:auto">${COHORT.list.map(c => `<option value="${c.id}"${c.id === COHORT.id ? ' selected' : ''}>${esc(c.name)} (${esc(String(c.start_date).slice(0, 10))})</option>`).join('')}</select>` : COHORT.list[0] ? `<span class="small muted">${esc(COHORT.list[0].name)}</span>` : ''}
+<a href="/admin">← Omi Bell admin</a><a href="/smoothoperators" target="_blank" rel="noopener">View site</a><button class="btn btn-ghost btn-sm" id="logout">Log out</button></div></header>
+<nav class="admin-nav" aria-label="Admin sections">${SECTIONS.map(([k, l]) => `<a href="#${k}"${k === s ? ' aria-current="page"' : ''}>${l}${k === 'settings' && NEWQ ? ` <span class="pill pill-live">${NEWQ}</span>` : ''}</a>`).join('')}</nav>
+${subs ? `<nav class="admin-subnav" aria-label="${esc(SECTIONS.find(x => x[0] === s)[1])}">${subs.map(([k, l]) => `<a href="#${s}/${k}"${k === sub ? ' aria-current="page"' : ''}>${l}</a>`).join('')}</nav>` : ''}
 <main id="admin-main" class="admin-main" tabindex="-1"><p class="loading">Loading…</p></main>`;
-    q('#logout').addEventListener('click', () => { sessionStorage.removeItem(TOKEN_KEY); showLogin(); });
+    q('#logout').addEventListener('click', () => { sessionStorage.removeItem(TOKEN_KEY); COHORT = null; showLogin(); });
+    const pick = q('#cohort-pick');
+    if (pick) pick.addEventListener('change', () => { COHORT.id = pick.value; try { sessionStorage.setItem('so_admin_cohort', pick.value); } catch { /* ignore */ } route(); });
     const main = q('#admin-main');
-    try { await VIEWS[s](main); } catch (e) { if (token()) main.innerHTML = `<div class="notice notice-error"><p>${esc(e.message)}</p></div>`; }
+    const view = VIEWS[subs ? (s === 'members' && sub !== 'intros' ? 'members' : sub === 'summary' ? 'sales' : sub === 'sessions' ? 'calls' : sub) : s];
+    if (s === 'members' && sub !== 'intros') ARG = sub;
+    try { await view(main); } catch (e) { if (token()) main.innerHTML = `<div class="notice notice-error" role="alert"><p>${esc(e.message)}</p><button class="btn btn-secondary btn-sm" onclick="location.reload()">Try again</button></div>`; }
   }
-  window.addEventListener('hashchange', route);
+  let NEWQ = 0;
+  window.addEventListener('hashchange', () => { if (!q('dialog[open]')) route(); });
 
   const VIEWS = {};
 
   // ------------------------------------------------------------ overview
-  VIEWS.overview = async main => {
+  VIEWS.readiness = async main => {
     const o = await api('GET', 'admin/overview');
     const c = await api('GET', 'admin/cohort');
     cohortTz = c.cohort.timezone;
     const cfg = o.config;
     const alerts = o.content_release.days.filter(d => d.alert);
     const enr = o.enrollments.reduce((a, r) => { a[r.is_test ? 'test' : r.access_state] = (a[r.is_test ? 'test' : r.access_state] || 0) + r.n; return a; }, {});
-    main.innerHTML = `<h1>Overview</h1>
+    main.innerHTML = `<h1>Launch readiness</h1>
 <p class="muted">Server time ${esc(dt(o.now))} · Phase: <strong>${esc(o.phase.replace('_', ' '))}</strong>${o.current_day ? ` · Day ${o.current_day}` : ''} · Current price <strong>${money(o.price.amount_cents)}</strong> (${esc(o.price.tier)})</p>
 ${o.sales.test_mode ? '<div class="notice notice-warn"><p><strong>Stripe is in TEST mode.</strong> Checkouts use test cards and create test enrollments.</p></div>' : ''}
 ${alerts.length ? `<div class="notice notice-error"><p><strong>${alerts.length} day(s) unlock within 7 days and aren’t ready:</strong> ${alerts.map(d => `Day ${d.day_number}`).join(', ')}.</p></div>` : ''}
-${o.pending_reviews ? `<div class="notice notice-warn"><p><strong>${o.pending_reviews} paid member(s) waiting for your review.</strong> <a href="#people">Review fit checks</a></p></div>` : ''}
-${o.needs_review ? `<div class="notice notice-warn"><p>${o.needs_review} purchase(s) need review. <a href="#members">Members & payments</a></p></div>` : ''}
-${o.failed_webhooks ? `<div class="notice notice-error"><p>${o.failed_webhooks} payment webhook(s) failed to process. <a href="#log">See log</a></p></div>` : ''}
+${o.pending_reviews ? `<div class="notice notice-warn"><p><strong>${o.pending_reviews} paid member(s) waiting for your review.</strong> <a href="#members/awaiting">Review fit checks</a></p></div>` : ''}
+${o.needs_review ? `<div class="notice notice-warn"><p>${o.needs_review} purchase(s) need review. <a href="#sales/access">Payments & access</a></p></div>` : ''}
+${o.failed_webhooks ? `<div class="notice notice-error"><p>${o.failed_webhooks} payment webhook(s) failed to process. <a href="#settings/log">See log</a></p></div>` : ''}
 <div class="grid-3">
   <div class="card"><p class="muted small">Seats (private)</p><p class="stat">${o.seats.taken}${o.seats.limit ? ` / ${o.seats.limit}` : ''}</p><p class="small muted">${o.seats.limit ? (o.seats.taken >= o.seats.limit ? 'Full: the site says “All seats are full.”' : `${o.seats.limit - o.seats.taken} left. The limit is never shown publicly.`) : 'No limit set.'}</p></div>
   <div class="card"><p class="muted small">Active enrollments</p><p class="stat">${enr.active || 0}</p><p class="small muted">${enr.test ? `${enr.test} test · ` : ''}${['refunded', 'suspended', 'disputed', 'revoked'].map(k => enr[k] ? `${enr[k]} ${k}` : '').filter(Boolean).join(' · ')}</p></div>
@@ -101,7 +135,7 @@ ${[['Database', cfg.database], ['Supabase Auth', cfg.supabase_auth], ['Private s
 <section style="margin-top:1rem"><h2>Content release checklist</h2>
 <p class="small muted">A member sees a day only when it is both <strong>unlocked by time</strong> and <strong>published</strong>. Completion counts never include anyone’s writing.</p>
 <div class="table-wrap"><table class="data"><thead><tr><th>Day</th><th>Unlocks</th><th>Status</th><th>Started / Completed</th><th>Open items</th></tr></thead><tbody>
-${o.content_release.days.map(d => `<tr><td><a href="#days/${d.day_number}">Day ${d.day_number}</a><br><span class="small muted">${esc(d.title)}</span></td><td class="small">${esc(dt(d.unlock_at))}</td>
+${o.content_release.days.map(d => `<tr><td><a href="#program/days/${d.day_number}">Day ${d.day_number}</a><br><span class="small muted">${esc(d.title)}</span></td><td class="small">${esc(dt(d.unlock_at))}</td>
 <td><span class="pill ${d.status === 'published' ? 'pill-complete' : 'pill-draft'}">${d.status}</span>${d.is_sample ? ' <span class="pill pill-draft">sample</span>' : ''}</td><td>${d.started} / ${d.completed}</td>
 <td class="small">${d.issues.length ? esc(d.issues.join(' · ')) : '<span style="color:var(--success)">Ready</span>'}</td></tr>`).join('')}
 </tbody></table></div>
@@ -191,12 +225,15 @@ ${r.impact.rows.map(x => `<tr><td>${esc(x.label)}</td><td>${esc(x.label.includes
   VIEWS.days = async main => {
     const n = hashArg();
     if (n) return dayEditor(main, n);
-    const { days } = await api('GET', 'admin/days');
-    main.innerHTML = `<h1>21 days</h1><p class="muted">Provisional days from the brief are marked <span class="pill pill-draft">sample</span>. Review, edit and mark each one final before publishing.</p>
-<div class="table-wrap"><table class="data"><thead><tr><th>Day</th><th>Title</th><th>Status</th><th>Preview</th><th>Linked</th></tr></thead><tbody>
-${days.map(d => `<tr><td>${d.day_number}</td><td><a href="#days/${d.day_number}">${esc(d.title)}</a></td>
-<td><span class="pill ${d.status === 'published' ? 'pill-complete' : 'pill-draft'}">${d.status}</span>${d.is_sample ? ' <span class="pill pill-draft">sample</span>' : ''}</td>
-<td>${d.preview_published ? 'Approved' : '—'}</td><td class="small">${d.links.map(l => `${esc(l.title)} (${l.role})`).join(', ') || '—'}</td></tr>`).join('')}</tbody></table></div>`;
+    const [{ days }, ov] = await Promise.all([api('GET', 'admin/days'), api('GET', 'admin/overview')]);
+    const ready = new Map(ov.content_release.days.map(x => [x.day_number, x]));
+    const weeks = [[1, 'Week 1 · Standards'], [2, 'Week 2 · Systems'], [3, 'Week 3 · Scorecards']];
+    main.innerHTML = `<h1>21 days</h1><p class="muted">A day reaches members only when it is unlocked by date <strong>and</strong> published. Provisional days from the brief are marked <span class="pill pill-draft">sample</span>; review and mark them final first.</p>
+${weeks.map(([w, label]) => `<h2>${label}</h2><div class="table-wrap"><table class="data"><thead><tr><th>Day</th><th>Title</th><th>Unlocks</th><th>Status</th><th>Readiness</th></tr></thead><tbody>
+${days.filter(d => Math.ceil(d.day_number / 7) === w).map(d => { const r = ready.get(d.day_number) || { issues: [] }; return `<tr><td>${d.day_number}</td><td><a href="#program/days/${d.day_number}">${esc(d.title)}</a></td>
+<td class="small">${esc(dt(r.unlock_at))}</td>
+<td><span class="pill ${d.status === 'published' ? 'pill-complete' : 'pill-draft'}">${d.status}</span>${d.is_sample ? ' <span class="pill pill-draft">sample</span>' : ''}${d.publish_at ? `<br><span class="small">publishes ${esc(dt(d.publish_at))}</span>` : ''}</td>
+<td class="small">${r.issues.length ? `${r.alert ? '<strong style="color:var(--danger)">Unlocks soon · </strong>' : ''}${esc(r.issues.join(' · '))}` : '<span style="color:var(--success)">Ready</span>'}</td></tr>`; }).join('')}</tbody></table></div>`).join('')}`;
   };
 
   async function dayEditor(main, n) {
@@ -204,7 +241,7 @@ ${days.map(d => `<tr><td>${d.day_number}</td><td><a href="#days/${d.day_number}"
     const practice = d.links.find(l => l.role === 'practice');
     const others = d.links.filter(l => l.role !== 'practice').map(l => l.resource_id);
     const ta = (id, label, v, rows = 3, help = '') => `<div class="field"><label for="${id}">${label}</label><textarea id="${id}" rows="${rows}" style="min-height:${rows * 1.8}rem">${esc(v || '')}</textarea>${help ? `<p class="help">${help}</p>` : ''}</div>`;
-    main.innerHTML = `<a class="back-link" href="#days">All days</a><h1>Day ${d.day_number}</h1>
+    main.innerHTML = `<a class="back-link" href="#program/days">All days</a><h1>Day ${d.day_number}</h1>
 ${d.is_sample ? '<div class="notice notice-warn"><p>This is provisional sample content from the build brief. It is not owner-approved.</p></div>' : ''}
 <form id="df" class="card">
 <div class="field"><label for="title">Title</label><input id="title" type="text" value="${esc(d.title)}"></div>
@@ -220,8 +257,10 @@ ${resources.filter(r => r.kind === 'practice').map(r => `<option value="${r.id}"
 <fieldset class="field" style="border:0;padding:0"><legend class="label">Templates & supporting resources</legend>
 ${resources.filter(r => r.kind === 'template' || r.kind === 'other').map(r => `<label class="check"><input type="checkbox" data-res="${r.id}"${others.includes(r.id) ? ' checked' : ''}><span>${esc(r.title)} <span class="small muted">(${r.status}${r.pillar ? `, ${r.pillar}` : ''})</span></span></label>`).join('') || '<p class="small muted">No templates yet. Add them under Resources.</p>'}</fieldset>
 <label class="check"><input type="checkbox" id="final"${!d.is_sample ? ' checked' : ''}><span><strong>Content reviewed and final</strong> (required before publishing)</span></label>
+<div class="field"><label for="publish_local">Scheduled publish time (optional, cohort time)</label><input id="publish_local" type="datetime-local" value="${esc(d.publish_local || '')}">
+<p class="help">With status Published, members see the day only once it has unlocked <em>and</em> this time has passed. Leave blank to publish as soon as it unlocks.</p></div>
 <div class="field"><label for="status">Status</label><select id="status"><option value="draft"${d.status === 'draft' ? ' selected' : ''}>Draft (hidden from members)</option><option value="published"${d.status === 'published' ? ' selected' : ''}>Published (visible once unlocked)</option></select></div>
-<div class="row"><button class="btn btn-primary">Save day</button><a href="#preview/day-${d.day_number}">Preview this day</a></div><div id="dmsg"></div></form>`;
+<div class="row"><button class="btn btn-primary">Save day</button><a href="#program/preview/day-${d.day_number}">Preview this day</a></div><div id="dmsg"></div></form>`;
     q('#df').addEventListener('submit', async e => {
       e.preventDefault();
       const f = q('#df');
@@ -236,6 +275,7 @@ ${resources.filter(r => r.kind === 'template' || r.kind === 'other').map(r => `<
           title: val(f, '#title'), purpose: val(f, '#purpose'), preview_summary: val(f, '#preview_summary'), content: val(f, '#content'),
           reflection_prompt: val(f, '#reflection_prompt'), action_title: val(f, '#action_title'), action_body: val(f, '#action_body'),
           preview_published: q('#preview_published').checked, is_sample: !q('#final').checked, status: val(f, '#status'), links,
+          publish_local: val(f, '#publish_local'),
         });
         flash(q('#dmsg'), 'Saved.');
       } catch (ex) { flash(q('#dmsg'), ex.message, false); }
@@ -248,17 +288,17 @@ ${resources.filter(r => r.kind === 'template' || r.kind === 'other').map(r => `<
     const id = hashArg();
     const r = id === 'new' ? { kind: 'template', source_type: 'file', status: 'draft', release_mode: 'with_day' } : resources.find(x => x.id === id);
     if (r) return resourceEditor(main, r, id === 'new');
-    main.innerHTML = `<div class="row-between"><h1>Resources</h1><a class="btn btn-primary" href="#resources/new">Add resource</a></div>
+    main.innerHTML = `<div class="row-between"><h1>Resources</h1><a class="btn btn-primary" href="#program/resources/new">Add resource</a></div>
 <p class="muted">Toolkit templates, guided practices, and call replays. Files stay private; members only ever get short-lived links, and only once a resource is published and released.</p>
 <div class="table-wrap"><table class="data"><thead><tr><th>Title</th><th>Type</th><th>Source</th><th>Status</th><th>Days</th></tr></thead><tbody>
-${resources.length ? resources.map(x => `<tr><td><a href="#resources/${x.id}">${esc(x.title)}</a></td><td>${x.kind}${x.practice_type ? ` · ${x.practice_type}` : ''}</td>
+${resources.length ? resources.map(x => `<tr><td><a href="#program/resources/${x.id}">${esc(x.title)}</a></td><td>${x.kind}${x.practice_type ? ` · ${x.practice_type}` : ''}</td>
 <td>${x.source_type === 'link' ? 'Link' : x.has_file ? `${esc(x.file_kind)} v${x.version}` : '<span style="color:var(--danger)">No file</span>'}</td>
 <td><span class="pill ${x.status === 'published' ? 'pill-complete' : 'pill-draft'}">${x.status}</span></td><td>${x.links.map(l => l.day_number).join(', ') || '—'}</td></tr>`).join('') : '<tr><td colspan="5">No resources yet.</td></tr>'}</tbody></table></div>`;
   };
 
   function resourceEditor(main, r, isNew) {
     const opt = (v, cur, l) => `<option value="${v}"${v === cur ? ' selected' : ''}>${l || v}</option>`;
-    main.innerHTML = `<a class="back-link" href="#resources">All resources</a><h1>${isNew ? 'Add resource' : esc(r.title)}</h1>
+    main.innerHTML = `<a class="back-link" href="#program/resources">All resources</a><h1>${isNew ? 'Add resource' : esc(r.title)}</h1>
 <form id="rf" class="card"><div class="grid-2">
 <div class="field"><label for="kind">Type</label><select id="kind">${['template', 'practice', 'replay', 'other'].map(k => opt(k, r.kind)).join('')}</select></div>
 <div class="field"><label for="source">Source</label><select id="source">${opt('file', r.source_type, 'Uploaded file')}${opt('link', r.source_type, 'External link')}</select></div></div>
@@ -274,6 +314,8 @@ ${resources.length ? resources.map(x => `<tr><td><a href="#resources/${x.id}">${
 <div class="field"><label for="release_at">Release time (for “at a set time”)</label><input id="release_at" type="datetime-local" value="${r.release_at ? esc(new Date(r.release_at).toISOString().slice(0, 16)) : ''}"><p class="help">Entered in your browser’s timezone.</p></div></div>
 <div class="field"><label for="transcript">Transcript (required to publish a practice)</label><textarea id="transcript" style="min-height:7rem">${esc(r.transcript || '')}</textarea></div>
 <label class="check"><input type="checkbox" id="sample"${r.is_sample ? ' checked' : ''}><span>Sample placeholder (can’t be published)</span></label>
+<div class="field"><label for="publish_local">Scheduled publish time (optional, cohort time)</label><input id="publish_local" type="datetime-local" value="${esc(d.publish_local || '')}">
+<p class="help">With status Published, members see the day only once it has unlocked <em>and</em> this time has passed. Leave blank to publish as soon as it unlocks.</p></div>
 <div class="field"><label for="status">Status</label><select id="status">${opt('draft', r.status, 'Draft')}${opt('published', r.status, 'Published')}</select></div>
 <div class="row"><button class="btn btn-primary">${isNew ? 'Create' : 'Save'}</button>${isNew ? '' : '<button type="button" class="btn btn-danger btn-sm" id="del">Delete</button>'}</div><div id="rmsg"></div></form>
 ${isNew ? '' : `<section class="card" style="margin-top:1rem"><h2 style="margin-top:0">File</h2>
@@ -292,13 +334,13 @@ ${isNew ? '' : `<section class="card" style="margin-top:1rem"><h2 style="margin-
       };
       try {
         const out = isNew ? await api('POST', 'admin/resources', body) : await api('PUT', `admin/resources/${r.id}`, body);
-        if (isNew) location.hash = `#resources/${out.resource.id}`; else flash(q('#rmsg'), 'Saved.');
+        if (isNew) location.hash = `#program/resources/${out.resource.id}`; else flash(q('#rmsg'), 'Saved.');
       } catch (ex) { flash(q('#rmsg'), ex.message, false); }
     });
     if (isNew) return;
     q('#del').addEventListener('click', async () => {
       if (!confirm('Delete this resource and its file? Days that link to it will lose the link.')) return;
-      try { await api('DELETE', `admin/resources/${r.id}`); location.hash = '#resources'; } catch (ex) { flash(q('#rmsg'), ex.message, false); }
+      try { await api('DELETE', `admin/resources/${r.id}`); location.hash = '#program/resources'; } catch (ex) { flash(q('#rmsg'), ex.message, false); }
     });
     const dl = q('#dl');
     if (dl) dl.addEventListener('click', async () => { const x = await api('GET', `admin/resources/${r.id}/access`); window.open(x.url, '_blank', 'noopener'); });
@@ -320,7 +362,7 @@ ${isNew ? '' : `<section class="card" style="margin-top:1rem"><h2 style="margin-
 
   // ---------------------------------------------------------------- calls
   VIEWS.calls = async main => {
-    const [{ calls, timezone }, { resources }, { challenges }] = await Promise.all([api('GET', 'admin/calls'), api('GET', 'admin/resources'), api('GET', 'admin/challenges')]);
+    const [{ calls, timezone }, { resources }] = await Promise.all([api('GET', 'admin/calls'), api('GET', 'admin/resources')]);
     cohortTz = timezone;
     const replays = resources.filter(r => r.kind === 'replay');
     const form = (c = {}) => `<form class="card" data-call="${c.id || ''}"><div class="grid-2">
@@ -334,12 +376,9 @@ ${isNew ? '' : `<section class="card" style="margin-top:1rem"><h2 style="margin-
 <label class="check" style="align-self:end"><input type="checkbox" name="replay_pub"${c.replay_published ? ' checked' : ''}><span>Publish replay to members</span></label></div>
 <div class="field"><label>Description</label><textarea name="desc" style="min-height:4rem">${esc(c.description || '')}</textarea></div>
 <div class="row"><button class="btn btn-primary btn-sm">${c.id ? 'Save' : 'Add call'}</button>${c.id ? '<button type="button" class="btn btn-danger btn-sm" data-del>Delete</button>' : ''}<span data-msg></span></div></form>`;
-    main.innerHTML = `<h1>Solutions Seat calls</h1><p class="muted">Members see “scheduled” calls only. Meeting links are handed out only inside the join window. Only add dates Omi has confirmed.</p>
+    main.innerHTML = `<h1>Solutions Seat sessions</h1><p class="muted">The member home banner and Calls & Help use these same records. Members see “scheduled” calls only. Meeting links are handed out only inside the join window. Only add dates Omi has confirmed.</p>
 <div class="stack">${calls.map(form).join('')}<h2>Add a call</h2>${form()}</div>
-<h2>Submitted challenges</h2><p class="small muted">Private to the member and admins.</p>
-<div class="table-wrap"><table class="data"><thead><tr><th>From</th><th>Question</th><th>Submitted</th><th>Status</th></tr></thead><tbody>
-${challenges.length ? challenges.map(c => `<tr><td>${esc(c.preferred_name || c.display_name || c.email)}</td><td style="white-space:pre-wrap">${esc(c.body)}</td><td class="small">${esc(dt(c.created_at))}</td>
-<td><select data-ch="${c.id}">${['submitted', 'reviewed', 'discussed', 'archived'].map(s => `<option${c.status === s ? ' selected' : ''}>${s}</option>`).join('')}</select></td></tr>`).join('') : '<tr><td colspan="4">None yet.</td></tr>'}</tbody></table></div>`;
+<p class="small muted">Challenge submissions are under <a href="#seat/challenges">Challenges</a>.</p>`;
     qa('[data-call]', main).forEach(f => {
       f.addEventListener('submit', async e => {
         e.preventDefault();
@@ -355,73 +394,10 @@ ${challenges.length ? challenges.map(c => `<tr><td>${esc(c.preferred_name || c.d
       const del = q('[data-del]', f);
       if (del) del.addEventListener('click', async () => { if (confirm('Delete this call?')) { await api('DELETE', `admin/calls/${f.dataset.call}`); VIEWS.calls(main); } });
     });
-    qa('[data-ch]', main).forEach(s => s.addEventListener('change', () => api('PUT', `admin/challenges/${s.dataset.ch}`, { status: s.value }).catch(e => alert(e.message))));
-  };
-
-  // --------------------------------------------------------------- people
-  VIEWS.people = async main => {
-    const data = await api('GET', 'admin/members');
-    const filter = hashArg() || 'all';
-    const counts = { all: data.members.length, pending: 0, approved: 0, not_a_fit: 0 };
-    data.members.forEach(m => { counts[m.review_state] = (counts[m.review_state] || 0) + 1; });
-    const shown = data.members.filter(m => filter === 'all' || m.review_state === filter);
-    const reviewPill = m => ({ pending: '<span class="pill pill-progress">Pending review</span>', approved: '<span class="pill pill-complete">Approved</span>', not_a_fit: '<span class="pill">Not a fit · refunded</span>' }[m.review_state]);
-    const detail = i => i ? `<dl class="kv">
-<dt>Phone</dt><dd><a href="tel:${esc(i.phone)}">${esc(i.phone)}</a></dd>
-<dt>Business</dt><dd>${esc(i.business_name)}${i.no_website ? ' · <span class="muted">no website yet</span>' : i.website_url ? ` · <a href="${esc(i.website_url)}" target="_blank" rel="noopener noreferrer">${esc(i.website_url.replace(/^https?:\/\//, ''))}</a>` : ''}</dd>
-<dt>Address</dt><dd>${esc(i.address_line1)}${i.address_line2 ? `, ${esc(i.address_line2)}` : ''}, ${esc(i.city)}, ${esc(i.state === 'OUTSIDE_US' ? i.country : i.state)} ${esc(i.postal_code)}</dd>
-<dt>Stage</dt><dd>${esc(i.labels.business_stage)}</dd>
-<dt>Revenue so far</dt><dd>${esc(i.labels.revenue_to_date)}</dd>
-<dt>In business</dt><dd>${esc(i.labels.years_in_business)}</dd>
-<dt>Ops work before</dt><dd>${i.prior_ops_work ? 'Yes' : 'No'}</dd>
-<dt>Full-time staff</dt><dd>${i.has_full_time_staff ? 'Yes' : 'No'}</dd>
-<dt>Team size</dt><dd>${esc(i.labels.team_size)}</dd>
-<dt>Pressing questions</dt><dd style="white-space:pre-wrap">${esc(i.ops_questions)}</dd></dl>` : '<p class="muted small">No fit check on file (for example, access granted manually).</p>';
-    main.innerHTML = `<div class="row-between"><h1>Members</h1><button class="btn btn-secondary btn-sm" id="export">Download spreadsheet (CSV)</button></div>
-<p class="muted">Seats: <strong>${data.seats.taken}${data.seats.limit ? ` of ${data.seats.limit}` : ''}</strong> (private). Everything people shared in their fit check is here. Their journals stay private.</p>
-<nav class="row" aria-label="Filter members" style="margin-bottom:1rem">${[['all', 'All'], ['pending', 'Pending review'], ['approved', 'Approved'], ['not_a_fit', 'Not a fit']].map(([k, l]) =>
-      `<a class="btn btn-sm ${filter === k ? 'btn-primary' : 'btn-secondary'}" href="#people/${k}"${filter === k ? ' aria-current="page"' : ''}>${l} (${counts[k] || 0})</a>`).join('')}</nav>
-<div class="stack">${shown.length ? shown.map(m => {
-      const i = m.intake;
-      const name = i ? `${i.first_name} ${i.last_name}` : (m.email);
-      return `<article class="card" data-member="${m.id}">
-<div class="row-between"><div><h2 style="margin:0;font-size:1.5rem">${esc(name)}</h2>
-<p class="small muted" style="margin:.2rem 0 0"><a href="mailto:${esc(m.email)}">${esc(m.email)}</a> · ${m.source === 'manual' ? 'Manual grant' : `${esc(m.purchase_status || '—')} ${money(m.amount_paid_cents)}`} · enrolled ${esc(dt(m.activated_at))}${m.is_test ? ' · <span class="pill pill-draft">test</span>' : ''}</p></div>
-<div>${reviewPill(m)}${i && i.early_stage ? ' <span class="pill pill-draft">Early stage</span>' : ''}${m.needs_review ? ` <span class="pill pill-live">${esc(m.needs_review)}</span>` : ''}</div></div>
-<details class="more" ${m.review_state === 'pending' ? 'open' : ''}><summary>Fit check answers</summary>${detail(i)}</details>
-<p class="small muted" style="margin:.4rem 0">Days completed: ${m.days_completed} · Introduced: ${m.has_intro ? 'yes' : 'no'}${m.reviewed_by ? ` · Reviewed by ${esc(m.reviewed_by)} ${esc(dt(m.reviewed_at))}` : ''}${m.review_note ? ` · Note: ${esc(m.review_note)}` : ''}</p>
-<div class="row">${m.review_state === 'pending' ? `<button class="btn btn-primary btn-sm" data-review="approved">Approve</button>
-<button class="btn btn-danger btn-sm" data-review="not_a_fit">Not a fit: refund in full</button>` : ''}
-${m.review_state === 'approved' ? '<button class="btn btn-ghost btn-sm" data-review="pending">Move back to pending</button>' : ''}</div>
-</article>`;
-    }).join('') : '<p class="empty">No one here yet.</p>'}</div>
-<h2>Fit checks without payment</h2><p class="small muted">People who filled out the fit check but haven’t paid. Useful for a personal follow-up.</p>
-<div class="table-wrap"><table class="data"><thead><tr><th>Name</th><th>Email / phone</th><th>Business</th><th>Stage · revenue</th><th>Checkout</th><th>Submitted</th></tr></thead><tbody>
-${data.unpaid.length ? data.unpaid.map(u => `<tr><td>${esc(u.intake.first_name)} ${esc(u.intake.last_name)}</td><td class="small">${esc(u.email)}<br>${esc(u.intake.phone)}</td>
-<td>${esc(u.intake.business_name)}<br><span class="small muted">${esc(u.intake.city)}, ${esc(u.intake.state === 'OUTSIDE_US' ? u.intake.country : u.intake.state)}</span></td>
-<td class="small">${esc(u.intake.labels.business_stage)}<br>${esc(u.intake.labels.revenue_to_date)}</td><td class="small">${esc(u.last_checkout || 'not started')}</td><td class="small">${esc(dt(u.intake.submitted_at))}</td></tr>`).join('') : '<tr><td colspan="6">None.</td></tr>'}</tbody></table></div>`;
-    q('#export').addEventListener('click', async () => {
-      const res = await fetch('/api/so/admin/members/export', { headers: { Authorization: `Bearer ${token()}` } });
-      if (!res.ok) { alert('Export failed.'); return; }
-      const url = URL.createObjectURL(await res.blob());
-      const a = document.createElement('a'); a.href = url; a.download = 'smooth-operators-members.csv'; document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-    });
-    qa('[data-member]', main).forEach(card => qa('[data-review]', card).forEach(b => b.addEventListener('click', async () => {
-      const decision = b.dataset.review;
-      const name = q('h2', card).textContent;
-      if (decision === 'not_a_fit' && !confirm(`Mark ${name} as not a fit?\n\nThis refunds their payment in full through Stripe and ends their access. It can’t be undone. You may want to reach out to them personally.`)) return;
-      if (decision === 'approved' && !confirm(`Approve ${name}?\n\nOnce approved, their enrollment is non-refundable, and they’ll get an approval email (if email sending is on).`)) return;
-      const note = decision === 'pending' ? null : prompt('Optional note (only admins see this):', '') ;
-      if (note === null && decision !== 'pending') return;
-      b.disabled = true;
-      try { await api('POST', `admin/enrollments/${card.dataset.member}/review`, { decision, note: note || '' }); VIEWS.people(main); }
-      catch (e) { alert(e.message); b.disabled = false; }
-    })));
   };
 
   // -------------------------------------------------------------- members
-  VIEWS.members = async main => {
+  VIEWS.access = async main => {
     const [{ enrollments }, { purchases }, { cohort }] = await Promise.all([api('GET', 'admin/enrollments'), api('GET', 'admin/purchases'), api('GET', 'admin/cohort')]);
     cohortTz = cohort.timezone;
     main.innerHTML = `<h1>Payments & access</h1><p class="muted">Completion counts only. Members’ journals are private and are not available here.</p>
@@ -583,6 +559,419 @@ ${d.templates.length ? `<p>Templates: ${d.templates.map(t => esc(t.title)).join(
 ${entries.map(e => `<tr><td class="small">${esc(dt(e.created_at))}</td><td>${esc(e.actor)}</td><td>${esc(e.action)}</td><td class="small">${esc(e.entity || '')} ${esc(e.entity_id || '')}</td></tr>`).join('') || '<tr><td colspan="4">Nothing yet.</td></tr>'}</tbody></table></div>
 <h2>Payment webhooks</h2><div class="table-wrap"><table class="data"><thead><tr><th>Received</th><th>Type</th><th>Status</th><th>Attempts</th></tr></thead><tbody>
 ${events.map(e => `<tr><td class="small">${esc(dt(e.received_at))}</td><td>${esc(e.type)}</td><td>${esc(e.status)}${e.error ? ` · ${esc(e.error)}` : ''}</td><td>${e.attempts}</td></tr>`).join('') || '<tr><td colspan="4">None yet.</td></tr>'}</tbody></table></div>`;
+  };
+
+  // ================================================================ Overview
+  VIEWS.overview = async main => {
+    const o = await api('GET', 'admin/home');
+    cohortTz = o.cohort.timezone;
+    NEWQ = o.new_questions;
+    const navQ = q('.admin-nav a[href="#settings"]');
+    if (navQ && NEWQ && !navQ.querySelector('.pill')) navQ.insertAdjacentHTML('beforeend', ` <span class="pill pill-live">${NEWQ}</span>`);
+    const c = o.cards;
+    const card = (label, big, sub, link) => `<a class="card stat-card" href="${link}"><p class="muted small" style="margin:0">${label}</p><p class="stat" style="margin:.35rem 0">${big}</p><p class="small muted" style="margin:0">${sub}</p></a>`;
+    main.innerHTML = `<h1>Overview</h1>
+<p class="muted">${esc(o.cohort.name)} · ${esc(o.cohort.phase.replace('_', ' '))} · ${esc(dt(o.now))}${o.seats.limit ? ` · Seats ${o.seats.taken} of ${o.seats.limit} (private)` : ''}</p>
+<div class="grid-4">
+  ${c.sales ? card('Sales collected', money(c.sales.gross_cents), `${esc(c.sales.scope)}${c.sales.data === 'test' ? ' · test-mode data' : ''}`, '#sales') : card('Sales collected', '—', 'Your role doesn’t include finance', '#overview')}
+  ${card('Paid members', c.paid_members.total, `${c.paid_members.awaiting} awaiting review · ${c.paid_members.approved} approved. Rejected purchasers are in Sales only.`, '#members/all')}
+  ${card('Profiles awaiting review', c.awaiting_review, c.awaiting_review ? 'Oldest first' : 'All caught up', '#members/awaiting')}
+  ${c.next_call ? card('Next Solutions Seat', esc(new Date(c.next_call.starts_at).toLocaleDateString('en-US', { timeZone: cohortTz, month: 'short', day: 'numeric' })), `${esc(SO.fmtTime(c.next_call.starts_at, cohortTz))} · ${c.next_call.challenges} challenge${c.next_call.challenges === 1 ? '' : 's'} submitted${c.next_call.unassigned_challenges ? ` (+${c.next_call.unassigned_challenges} for any call)` : ''}`, '#seat/prep/' + c.next_call.id)
+        : card('Next Solutions Seat', '—', 'No call scheduled yet', '#seat/sessions')}
+</div>
+<section style="margin-top:1.5rem"><div class="row-between"><h2 style="margin:0">Needs your attention</h2>
+<a class="btn btn-secondary btn-sm" href="#settings/questions">Questions${o.new_questions ? ` <span class="pill pill-live">${o.new_questions} new</span>` : ''}</a></div>
+${o.attention.length ? `<ul class="attention">${o.attention.map(a => `<li class="${a.severity === 'high' ? 'high' : ''}"><a href="${a.link}"><span>${esc(a.text)}</span><span aria-hidden="true">→</span></a></li>`).join('')}</ul>`
+        : '<p class="empty">Nothing needs your attention right now.</p>'}</section>`;
+  };
+
+  // ================================================================ Members
+  const REVIEW_LABEL = { not_enrolled: 'Not enrolled', awaiting_submission: 'Awaiting info', pending: 'Awaiting review', approved: 'Approved', rejected: 'Rejected' };
+  const reviewPill = r => `<span class="pill ${r === 'approved' ? 'pill-complete' : r === 'rejected' ? 'pill' : r === 'pending' ? 'pill-progress' : 'pill-upcoming'}">${REVIEW_LABEL[r] || r}</span>`;
+  const infoPill = i => `<span class="pill ${i === 'submitted' ? 'pill-available' : 'pill-draft'}">${i === 'submitted' ? 'Submitted' : i === 'incomplete' ? 'Incomplete' : 'Not started'}</span>`;
+  const payLabel = p => ({ not_paid: 'Not paid', manual: 'Manual grant', paid: 'Paid', refunded: 'Refunded', partially_refunded: 'Partly refunded', disputed: 'Disputed', pending: 'Pending', failed: 'Failed' }[p] || p);
+  const shortDate = d => (d ? new Date(d).toLocaleDateString('en-US', { timeZone: cohortTz, month: 'short', day: 'numeric' }) : '—');
+
+  VIEWS.members = async main => {
+    const filter = ARG || 'all';
+    const st = VIEWS.members.state = VIEWS.members.state && VIEWS.members.state.filter === filter ? VIEWS.members.state : { filter, q: '', pay: '', page: 1, sort: '' };
+    const load = async () => {
+      const qs = new URLSearchParams({ filter, page: st.page, ...(st.q ? { q: st.q } : {}), ...(st.pay ? { pay: st.pay } : {}), ...(st.sort ? { sort: st.sort } : {}) });
+      return api('GET', `admin/members?${qs}`);
+    };
+    const d = await load();
+    const titles = { all: 'All members', incomplete: 'Info incomplete', awaiting: 'Awaiting review', approved: 'Approved', rejected: 'Rejected' };
+    main.innerHTML = `<div class="row-between"><h1>${titles[filter] || 'Members'} <span class="muted" style="font-size:1.2rem">(${d.counts[filter] ?? d.total})</span></h1>
+${canDo('finance') ? '<button class="btn btn-secondary btn-sm" id="export">Download CSV</button>' : ''}</div>
+<p class="muted small">${filter === 'awaiting' ? 'Oldest submission first. ' : ''}Counts: ${Object.entries(titles).map(([k, l]) => `${l} ${d.counts[k]}`).join(' · ')}. Journals are private and never shown here.</p>
+<form id="mfilter" class="row" style="margin:1rem 0" role="search">
+  <label class="sr-only" for="m-q">Search by name, business or email</label><input id="m-q" type="search" placeholder="Search name, business or email" value="${esc(st.q)}" style="max-width:20rem">
+  <label class="sr-only" for="m-pay">Payment</label><select id="m-pay" style="width:auto">${[['', 'Any payment'], ['paid', 'Paid'], ['not_paid', 'Not paid'], ['manual', 'Manual grant'], ['refunded', 'Refunded'], ['partially_refunded', 'Partly refunded'], ['disputed', 'Disputed'], ['refund', 'Has a refund']].map(([v, l]) => `<option value="${v}"${st.pay === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
+  <label class="sr-only" for="m-sort">Sort</label><select id="m-sort" style="width:auto">${[['', filter === 'awaiting' ? 'Oldest submitted first' : 'Newest submitted first'], ['submitted_asc', 'Oldest submitted first'], ['submitted_desc', 'Newest submitted first']].map(([v, l]) => `<option value="${v}"${st.sort === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
+  <button class="btn btn-secondary btn-sm">Apply</button>
+</form>
+${d.members.length ? `<div class="table-wrap member-table"><table class="data"><thead><tr><th>Name</th><th>Business</th><th>Information</th><th>Review</th><th>Payment</th><th>Submitted</th><th>Last active</th></tr></thead><tbody>
+${d.members.map(m => `<tr><td><button class="linklike" data-open="${m.user_id}">${esc(m.name)}</button><br><span class="small muted">${esc(m.email)}</span>${m.is_test ? ' <span class="pill pill-draft">test</span>' : ''}</td>
+<td>${esc(m.business || '—')}</td><td>${infoPill(m.info_status)}</td><td>${reviewPill(m.review_status)}</td>
+<td class="small">${payLabel(m.payment_status)}${m.refund_status ? `<br>refund ${esc(m.refund_status)}` : ''}${m.needs_review ? `<br><strong style="color:var(--danger)">${esc(m.needs_review)}</strong>` : ''}</td>
+<td class="small">${shortDate(m.submitted_at)}</td><td class="small">${shortDate(m.last_active)}</td></tr>`).join('')}</tbody></table></div>
+<ul class="member-cards">${d.members.map(m => `<li class="card"><button class="linklike" data-open="${m.user_id}" style="font-size:1.1rem">${esc(m.name)}</button>
+<p class="small muted" style="margin:.2rem 0">${esc(m.business || '')}</p><div class="row">${infoPill(m.info_status)}${reviewPill(m.review_status)}<span class="pill">${payLabel(m.payment_status)}</span></div>
+<p class="small muted" style="margin:.4rem 0 0">Submitted ${shortDate(m.submitted_at)} · active ${shortDate(m.last_active)}</p></li>`).join('')}</ul>
+${d.pages > 1 ? `<nav class="row" aria-label="Pages" style="margin-top:1rem"><button class="btn btn-ghost btn-sm" data-page="${d.page - 1}"${d.page <= 1 ? ' disabled' : ''}>Previous</button><span class="small">Page ${d.page} of ${d.pages}</span><button class="btn btn-ghost btn-sm" data-page="${d.page + 1}"${d.page >= d.pages ? ' disabled' : ''}>Next</button></nav>` : ''}`
+      : `<p class="empty">${filter === 'awaiting' ? 'No one is waiting for review.' : 'No members match.'}</p>`}`;
+    q('#mfilter').addEventListener('submit', e => { e.preventDefault(); st.q = q('#m-q').value.trim(); st.pay = q('#m-pay').value; st.sort = q('#m-sort').value; st.page = 1; VIEWS.members(main); });
+    qa('[data-page]', main).forEach(b => b.addEventListener('click', () => { st.page = Number(b.dataset.page); VIEWS.members(main); }));
+    qa('[data-open]', main).forEach(b => b.addEventListener('click', () => openMember(b.dataset.open, b, () => VIEWS.members(main))));
+    const ex = q('#export');
+    if (ex) ex.addEventListener('click', () => downloadCsv(`admin/members/export?filter=${filter}`, 'smooth-operators-members.csv'));
+  };
+
+  async function downloadCsv(path, name) {
+    if (COHORT && COHORT.id) path += `${path.includes('?') ? '&' : '?'}cohort=${COHORT.id}`;
+    const res = await fetch(`/api/so/${path}`, { headers: { Authorization: `Bearer ${token()}` } });
+    if (!res.ok) { alert('Export failed.'); return; }
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  // Slide-over (desktop) / full-screen (mobile) member card. The list underneath stays put.
+  async function openMember(userId, opener, onChange) {
+    let dlg = q('#member-dlg');
+    if (!dlg) { document.body.insertAdjacentHTML('beforeend', '<dialog id="member-dlg" class="so-dialog slide-over" aria-labelledby="mc-title"></dialog>'); dlg = q('#member-dlg'); }
+    dlg.innerHTML = '<div class="dialog-inner"><p class="loading">Loading…</p></div>';
+    if (!dlg.open) dlg.showModal();
+    let changed = false;
+    dlg.onclose = () => { if (opener && document.contains(opener)) opener.focus(); if (changed && onChange) onChange(); };
+    async function draw(msg) {
+      let m;
+      try { m = (await api('GET', `admin/members/${userId}`)).member; } catch (e) { dlg.innerHTML = `<div class="dialog-inner"><p class="notice notice-error">${esc(e.message)}</p><button class="btn btn-secondary" data-close>Close</button></div>`; q('[data-close]', dlg).onclick = () => dlg.close(); return; }
+      const e = m.enrollment;
+      const rv = e ? (e.review_state === 'pending' && (!m.info || m.info.status !== 'submitted') ? 'awaiting_submission' : e.review_state) : 'not_enrolled';
+      const pay = m.payments.find(x => x.paid_at) || m.payments[0];
+      const hist = m.history.map(x => x.type === 'decision'
+        ? `<li><strong>${esc(x.decision === 'reopened' ? 'Review reopened' : `Decision: ${x.decision}`)}</strong> by ${esc(x.actor)} · ${esc(dt(x.at))}${x.intake_version ? ` · reviewed version ${x.intake_version}` : ''}
+${x.member_message ? `<br><span class="small">To member: “${esc(x.member_message)}”</span>` : ''}${x.internal_note ? `<br><span class="small muted">Internal: ${esc(x.internal_note)}</span>` : ''}</li>`
+        : `<li>Email <strong>${esc(x.template.replace(/_/g, ' '))}</strong> to ${esc(x.to)} · ${esc(dt(x.at))} · <span class="email-status st-${x.status}">${esc(emailStatus(x.status))}</span>${x.edited ? ' · edited' : ''}${x.resend_of ? ' · resend' : ''}
+${x.error ? `<br><span class="small" style="color:var(--danger)">${esc(x.error)}</span>` : ''}${['failed', 'bounced', 'skipped', 'complained'].includes(x.status) && canDo('decide') ? ` <button class="linklike small" data-resend="${x.id}">Resend</button>` : ''}</li>`).join('');
+      dlg.innerHTML = `<div class="dialog-inner member-card">
+<div class="mc-head"><div class="row" style="gap:1rem">${m.photo_url ? `<img src="${esc(m.photo_url)}" alt="" width="56" height="56" style="border-radius:50%;object-fit:cover">` : ''}
+<div><h2 id="mc-title" style="margin:0">${esc(m.name)}</h2><p class="small muted" style="margin:.1rem 0">${esc(m.business || '')} · <a href="mailto:${esc(m.email)}">${esc(m.email)}</a> · ${esc(m.cohort.name)}</p>
+<div class="row">${reviewPill(rv)}${m.info ? infoPill(m.info.status === 'submitted' ? 'submitted' : 'incomplete') : infoPill('none')}${e ? `<span class="pill">Access: ${esc(e.access.replace(/_/g, ' '))}</span>` : ''}${m.info && m.info.early_stage ? '<span class="pill pill-draft">Early stage</span>' : ''}${e && e.is_test ? '<span class="pill pill-draft">test</span>' : ''}</div></div></div>
+<button class="close-btn" type="button" data-close>Close</button></div>
+${msg ? `<div class="notice ${msg.ok ? 'notice-success' : 'notice-error'}" role="status">${msg.html}</div>` : ''}
+<section><h3>Fit check ${m.info ? `<span class="small muted" style="font-family:var(--sans)">version ${m.info.version}${m.info.submitted_at ? ` · submitted ${esc(dt(m.info.submitted_at))}` : ' · draft'}${m.info.policy_version ? ` · policy ${esc(m.info.policy_version)}` : ''}</span>` : ''}</h3>
+${m.info ? `${m.info.missing.length ? `<p class="notice notice-warn small">Missing: ${esc(m.info.missing.join(', '))}</p>` : ''}<dl class="kv">${m.info.answers.map(a => `<dt>${esc(a.question)}</dt><dd style="white-space:pre-wrap">${a.answer ? esc(a.answer) : '<span class="muted">—</span>'}</dd>`).join('')}</dl>
+${m.info.versions.length > 1 ? `<p class="small muted">Earlier versions: ${m.info.versions.slice(1).map(v => `v${v.version} (${shortDate(v.submitted_at)})`).join(', ')}</p>` : ''}` : '<p class="muted">No fit check on file.</p>'}</section>
+<section><h3>Private admin notes <span class="small muted" style="font-family:var(--sans)">never sent to the member</span></h3>
+${m.notes.map(n => `<p class="small" style="margin:.3rem 0"><strong>${esc(n.author)}</strong> · ${esc(dt(n.created_at))}<br>${esc(n.body)}</p>`).join('') || '<p class="small muted">No notes yet.</p>'}
+<form id="note-f" class="row"><label class="sr-only" for="note-b">Add a private note</label><input id="note-b" type="text" maxlength="4000" placeholder="Add a private note" style="flex:1;min-width:12rem"><button class="btn btn-secondary btn-sm">Add note</button></form></section>
+<section><h3>Payment</h3>${pay ? `<p style="margin:0">${money(pay.amount_cents)} ${esc((pay.currency || 'usd').toUpperCase())} · ${esc(pay.tier)} · ${esc(payLabel(pay.status))}${pay.paid_at ? ` · ${esc(dt(pay.paid_at))}` : ''}${pay.livemode === false ? ' · <span class="pill pill-draft">test</span>' : ''}</p>
+${pay.tax_cents ? `<p class="small" style="margin:.2rem 0">Includes tax ${money(pay.tax_cents)}</p>` : ''}${pay.refunded_cents ? `<p class="small" style="margin:.2rem 0">Refunded ${money(pay.refunded_cents)}</p>` : ''}
+${pay.provider_ref ? `<p class="small" style="margin:.2rem 0">Stripe: <a href="${esc(pay.provider_link)}" target="_blank" rel="noopener">${esc(pay.provider_ref)}</a>${pay.receipt_url ? ` · <a href="${esc(pay.receipt_url)}" target="_blank" rel="noopener">Receipt</a>` : ''}${pay.fee_cents != null ? ` · fee ${money(pay.fee_cents)}` : ''}</p>` : ''}
+${m.refunds.map(r => `<p class="small" style="margin:.3rem 0">Refund ${money(r.amount_cents)} · <strong>${esc(r.status)}</strong>${r.source === 'external' ? ' (made in Stripe)' : ''} · ${esc(dt(r.updated_at))}${r.failure_reason ? `<br><span style="color:var(--danger)">${esc(r.failure_reason)}</span>` : ''}
+${r.status === 'failed' && canDo('finance') ? ` <button class="btn btn-secondary btn-sm" data-retry-refund="${r.id}">Retry refund</button>` : ''}</p>`).join('')}`
+        : '<p class="muted">No payment yet.</p>'}</section>
+<section><h3>Activity</h3><p class="small" style="margin:0">Days completed ${m.activity.days_completed} · days started ${m.activity.days_started} · introduced ${m.activity.has_intro ? 'yes' : 'no'} · challenges ${m.activity.challenges} · questions ${m.activity.questions}</p>
+${m.activity.events.length ? `<details class="more"><summary>Activity timeline</summary><ul class="small timeline">${m.activity.events.map(ev => `<li>${esc(dt(ev.created_at))} · ${esc(ev.name.replace(/_/g, ' '))}${ev.day_number ? ` (day ${ev.day_number})` : ''}</li>`).join('')}</ul>
+<p class="small muted">A click or download isn’t completed work; a call-link click isn’t attendance.</p></details>` : ''}</section>
+<section><h3>Review & communication history</h3>${hist ? `<ul class="history">${hist}</ul>` : '<p class="small muted">Nothing yet.</p>'}</section>
+${e && e.review_state === 'approved' && canDo('decide') ? '<p><button class="linklike small" id="reopen">Reopen this review…</button></p>' : ''}
+<div id="decide-panel"></div>
+${e && e.review_state === 'pending' ? `<div class="mc-footer">${m.decision.allowed ? '' : `<p class="small muted" style="margin:0 0 .5rem">${esc(m.decision.blockers.join(' · '))}</p>`}
+<div class="row"><button class="btn btn-primary" data-decide="approve"${m.decision.allowed ? '' : ' disabled'}>Approve</button>
+<button class="btn btn-danger" data-decide="reject"${m.decision.allowed ? '' : ' disabled'}>Reject</button></div></div>` : ''}
+</div>`;
+      q('[data-close]', dlg).onclick = () => dlg.close();
+      q('#note-f', dlg).onsubmit = async ev => { ev.preventDefault(); const b = q('#note-b', dlg).value.trim(); if (!b) return; await api('POST', `admin/members/${userId}/notes`, { body: b }); draw(); };
+      qa('[data-resend]', dlg).forEach(b => b.onclick = async () => { b.disabled = true; try { const r = await api('POST', `admin/emails/${b.dataset.resend}/resend`); changed = true; draw({ ok: r.status === 'submitted', html: `<p>Resend ${esc(emailStatus(r.status).toLowerCase())}.</p>` }); } catch (x) { draw({ ok: false, html: `<p>${esc(x.message)}</p>` }); } });
+      qa('[data-retry-refund]', dlg).forEach(b => b.onclick = async () => { b.disabled = true; try { const r = await api('POST', `admin/refunds/${b.dataset.retryRefund}/retry`); changed = true; draw({ ok: r.refund.status !== 'failed', html: `<p>Refund ${esc(r.refund.status)}.${r.refund.failure_reason ? ` ${esc(r.refund.failure_reason)}` : ''}</p>` }); } catch (x) { draw({ ok: false, html: `<p>${esc(x.message)}</p>` }); } });
+      const ro = q('#reopen', dlg);
+      if (ro) ro.onclick = async () => { const reason = prompt('Why reopen this approval? (Recorded in the audit log. No email is sent.)'); if (!reason) return; try { await api('POST', `admin/members/${userId}/reopen`, { reason }); changed = true; draw(); } catch (x) { alert(x.message); } };
+      qa('[data-decide]', dlg).forEach(b => b.onclick = () => decisionPanel(m, b.dataset.decide));
+    }
+    async function decisionPanel(m, decision) {
+      const panel = q('#decide-panel', dlg);
+      const reject = decision === 'reject';
+      panel.innerHTML = '<p class="loading">Preparing email preview…</p>';
+      let prev;
+      try { prev = await api('POST', `admin/members/${userId}/decision-preview`, { decision, member_message: '' }); } catch (x) { panel.innerHTML = `<p class="notice notice-error">${esc(x.message)}</p>`; return; }
+      panel.innerHTML = `<section class="card confirm-panel" aria-labelledby="cp-h"><h3 id="cp-h" style="margin-top:0">${reject ? 'Reject, refund and email' : 'Approve and email'}</h3>
+<p class="small">To: <strong>${esc(prev.to)}</strong></p>
+${reject ? `<div class="notice notice-error"><p><strong>Confirming rejection refunds ${money(prev.refund_cents)} in full through Stripe</strong> and ends cohort access. It can’t be undone here.</p></div>` : '<p class="small">Approval confirms their seat. Their enrollment becomes non-refundable.</p>'}
+<div class="field"><label for="cp-msg">${reject ? 'Explanation for the member (required)' : 'Personal note to include (optional)'}</label><textarea id="cp-msg" maxlength="3000" style="min-height:4.5rem"></textarea></div>
+<div class="field"><label for="cp-note">Internal note <span class="muted small">(never sent)</span></label><input id="cp-note" type="text" maxlength="3000"></div>
+<details class="more"><summary>Edit the email</summary><div class="field"><label for="cp-body">Email body (merge fields allowed${reject ? '; keep {{refund_message}}' : ''})</label><textarea id="cp-body" style="min-height:10rem">${esc(prev.template_body)}</textarea></div></details>
+<p class="small" style="margin:.5rem 0 .2rem"><strong>Preview:</strong> ${esc(prev.subject)}</p><pre class="email-preview" id="cp-prev">${esc(prev.body)}</pre>
+<p class="form-error" id="cp-err" role="alert"></p>
+<div class="row"><button class="btn ${reject ? 'btn-danger' : 'btn-primary'}" id="cp-go">${reject ? 'Reject, Refund & Send Email' : 'Approve & Send Email'}</button><button class="btn btn-ghost" id="cp-cancel">Cancel</button></div></section>`;
+      const refresh = async () => {
+        try { const p = await api('POST', `admin/members/${userId}/decision-preview`, { decision, member_message: q('#cp-msg', panel).value, body: q('#cp-body', panel).value }); q('#cp-prev', panel).textContent = p.body; q('#cp-err', panel).textContent = ''; }
+        catch (x) { q('#cp-err', panel).textContent = x.message; }
+      };
+      let t; ['#cp-msg', '#cp-body'].forEach(sel => q(sel, panel).addEventListener('input', () => { clearTimeout(t); t = setTimeout(refresh, 500); }));
+      q('#cp-msg', panel).focus();
+      q('#cp-cancel', panel).onclick = () => { panel.innerHTML = ''; };
+      q('#cp-go', panel).onclick = async () => {
+        const go = q('#cp-go', panel);
+        const msgText = q('#cp-msg', panel).value.trim();
+        if (reject && !msgText) { q('#cp-err', panel).textContent = 'Write a short explanation for the member.'; q('#cp-msg', panel).focus(); return; }
+        go.disabled = true; go.textContent = 'Working…';
+        const bodyText = q('#cp-body', panel).value;
+        try {
+          const r = await api('POST', `admin/members/${userId}/decision`, { decision, review_version: m.decision.review_version, intake_version: m.decision.intake_version,
+            member_message: msgText, internal_note: q('#cp-note', panel).value, ...(bodyText.trim() !== prev.template_body.trim() ? { body: bodyText } : {}) });
+          changed = true;
+          const refund = r.refund ? `<p>Refund: <strong>${esc(r.refund.status)}</strong>${r.refund.status === 'failed' ? ` · ${esc(r.refund.failure_reason || '')} Use “Retry refund” below once it’s safe.` : ''}</p>` : '';
+          const next = r.next_user_id ? `<p><button class="btn btn-secondary btn-sm" id="next-review">Next awaiting review →</button></p>` : '<p>No one else is waiting for review.</p>';
+          await draw({ ok: !(r.refund && r.refund.status === 'failed') && r.email !== 'failed', html: `<p><strong>${r.decision === 'approved' ? 'Approved' : 'Rejected'}.</strong> Email: ${esc(emailStatus(r.email))}.</p>${refund}${next}` });
+          const nb = q('#next-review', dlg);
+          if (nb) nb.onclick = () => { userId = r.next_user_id; draw(); };
+        } catch (x) {
+          go.disabled = false; go.textContent = reject ? 'Reject, Refund & Send Email' : 'Approve & Send Email';
+          q('#cp-err', panel).textContent = x.message + (x.status === 409 ? ' Close and reopen the card to see the latest.' : '');
+        }
+      };
+    }
+    draw();
+  }
+
+  function emailStatus(st) {
+    return { queued: 'Queued (not sent yet)', sending: 'Sending', submitted: 'Accepted by email provider', delivered: 'Delivered', bounced: 'Bounced', complained: 'Marked as spam',
+      failed: 'Failed', skipped: 'Not sent: email delivery is off', not_sent: 'Not sent', template_disabled: 'Template switched off' }[st] || st;
+  }
+
+  // =================================================================== Sales
+  VIEWS.sales = async main => {
+    const st = VIEWS.sales.state = VIEWS.sales.state || { from: '', to: '', state: '', review: '', refund: '', tier: '', flagged: '' };
+    if (ARG === 'refunds') { st.refund = 'any'; ARG = null; }
+    if (ARG === 'flagged') { st.flagged = '1'; ARG = null; }
+    const qs = new URLSearchParams(Object.fromEntries(Object.entries(st).filter(([, v]) => v)));
+    const d = await api('GET', `admin/sales?${qs}`);
+    const t = d.totals;
+    const max = Math.max(1, ...d.series.map(x => x.cents));
+    const bars = d.series.length ? `<svg class="sales-chart" viewBox="0 0 ${Math.max(d.series.length * 24, 240)} 120" role="img" aria-label="Gross collected per day">
+${d.series.map((x, i) => `<g><rect x="${i * 24 + 4}" y="${110 - (x.cents / max) * 100}" width="16" height="${(x.cents / max) * 100}" rx="3"></rect><title>${x.day}: ${money(x.cents)} (${x.n})</title></g>`).join('')}
+<line x1="0" y1="110" x2="${Math.max(d.series.length * 24, 240)}" y2="110"></line></svg>
+<table class="sr-only"><caption>Gross collected per day</caption>${d.series.map(x => `<tr><td>${x.day}</td><td>${money(x.cents)}</td></tr>`).join('')}</table>
+<p class="small muted">${esc(d.series[0].day)} – ${esc(d.series.at(-1).day)} · by payment date (${esc(cohortTz)})</p>` : '<p class="empty">No successful payments in this range.</p>';
+    const sel = (id, label, opts, v) => `<div class="field" style="margin:0"><label for="${id}" class="small">${label}</label><select id="${id}">${opts.map(([k, l]) => `<option value="${k}"${v === k ? ' selected' : ''}>${l}</option>`).join('')}</select></div>`;
+    main.innerHTML = `<div class="row-between"><h1>Sales</h1><button class="btn btn-secondary btn-sm" id="export">Download CSV (current filters)</button></div>
+<p class="muted">${esc(d.scope)}${t.data === 'test' ? ' · <strong>Stripe test-mode data</strong>' : ''}</p>
+<form id="sf" class="card"><div class="grid-4">
+<div class="field" style="margin:0"><label for="s-from" class="small">From</label><input id="s-from" type="date" value="${esc(st.from)}"></div>
+<div class="field" style="margin:0"><label for="s-to" class="small">To</label><input id="s-to" type="date" value="${esc(st.to)}"></div>
+${sel('s-state', 'Payment', [['', 'Any'], ['paid', 'Paid'], ['pending', 'Pending'], ['failed', 'Failed'], ['refunded', 'Refunded'], ['partially_refunded', 'Partly refunded'], ['disputed', 'Disputed']], st.state)}
+${sel('s-review', 'Review', [['', 'Any'], ['pending', 'Awaiting review'], ['approved', 'Approved'], ['rejected', 'Rejected']], st.review)}
+${sel('s-refund', 'Refund', [['', 'Any'], ['any', 'Has a refund'], ['succeeded', 'Completed'], ['pending', 'Pending'], ['failed', 'Failed']], st.refund)}
+${sel('s-tier', 'Price', [['', 'Any'], ['intro', '$999 introductory'], ['regular', '$1,497 regular']], st.tier)}
+</div><label class="check"><input type="checkbox" id="s-flag"${st.flagged ? ' checked' : ''}><span>Only payments flagged for review</span></label>
+<div class="row"><button class="btn btn-primary btn-sm">Apply</button><button class="btn btn-ghost btn-sm" type="button" id="s-clear">Clear</button></div></form>
+<div class="grid-4" style="margin-top:1rem">
+  <div class="card"><p class="small muted" style="margin:0">Gross collected</p><p class="stat">${money(t.gross_cents)}</p><p class="small muted" style="margin:0">${t.purchases} payment${t.purchases === 1 ? '' : 's'} · ${t.intro_count} at $999 · ${t.regular_count} at $1,497</p></div>
+  <div class="card"><p class="small muted" style="margin:0">Refunds</p><p class="stat">${money(t.refunds_completed_cents)}</p><p class="small muted" style="margin:0">completed · ${money(t.refunds_pending_cents)} pending${t.refunds_failed ? ` · <strong style="color:var(--danger)">${t.refunds_failed} failed</strong>` : ''}</p></div>
+  <div class="card"><p class="small muted" style="margin:0">Net collected</p><p class="stat">${money(t.net_cents)}</p><p class="small muted" style="margin:0">after completed refunds</p></div>
+  <div class="card"><p class="small muted" style="margin:0">After Stripe fees</p><p class="stat">${t.net_after_fees_cents != null ? money(t.net_after_fees_cents) : '—'}</p><p class="small muted" style="margin:0">${t.fee_cents != null ? `fees ${money(t.fee_cents)} (known for ${t.fees_known_for} of ${t.purchases})` : 'fees not reported yet'}. Not profit.</p></div>
+</div>
+<p class="small muted">Review status of paid enrollments: ${d.review.awaiting} awaiting · ${d.review.approved} approved · ${d.review.rejected} rejected.</p>
+<section class="card">${bars}</section>
+<details class="more"><summary>Definitions</summary><ul class="small">${Object.values(d.definitions).map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>
+<h2>Transactions</h2>
+${d.transactions.length ? `<div class="table-wrap"><table class="data"><thead><tr><th>Buyer</th><th>Date</th><th>Paid</th><th>Tax</th><th>Payment</th><th>Review</th><th>Refund</th><th>Stripe</th></tr></thead><tbody>
+${d.transactions.map(x => `<tr><td><button class="linklike" data-open="${x.user_id}">${esc(x.name)}</button><br><span class="small muted">${esc(x.email)}</span></td>
+<td class="small">${esc(dt(x.paid_at || x.created_at))}</td><td>${money(x.amount_paid_cents ?? x.amount_cents)} <span class="small muted">${esc(x.price_tier)}</span></td><td class="small">${x.tax_cents ? money(x.tax_cents) : '—'}</td>
+<td>${esc(payLabel(x.status))}${x.livemode === false ? ' <span class="pill pill-draft">test</span>' : ''}${x.needs_review ? `<br><strong class="small" style="color:var(--danger)">${esc(x.needs_review)}</strong>` : ''}</td>
+<td>${x.review_state ? reviewPill(x.review_state) : '—'}</td><td class="small">${esc(x.refund_status || '—')}</td>
+<td class="small">${x.provider_link ? `<a href="${esc(x.provider_link)}" target="_blank" rel="noopener">Open</a>` : ''}${x.receipt_url ? ` · <a href="${esc(x.receipt_url)}" target="_blank" rel="noopener">Receipt</a>` : ''}</td></tr>`).join('')}</tbody></table></div>`
+      : '<p class="empty">No transactions match.</p>'}`;
+    q('#sf').addEventListener('submit', e => {
+      e.preventDefault();
+      Object.assign(st, { from: q('#s-from').value, to: q('#s-to').value, state: q('#s-state').value, review: q('#s-review').value, refund: q('#s-refund').value, tier: q('#s-tier').value, flagged: q('#s-flag').checked ? '1' : '' });
+      VIEWS.sales(main);
+    });
+    q('#s-clear').addEventListener('click', () => { VIEWS.sales.state = null; VIEWS.sales(main); });
+    q('#export').addEventListener('click', () => downloadCsv(`admin/sales/export?${qs}`, 'smooth-operators-sales.csv'));
+    qa('[data-open]', main).forEach(b => b.addEventListener('click', () => openMember(b.dataset.open, b, () => VIEWS.sales(main))));
+  };
+
+  // ========================================================== Solutions Seat
+  VIEWS.challenges = async main => {
+    const [{ challenges }, { calls }] = await Promise.all([api('GET', 'admin/challenges'), api('GET', 'admin/calls')]);
+    const filter = ARG || 'all';
+    const shown = challenges.filter(c => filter === 'all' || c.status === filter);
+    main.innerHTML = `<h1>Challenges</h1><p class="muted">Business challenges members submit for Solutions Seat. Visible to Omi and staff only; submitting doesn’t guarantee selection. Separate from support questions.</p>
+<nav class="row" aria-label="Filter challenges" style="margin-bottom:1rem">${[['all', 'All'], ['submitted', 'Submitted'], ['selected', 'Selected'], ['discussed', 'Discussed'], ['follow_up', 'Follow up']].map(([k, l]) => `<a class="btn btn-sm ${filter === k ? 'btn-primary' : 'btn-secondary'}" href="#seat/challenges/${k}"${filter === k ? ' aria-current="page"' : ''}>${l} (${k === 'all' ? challenges.length : challenges.filter(c => c.status === k).length})</a>`).join('')}</nav>
+<div class="stack">${shown.length ? shown.map(c => `<article class="card" data-ch="${c.id}"><div class="row-between"><div><button class="linklike" data-open="${c.user_id}" style="font-size:1.1rem">${esc(c.name)}</button>
+<span class="small muted"> · ${esc(c.business_name || '')} · ${esc(dt(c.created_at))}</span></div>
+<span class="pill ${c.share_permission ? 'pill-available' : 'pill-draft'}">${c.share_permission === false ? 'Not for group discussion' : c.share_permission ? 'OK to discuss with cohort' : 'Permission not given'}</span></div>
+${c.working_on ? `<dl class="kv"><dt>Working on</dt><dd>${esc(c.working_on)}</dd><dt>Stuck on</dt><dd>${esc(c.stuck_on)}</dd><dt>Help wanted</dt><dd>${esc(c.help_wanted)}</dd></dl>` : `<p style="white-space:pre-wrap">${esc(c.body || '')}</p>`}
+<div class="grid-3"><div class="field" style="margin:0"><label class="small" for="cs-${c.id}">Status</label><select id="cs-${c.id}" name="status">${['submitted', 'selected', 'discussed', 'follow_up'].map(s => `<option value="${s}"${c.status === s ? ' selected' : ''}>${s.replace('_', ' ')}</option>`).join('')}</select></div>
+<div class="field" style="margin:0"><label class="small" for="cc-${c.id}">Call</label><select id="cc-${c.id}" name="call"><option value="">Any call</option>${calls.map(x => `<option value="${x.id}"${c.call_id === x.id ? ' selected' : ''}>${esc(x.title)} · ${esc(shortDate(x.starts_at))}</option>`).join('')}</select></div></div>
+<div class="field" style="margin:.6rem 0 0"><label class="small" for="cn-${c.id}">Private facilitator note</label><textarea id="cn-${c.id}" name="note" style="min-height:3.5rem">${esc(c.facilitator_note || '')}</textarea></div>
+<button class="btn btn-secondary btn-sm" data-save>Save</button> <span data-msg class="small"></span></article>`).join('') : '<p class="empty">No challenges here.</p>'}</div>`;
+    qa('[data-ch]', main).forEach(card => {
+      q('[data-save]', card).onclick = async () => {
+        try { await api('PUT', `admin/challenges/${card.dataset.ch}`, { status: q('[name=status]', card).value, call_id: q('[name=call]', card).value || null, facilitator_note: q('[name=note]', card).value }); q('[data-msg]', card).textContent = 'Saved.'; }
+        catch (e) { q('[data-msg]', card).textContent = e.message; }
+      };
+    });
+    qa('[data-open]', main).forEach(b => b.addEventListener('click', () => openMember(b.dataset.open, b)));
+  };
+
+  VIEWS.prep = async main => {
+    const { calls } = await api('GET', 'admin/calls');
+    const upcoming = calls.filter(c => c.status === 'scheduled');
+    const id = ARG || (upcoming.find(c => new Date(c.starts_at) > Date.now()) || upcoming[0] || {}).id;
+    if (!id) { main.innerHTML = '<h1>Session prep</h1><p class="empty">Schedule a session first.</p>'; return; }
+    const d = await api('GET', `admin/calls/${id}/prep`);
+    main.innerHTML = `<div class="row-between"><h1>Session prep</h1><button class="btn btn-secondary btn-sm" onclick="window.print()">Print</button></div>
+<div class="field" style="max-width:28rem"><label for="prep-call">Session</label><select id="prep-call">${calls.map(c => `<option value="${c.id}"${c.id === id ? ' selected' : ''}>${esc(c.title)} · ${esc(dt(c.starts_at))}</option>`).join('')}</select></div>
+<p class="muted">${d.selected.length} selected challenge${d.selected.length === 1 ? '' : 's'} (for this call or any call). Mark challenges “selected” under Challenges.</p>
+<div class="stack prep">${d.selected.map((c, i) => `<article class="card"><h2 style="margin:0;font-size:1.35rem">${i + 1}. ${esc(c.name)} <span class="small muted" style="font-family:var(--sans)">${esc(c.business_name || '')}</span></h2>
+<p class="small muted">${esc(c.stage || '')} · ${esc(c.revenue || '')} · team ${esc(c.team || '')} · ${c.share_permission ? 'OK to discuss with cohort' : '<strong>Not for group discussion</strong>'}</p>
+<dl class="kv"><dt>Working on</dt><dd>${esc(c.working_on || c.body || '')}</dd><dt>Stuck on</dt><dd>${esc(c.stuck_on || '')}</dd><dt>Help wanted</dt><dd>${esc(c.help_wanted || '')}</dd>${c.facilitator_note ? `<dt>Your note</dt><dd>${esc(c.facilitator_note)}</dd>` : ''}</dl></article>`).join('') || '<p class="empty">Nothing selected yet.</p>'}</div>`;
+    q('#prep-call').addEventListener('change', e => { location.hash = `#seat/prep/${e.target.value}`; });
+  };
+
+  // ================================================================ Progress
+  VIEWS.progress = async main => {
+    const d = await api('GET', 'admin/progress');
+    const filter = ARG || 'all';
+    const maxDay = Math.max(1, d.summary.members);
+    const shown = d.members.filter(m => filter === 'all' || m.status === filter);
+    main.innerHTML = `<h1>Progress</h1><p class="muted">Approved members only. ${esc(d.definitions.caveat)}</p>
+<div class="grid-4"><div class="card"><p class="small muted" style="margin:0">Approved members</p><p class="stat">${d.summary.members}</p></div>
+<div class="card"><p class="small muted" style="margin:0">Not started</p><p class="stat">${d.summary.not_started}</p></div>
+<div class="card"><p class="small muted" style="margin:0">Started</p><p class="stat">${d.summary.started}</p></div>
+<div class="card"><p class="small muted" style="margin:0">Recently active</p><p class="stat">${d.summary.recently_active}</p></div></div>
+<details class="more"><summary>What these mean</summary><ul class="small"><li>Started: ${esc(d.definitions.started)}</li><li>Completed: ${esc(d.definitions.completed)}</li><li>Recently active: ${esc(d.definitions.recently_active)}</li></ul></details>
+<h2>Days voluntarily marked complete</h2>
+<div class="day-bars">${d.per_day.map(x => `<div class="day-bar" title="Day ${x.day_number}: ${x.completed} complete, ${x.started} started"><span style="height:${(x.completed / maxDay) * 100}%"></span><small>${x.day_number}</small></div>`).join('')}</div>
+<table class="sr-only"><caption>Completions per day</caption>${d.per_day.map(x => `<tr><td>Day ${x.day_number}</td><td>${x.completed} complete</td><td>${x.started} started</td></tr>`).join('')}</table>
+<h2>Members</h2><nav class="row" aria-label="Filter" style="margin-bottom:.8rem">${[['all', 'All'], ['not_started', 'Not started'], ['started', 'Started'], ['recently_active', 'Recently active']].map(([k, l]) => `<a class="btn btn-sm ${filter === k ? 'btn-primary' : 'btn-secondary'}" href="#progress/${k}">${l}</a>`).join('')}</nav>
+${shown.length ? `<div class="table-wrap"><table class="data"><thead><tr><th>Member</th><th>Status</th><th>Days started</th><th>Days completed</th><th>Last active</th></tr></thead><tbody>
+${shown.map(m => `<tr><td><button class="linklike" data-open="${m.user_id}">${esc(m.name)}</button><br><span class="small muted">${esc(m.business_name || '')}</span></td><td>${esc(m.status.replace('_', ' '))}</td><td>${m.started}</td><td>${m.completed}</td><td class="small">${shortDate(m.last_active)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">No approved members here yet.</p>'}`;
+    qa('[data-open]', main).forEach(b => b.addEventListener('click', () => openMember(b.dataset.open, b)));
+  };
+
+  // =============================================================== Questions
+  VIEWS.questions = async main => {
+    if (ARG && /^[0-9a-f-]{36}$/.test(ARG)) return questionThread(main, ARG);
+    const filter = ARG || 'open';
+    const d = await api('GET', `admin/questions${filter === 'open' ? '' : `?status=${filter}`}`);
+    const rows = filter === 'open' ? d.questions.filter(x => x.status !== 'resolved') : d.questions;
+    NEWQ = d.counts.new || 0;
+    main.innerHTML = `<h1>Questions</h1><p class="muted">Support questions from members and applicants. Business challenges for live calls are under Solutions Seat.</p>
+<nav class="row" aria-label="Filter questions" style="margin-bottom:1rem">${[['open', 'Open'], ['new', `New (${d.counts.new || 0})`], ['in_progress', `In progress (${d.counts.in_progress || 0})`], ['resolved', `Resolved (${d.counts.resolved || 0})`]].map(([k, l]) => `<a class="btn btn-sm ${filter === k ? 'btn-primary' : 'btn-secondary'}" href="#settings/questions/${k}">${l}</a>`).join('')}</nav>
+${rows.length ? `<div class="table-wrap"><table class="data"><thead><tr><th>Member</th><th>Subject</th><th>Status</th><th>Received</th><th>Latest</th></tr></thead><tbody>
+${rows.map(x => `<tr><td>${esc(x.name)}<br><span class="small muted">${esc(x.email)}</span></td><td><a href="#settings/questions/${x.id}">${esc(x.subject)}</a><br><span class="small muted">${esc(x.category_label)}</span></td>
+<td><span class="pill ${x.status === 'new' ? 'pill-live' : x.status === 'resolved' ? 'pill-complete' : 'pill-progress'}">${esc(x.status.replace('_', ' '))}</span></td><td class="small">${esc(dt(x.created_at))}</td>
+<td class="small">${x.latest_author === 'staff' ? 'You: ' : ''}${esc(x.latest || '')}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">No questions here.</p>'}`;
+  };
+
+  async function questionThread(main, id) {
+    const d = await api('GET', `admin/questions/${id}`);
+    const t = d.thread;
+    main.innerHTML = `<a class="back-link" href="#settings/questions">All questions</a>
+<div class="row-between"><div><h1 style="margin-bottom:.2rem">${esc(t.subject)}</h1><p class="muted">${esc(t.category_label)} · from <button class="linklike" data-open="${t.user_id}">${esc(t.email)}</button></p></div>
+<div class="field" style="margin:0"><label for="t-status" class="small">Status</label><select id="t-status">${['new', 'in_progress', 'resolved'].map(s => `<option value="${s}"${t.status === s ? ' selected' : ''}>${s.replace('_', ' ')}</option>`).join('')}</select></div></div>
+<div class="stack">${d.messages.map(m => `<article class="card ${m.internal ? 'internal-note' : ''}"><p class="small muted" style="margin:0 0 .3rem">${m.internal ? '<strong>Internal note</strong> (never shown to the member) · ' : ''}${esc(m.author_type === 'staff' ? m.author : 'Member')} · ${esc(dt(m.created_at))}</p><div style="white-space:pre-wrap">${esc(m.body)}</div></article>`).join('')}</div>
+<form id="t-reply" class="card" style="margin-top:1rem"><div class="field"><label for="t-body">Reply to the member</label><textarea id="t-body" maxlength="5000"></textarea>
+<p class="help">They’ll get an email with a secure link to read it in the app. The email doesn’t contain your reply.</p></div>
+<div class="row"><button class="btn btn-primary btn-sm">Send reply</button><button class="btn btn-secondary btn-sm" type="button" id="t-note">Save as internal note</button></div><p id="t-msg" role="status" class="small"></p></form>`;
+    q('#t-status').onchange = e => api('PUT', `admin/questions/${id}`, { status: e.target.value }).catch(x => alert(x.message));
+    q('#t-reply').onsubmit = async e => {
+      e.preventDefault();
+      const body = q('#t-body').value.trim(); if (!body) return;
+      try { const r = await api('POST', `admin/questions/${id}/reply`, { body }); q('#t-msg').textContent = `Reply saved. Email: ${emailStatus(r.email)}.`; setTimeout(() => questionThread(main, id), 900); }
+      catch (x) { q('#t-msg').textContent = x.message; }
+    };
+    q('#t-note').onclick = async () => {
+      const body = q('#t-body').value.trim(); if (!body) return;
+      try { await api('POST', `admin/questions/${id}/note`, { body }); questionThread(main, id); } catch (x) { q('#t-msg').textContent = x.message; }
+    };
+    qa('[data-open]', main).forEach(b => b.addEventListener('click', () => openMember(b.dataset.open, b)));
+  }
+
+  // ================================================================== Emails
+  VIEWS.emails = async main => {
+    const filter = ARG === 'failed' || ARG === 'emails-failed' ? 'failed' : ARG || '';
+    const d = await api('GET', `admin/emails${filter ? `?status=${filter}` : ''}`);
+    main.innerHTML = `<div class="row-between"><h1>Email log</h1>${canDo('settings') ? '<button class="btn btn-secondary btn-sm" id="process">Send queued now</button>' : ''}</div>
+<div class="notice ${d.mode === 'live' ? '' : 'notice-warn'}"><p>Delivery mode: <strong>${esc(d.mode)}</strong>${d.mode === 'off' ? ' (nothing is sent; messages are recorded as “not sent”)' : d.mode === 'sandbox' ? ' (everything goes to the sandbox address)' : ''}.
+${d.resend_configured ? '' : ' Resend API key not set.'} ${d.delivery_webhook ? 'Delivery and bounce updates are on.' : 'Delivery tracking webhook isn’t set up, so “accepted” is the last status you’ll see.'}</p></div>
+<nav class="row" aria-label="Filter" style="margin-bottom:1rem">${[['', 'All'], ['failed', 'Failed or bounced'], ['queued', 'Queued'], ['submitted', 'Accepted'], ['delivered', 'Delivered'], ['skipped', 'Not sent']].map(([k, l]) => `<a class="btn btn-sm ${filter === k ? 'btn-primary' : 'btn-secondary'}" href="#settings/emails${k ? `/${k}` : ''}">${l}</a>`).join('')}</nav>
+${d.emails.length ? `<div class="table-wrap"><table class="data"><thead><tr><th>When</th><th>To</th><th>Purpose</th><th>Status</th><th></th></tr></thead><tbody>
+${d.emails.map(m => `<tr><td class="small">${esc(dt(m.created_at))}</td><td class="small">${esc(m.to_email)}</td><td>${esc(m.template_key.replace(/_/g, ' '))} <span class="small muted">v${m.template_version ?? 0}${m.edited ? ' · edited' : ''}${m.resend_of ? ' · resend' : ''}${m.category === 'test' ? ' · test' : ''}</span><br><span class="small">${esc(m.subject)}</span></td>
+<td><span class="email-status st-${m.status}">${esc(emailStatus(m.status))}</span>${m.last_error ? `<br><span class="small" style="color:var(--danger)">${esc(m.last_error)}</span>` : ''}</td>
+<td>${['failed', 'bounced', 'skipped', 'complained'].includes(m.status) && canDo('decide') ? `<button class="btn btn-ghost btn-sm" data-resend="${m.id}">Resend</button>` : ''}${m.user_id ? `<button class="btn btn-ghost btn-sm" data-open="${m.user_id}">Member</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">No emails here.</p>'}`;
+    const pr = q('#process');
+    if (pr) pr.onclick = async () => { const r = await api('POST', 'admin/emails/process'); alert(`${r.results.length} processed.`); VIEWS.emails(main); };
+    qa('[data-resend]', main).forEach(b => b.onclick = async () => { b.disabled = true; try { const r = await api('POST', `admin/emails/${b.dataset.resend}/resend`); alert(`Resend: ${emailStatus(r.status)}. The underlying decision or refund was not repeated.`); VIEWS.emails(main); } catch (x) { alert(x.message); b.disabled = false; } });
+    qa('[data-open]', main).forEach(b => b.addEventListener('click', () => openMember(b.dataset.open, b)));
+  };
+
+  VIEWS.templates = async main => {
+    const [{ templates }, { calls }] = await Promise.all([api('GET', 'admin/email-templates'), api('GET', 'admin/calls')]);
+    const key = ARG && templates.some(t => t.key === ARG) ? ARG : templates[0].key;
+    const t = templates.find(x => x.key === key);
+    main.innerHTML = `<h1>Templates & reminders</h1>
+<div class="grid-2" style="grid-template-columns:minmax(12rem,16rem) 1fr;align-items:start">
+<nav aria-label="Templates"><ul class="nav-list">${templates.map(x => `<li><a href="#settings/templates/${x.key}"${x.key === key ? ' aria-current="page"' : ''}>${esc(x.label)}<span class="small" style="margin-left:auto;opacity:.75">${x.category === 'optional' ? 'optional' : ''}</span></a></li>`).join('')}</ul></nav>
+<div><form id="tf" class="card"><h2 style="margin-top:0">${esc(t.label)} <span class="small muted" style="font-family:var(--sans)">${t.category} · version ${t.version}${t.customized ? '' : ' (default)'}</span></h2>
+<div class="field"><label for="t-subj">Subject</label><input id="t-subj" type="text" value="${esc(t.subject)}"></div>
+<div class="field"><label for="t-bodyx">Body</label><textarea id="t-bodyx" style="min-height:16rem">${esc(t.body)}</textarea>
+<p class="help">Merge fields: ${t.fields.map(f => `<span class="kbd">{{${f}}}</span>`).join(' ')}${key === 'rejection' ? '. Keep {{refund_message}}: it states the real refund status.' : ''}</p></div>
+${t.category === 'optional' ? `<label class="check"><input type="checkbox" id="t-enabled"${t.enabled ? ' checked' : ''}><span>Enabled</span></label>` : ''}
+<div class="row"><button class="btn btn-primary btn-sm">Save new version</button><button class="btn btn-secondary btn-sm" type="button" id="t-prev">Preview</button>
+<label class="sr-only" for="t-to">Test recipient</label><input id="t-to" type="email" placeholder="test@your-email.com" style="max-width:15rem"><button class="btn btn-ghost btn-sm" type="button" id="t-test">Send test</button></div>
+<p id="t-out" class="small" role="status"></p><pre class="email-preview" id="t-preview" hidden></pre></form>
+<details class="more"><summary>Version history</summary><div id="t-versions" class="small">Loading…</div></details>
+${t.category === 'optional' ? `<section class="card" style="margin-top:1rem"><h2 style="margin-top:0">Send this reminder</h2>
+<p class="small">Goes only to <strong>approved</strong> members who opted in to this kind of reminder in their account. This isn’t a marketing campaign.</p>
+${key === 'call_reminder' ? `<div class="field"><label for="b-call">Session</label><select id="b-call">${calls.filter(c => c.status === 'scheduled').map(c => `<option value="${c.id}">${esc(c.title)} · ${esc(dt(c.starts_at))}</option>`).join('')}</select></div>` : ''}
+<button class="btn btn-secondary btn-sm" id="b-check">Check recipients</button> <span id="b-out" class="small" role="status"></span></section>` : ''}
+</div></div>`;
+    const out = q('#t-out');
+    q('#tf').onsubmit = async e => {
+      e.preventDefault();
+      try { const r = await api('PUT', `admin/email-templates/${key}`, { subject: q('#t-subj').value, body: q('#t-bodyx').value, ...(q('#t-enabled') ? { enabled: q('#t-enabled').checked } : {}) }); out.textContent = `Saved as version ${r.template.version}.`; }
+      catch (x) { out.textContent = x.message; }
+    };
+    q('#t-prev').onclick = async () => {
+      try { const r = await api('POST', `admin/email-templates/${key}/preview`, { subject: q('#t-subj').value, body: q('#t-bodyx').value }); const pv = q('#t-preview'); pv.hidden = false; pv.textContent = `Subject: ${r.subject}\n\n${r.body}`; out.textContent = 'Preview uses sample details.'; }
+      catch (x) { out.textContent = x.message; }
+    };
+    q('#t-test').onclick = async () => {
+      try { const r = await api('POST', `admin/email-templates/${key}/test`, { to: q('#t-to').value }); out.textContent = `Test email: ${emailStatus(r.status)}. (Uses the saved version.)`; }
+      catch (x) { out.textContent = x.message; }
+    };
+    api('GET', `admin/email-templates/${key}/versions`).then(v => { q('#t-versions').innerHTML = v.versions.length ? v.versions.map(x => `<p><strong>v${x.version}</strong> · ${esc(dt(x.created_at))} · ${esc(x.created_by || '')}<br>${esc(x.subject)}</p>`).join('') : 'Using the default text (no edits yet).'; }).catch(() => {});
+    const bc = q('#b-check');
+    if (bc) bc.onclick = async () => {
+      const body = { key, ...(q('#b-call') ? { call_id: q('#b-call').value } : {}) };
+      try {
+        const r = await api('POST', 'admin/emails/broadcast', body);
+        if (!r.recipients) { q('#b-out').textContent = 'No approved members have opted in to this reminder.'; return; }
+        if (!confirm(`Send “${t.label}” to ${r.recipients} opted-in approved member(s)?`)) return;
+        const s2 = await api('POST', 'admin/emails/broadcast', { ...body, confirm: true });
+        q('#b-out').textContent = `Queued ${s2.queued}. ${Object.entries(s2.results).map(([k, n]) => `${n} ${emailStatus(k).toLowerCase()}`).join(', ')}.`;
+      } catch (x) { q('#b-out').textContent = x.message; }
+    };
+  };
+
+  // =================================================================== Staff
+  VIEWS.staff = async main => {
+    if (!canDo('staff')) { main.innerHTML = '<h1>Staff</h1><p class="empty">Only the owner can manage staff.</p>'; return; }
+    const d = await api('GET', 'admin/staff');
+    main.innerHTML = `<h1>Staff</h1><p class="muted">Owner (the omibell.com admin password) can do everything. <strong>Admin</strong>: everything except staff. <strong>Support</strong>: members, questions, challenges and progress; no decisions, refunds, sales, exports or settings.</p>
+<div class="table-wrap"><table class="data"><thead><tr><th>Email</th><th>Role</th></tr></thead><tbody>${d.staff.map(x => `<tr><td>${esc(x.email)}</td><td>${esc(x.role)}</td></tr>`).join('') || '<tr><td colspan="2">Only you (owner) so far.</td></tr>'}</tbody></table></div>
+<form id="sf2" class="card" style="margin-top:1rem"><p class="small">The person must sign in once at /smoothoperators/login first. Nobody can give themselves a role.</p><div class="grid-3">
+<div class="field"><label for="st-email">Email</label><input id="st-email" type="email" required></div>
+<div class="field"><label for="st-role">Role</label><select id="st-role"><option value="support">Support</option><option value="admin">Admin</option><option value="member">Remove staff access</option></select></div></div>
+<button class="btn btn-primary btn-sm">Save</button> <span id="st-msg" class="small" role="status"></span></form>`;
+    q('#sf2').onsubmit = async e => { e.preventDefault(); try { await api('PUT', 'admin/staff', { email: q('#st-email').value, role: q('#st-role').value }); VIEWS.staff(main); } catch (x) { q('#st-msg').textContent = x.message; } };
   };
 
   route();

@@ -63,7 +63,10 @@ async function memberContext(sql, user, now, { requireAccess = true } = {}) {
 // ------------------------------------------------------------- days
 function dayState(cohort, day, now) {
   if (!S.isDayUnlocked(cohort, day.day_number, now)) return 'locked';
-  return day.status === 'published' ? 'available' : 'preparing';
+  // Needs both: unlocked by time AND published (and past any scheduled publish time).
+  if (day.status !== 'published') return 'preparing';
+  if (day.publish_at && now.getTime() < new Date(day.publish_at).getTime()) return 'preparing';
+  return 'available';
 }
 
 function dayHeader(cohort, sched, weeks, day) {

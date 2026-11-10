@@ -47,28 +47,40 @@ BLYMI is untouched.
 | `/api/so/*` | JSON API |
 | `/api/smoothoperators-webhook` | Stripe webhook endpoint |
 
-## Enrollment flow: pay first, fit check, review
+## Enrollment flow: fit check, pay, review
 
 1. **Sign in** with an email code.
-2. **Fit check** (required before payment; private to admins). It asks for:
-   - first and last name, phone
-   - business name, website (or "no website yet")
-   - full address (US state + ZIP, or outside the US)
-   - stage of business, revenue so far, years in business
-   - prior operations work (yes/no), full-time staff (yes/no), team size (staff + contractors)
-   - one open question: most pressing operations questions
+2. **Fit check**, before payment, as Omi asked. It's private to Omi and authorized staff.
+   - Members can save a draft. Only an explicit, fully validated submission counts.
+   - Each submission is versioned, and the refund-policy version the buyer accepted is recorded.
+   - Questions: name, phone, business, website, full address, stage, revenue so far, years in business, prior ops work, full-time staff, team size, and one open question.
+3. **Payment** through Stripe Checkout. The buyer gets a "payment received: next steps" email.
+4. **Under review.** Paid members get *application-only* access: an enrollment status page, their receipt, their own answers, account settings, and Ask for Help. Cohort lessons, introductions, files, calls and replays all stay closed until approval. This is enforced on the server.
+5. **Decision** in the member card (admin → Members). One of:
+   - **Approve & Send Email:** cohort access matching the current date (countdown, introductions, the current day, or post-cohort), plus one approval email.
+   - **Reject, Refund & Send Email:** needs a short explanation for the member. It refunds the full remaining amount (tax included, no fees deducted), ends cohort access, and sends a rejection email that states the *actual* refund outcome. If Stripe couldn't start the refund, the email says it's being processed instead, and the failure is flagged for a safe retry.
 
-   Everything except the names, contact details and the open question is a single tap. Early-stage answers (idea stage, or under $10K revenue) show a gentle note, never a block. The member must tick that they understand the review and refund policy.
-3. **Payment** through Stripe Checkout.
-4. **Review** in admin → Members. Each paid member is "pending review" until Omi chooses one of:
-   - **Approve:** the enrollment becomes non-refundable, and an approval email goes out (if email sending is on).
-   - **Not a fit:** a full refund is issued through Stripe, and access ends. Their saved writing is kept.
+   Rejected members keep their status page, receipt and support. Nothing is deleted.
 
-   Approved enrollments can't be refunded from the review screen.
+## Admin workspace (`/smoothoperators/admin`)
 
-**Hidden seat limit:** default 30, set in Cohort settings and never shown publicly. Seats count active enrollments that aren't "not a fit", plus other people's unexpired checkouts. When none are left, the landing page and checkout just say "All seats are full." If two people pay for the last seat at the same moment, both get in, and the purchase is flagged `over_capacity` for review.
+Log in at `/admin` and choose **Smooth Operators admin**. There are seven sections, and a cohort selector appears when there's more than one cohort.
 
-**Admin entry:** log in at `/admin`, then choose **Blog admin** or **Smooth Operators admin**. The Smooth Operators admin links back with "← Omi Bell admin". The **Members** tab shows every fit-check answer, filters by review state, lists fit checks without payment (for follow-up), and exports a spreadsheet (CSV).
+| Section | What's there |
+|---|---|
+| **Overview** | Four cards: sales collected (scope labeled), paid members (awaiting vs. approved; rejected excluded), profiles awaiting review, and next Solutions Seat with its challenge count. Below them, a **Needs your attention** list covering reviews waiting, paid-but-incomplete info, failed refunds, failed or bounced emails, new questions, days unlocking within 7 days that aren't ready, calls missing a meeting link, flagged payments, failed Stripe events, and launch items. Plus a Questions shortcut with the new-question count. |
+| **Members** | Filters: All / Info incomplete / Awaiting review (oldest first) / Approved / Rejected, plus payment filters, search, sorting and pages. Click a name to open the **member card** (a slide-over on desktop, full screen on mobile; the list stays where it was). The card shows every answer with its version, private notes, payment (amount, tax, Stripe reference, receipt, fee), refunds with retry, access state, review and email history with delivery status and resend, and an activity summary. A sticky **Approve / Reject** footer opens a confirmation panel with the recipient, an editable message, and a live email preview. Also: the Introductions moderation tab, and a CSV export. |
+| **Sales** | Gross collected, refunds (completed vs. pending), net, and net after Stripe fees. These are defined on the page and never presented as profit. Counts of $999 vs. $1,497 purchases, review status counts, a chart by day, a date range and filters, a transaction list (click to open the member card), and a CSV export that follows the filters. "Payments & access tools" holds Stripe reconciliation, manual grants, and access changes. |
+| **Program** | All 21 days grouped by week, each with a readiness checklist. A day editor that can save drafts, schedule publication, attach resources, and edit questions (with versioning). The resource library with uploads and replacement versions, and the lifecycle preview on a simulated clock. |
+| **Solutions Seat** | Sessions, which feed the member banner and Calls & Help. Challenges with what they're working on, where they're stuck, the help wanted, and permission to discuss them with the cohort, moving through Submitted → Selected → Discussed → Follow up, with private facilitator notes. A printable **Session prep** view. |
+| **Progress** | Approved members who are not started, started, or recently active, plus days voluntarily marked complete and a per-member activity timeline. Definitions sit on the page: a download isn't completed work, and a link click isn't attendance. Journal text is never shown or counted. |
+| **Emails & Settings** | The questions inbox (New / In progress / Resolved, threaded replies, internal notes). The email log with true delivery states and safe resend. Templates with merge-field validation, preview, test send and version history. Optional reminders, sent only to approved members who opted in. Cohort settings, including the review timeframe shown to buyers. Site content and FAQs, launch readiness, staff roles, and the audit log. |
+
+**Email states:** queued, then accepted by the email provider, then delivered, bounced or marked as spam. It can also fail, or show "not sent" when delivery is switched off. Delivery and bounce updates need the Resend webhook. "Accepted" is never reported as "delivered". Resending re-sends the message only; it never repeats the approval or refund behind it.
+
+**Reliability:** every decision is a single database transaction. Review-version and submission-version checks block stale or concurrent decisions, and double clicks are refused. The refund attempt is written in the same transaction, and the database allows only one live attempt per purchase. The Stripe call uses an idempotency key. Before any retry, existing Stripe refunds are checked so a lost response can never become a second refund. Emails go through an outbox with dedupe keys. Stripe and Resend events are deduplicated by event id.
+
+**Staff roles:** the owner is the `/admin` password and can do everything, including managing staff. An admin can do everything except manage staff. Support can see members, questions, challenges and progress, but can't make decisions, refund, see sales or exports, or change settings. Roles can only be granted by the owner, to someone who has already signed in.
 
 ## Key design decisions
 
@@ -112,7 +124,7 @@ The integration and e2e tests boot a fresh database from the real migration and 
 ### Verified results (this build)
 
 - **Unit tests: 8 passing.** Covers DST gaps and overlaps, the year change, viewers in other timezones, cutoff boundaries, quote expiry and access policy.
-- **Payment integration tests: 16 passing.**
+- **Payment integration tests: 18 passing.** Includes the required fit check and the hidden seat limit.
   - Landing copy and price before and after the cutoff.
   - Auth is required; tampered amounts are ignored; concurrent clicks share one session.
   - The intro quote is honoured until expiry, then the next session is regular price.
@@ -132,7 +144,23 @@ The integration and e2e tests boot a fresh database from the real migration and 
   - Calls: join window, `.ics` in UTC, replay publication, private challenges.
   - Admin preview writes nothing; schedule impact preview, re-confirmation and audit log.
   - Post-cohort access policy; input validation.
-- **Playwright e2e: 8 passing (desktop and mobile Chromium), with axe WCAG 2 A/AA checks.**
+- **Admin workspace integration tests: 15 passing.**
+  - Drafts never enter review.
+  - Member card answers, versions, receipt and fee; oldest-first queue.
+  - Pending members blocked on every content route (API, files, calendar file, join link, introductions).
+  - Approval: exactly one email; stale, duplicate and concurrent decisions refused.
+  - Rejection: required explanation, one full refund (tax included), access blocked, status-accurate email, no data deleted, webhook redelivery deduplicated, no reversal.
+  - Refund failure: honest email, attention flag, safe retry.
+  - Lost Stripe response: the retry adopts the existing refund, so no double refund.
+  - Email failure kept separate from the decision; resend doesn't repeat the decision.
+  - Signed Resend delivery webhooks.
+  - Template merge-field validation and versions.
+  - Sales totals, net and CSV filters.
+  - Questions inbox vs. challenges, with internal notes kept private.
+  - Support-role restrictions.
+  - No journal text in any admin view or export.
+  - Solutions Seat workflow and session prep.
+- **Playwright e2e: 9 passing (desktop and mobile Chromium), with axe WCAG 2 A/AA checks.** Covers pay → under review → approved → cohort, plus approving from the admin member card.
   - Landing → sign in → test-double checkout → verified enrollment → welcome countdown → Day 1 → autosaved reflection survives reload → completion shows in calendar and journal → landing shows "Open My Cohort".
   - Mobile drawer: Esc closes it and returns focus.
   - Signed-out and non-member gates.
@@ -143,6 +171,14 @@ The integration and e2e tests boot a fresh database from the real migration and 
 ## Owner launch checklist
 
 The admin **Overview** shows these live. Checkout stays off until every "blocks live sales" item is done.
+
+### Decide or confirm (blocks live operation)
+- [ ] Review timeframe shown to buyers. The default you approved: "within 3 business days, and always before the cohort begins". Edit it in Cohort settings.
+- [ ] Refund timing sentence used in refund emails. Default: "Depending on your bank, refunds usually appear within 5–10 business days." This is Stripe's general guidance; approve or edit it in Site content.
+- [ ] Review every email template (Emails & Settings → Templates), especially approval, rejection and "payment received: next steps".
+- [ ] Whether to send the optional "refund completed" email (Cohort settings).
+- [ ] Resend webhook (`RESEND_WEBHOOK_SECRET`) for delivered and bounced tracking. Add the Stripe `refund.*` events to the existing Stripe webhook.
+- [ ] Any staff accounts (Emails & Settings → Staff).
 
 ### Blocks live sales
 Default cohort dates are **January 4–24, 2027** (Week 1 Jan 4–10, Week 2 Jan 11–17, Week 3 Jan 18–24). If the seed was already run with an earlier start date, change Day 1 in admin Cohort settings (or run `update so_cohorts set start_date = '2027-01-04' where slug = '2027-01';`).
@@ -175,6 +211,9 @@ Default cohort dates are **January 4–24, 2027** (Week 1 Jan 4–10, Week 2 Jan
 - [ ] FAQ answers approved and published. Five are drafted from facts in the brief; four are left blank on purpose: recordings, access, refunds, legal review.
 
 ### Not built in this version (by design or pending decisions)
-- Reminder emails: the preferences are stored, but nothing sends them.
+- Scheduled or automatic reminders. Reminders are sent manually from Templates & reminders, only to opted-in approved members. There's no background scheduler; queued emails send immediately or via "Send queued now".
+- An editable question list for the fit check. Changing the questions is a code change. They're defined once in `api/_lib/so/intake.js`.
+- "Request changes" on an application (the brief marks it optional).
+- Replying to support emails by email. Members reply in the app, and the emails say so.
 - Compiled playbook export (not promised anywhere).
 - Server-side journal search.

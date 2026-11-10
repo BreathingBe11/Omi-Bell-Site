@@ -99,7 +99,10 @@
     [/^\/app\/resource\/([0-9a-f-]{36})$/, viewResource, { shell: true, nav: '/app/library' }],
     [/^\/app\/introductions$/, viewIntroductions, { shell: true, nav: null }],
     [/^\/app\/introductions\/edit$/, viewIntroEdit, { shell: true, nav: null }],
-    [/^\/app\/account$/, viewAccount, { shell: true, nav: null }],
+    [/^\/app\/account$/, viewAccount, { shell: true, nav: null, limitedOk: true }],
+    [/^\/app\/status$/, viewStatus, { shell: 'limited' }],
+    [/^\/app\/help$/, viewHelp, { shell: true, nav: '/app/calls-help', limitedOk: true }],
+    [/^\/app\/help\/([0-9a-f-]{36})$/, viewThread, { shell: true, nav: '/app/calls-help', limitedOk: true }],
   ];
 
   function confirmLeave() {
@@ -148,9 +151,13 @@
     const query = Object.fromEntries(new URLSearchParams(location.search));
     let container;
     if (opts.shell) {
-      const ok = await ensureMember(path);
-      if (!ok || id !== state.renderId) return;
-      renderShell(opts.nav);
+      const mode = await ensureMember(path, opts);
+      if (!mode || id !== state.renderId) return;
+      if (mode === 'limited') {
+        state.shell = false;
+        root.innerHTML = limitedFrame();
+        wireSignout(root);
+      } else renderShell(opts.nav);
       container = q('#main');
       container.innerHTML = '<p class="loading" role="status"><span class="spinner" aria-hidden="true"></span> Loading…</p>';
     } else {
@@ -175,12 +182,21 @@
   }
 
   // ------------------------------------------------------------- frames
+  // Paid but not approved (or not approved): status, help and account only.
+  function limitedFrame() {
+    const cur = relPath();
+    const a = (p, l) => `<a href="${B}${p}"${cur === p ? ' aria-current="page"' : ''}>${l}</a>`;
+    return `<header class="pub-header"><a class="wordmark" href="${B}">Smooth Operators</a>
+<nav aria-label="Account" class="limited-nav">${a('/app/status', 'My enrollment')}${a('/app/help', 'Help')}${a('/app/account', 'Account')}<button class="linklike" data-signout>Sign out</button></nav></header>
+<main id="main" class="main" tabindex="-1"></main>`;
+  }
+
   function publicFrame() {
     return `<header class="pub-header"><a class="wordmark" href="${B}">Smooth Operators</a></header>
 <main id="main" class="main" tabindex="-1"></main>`;
   }
 
-  async function ensureMember(path) {
+  async function ensureMember(path, opts = {}) {
     if (!state.me) {
       try { state.me = await SO.api('GET', 'me'); } catch (e) {
         state.shell = false;
@@ -195,6 +211,19 @@
       navigate(`${B}/login?next=${encodeURIComponent(path + location.search)}`, { replace: true });
       return false;
     }
+    if (me.enrolled && me.access.active && me.review_state !== 'approved') {
+      if (opts.shell === 'limited' || opts.limitedOk) return 'limited';
+      navigate(`${B}/app/status`, { replace: true });
+      return false;
+    }
+    if (opts.shell === 'limited') {
+      if (!me.enrolled) { navigate(`${B}/checkout`, { replace: true }); return false; }
+      if (me.review_state === 'approved' && me.access.active) { navigate(`${B}/app`, { replace: true }); return false; }
+      return 'limited';
+    }
+    if (!me.enrolled && opts.limitedOk && /^\/app\/help/.test(path)) return 'limited';
+    if (me.enrolled && me.review_state === 'rejected' && (opts.limitedOk)) return 'limited';
+    if (me.enrolled && me.review_state === 'rejected') { navigate(`${B}/app/status`, { replace: true }); return false; }
     if (!me.enrolled || !me.access.active) {
       state.shell = false;
       root.innerHTML = publicFrame();
@@ -219,7 +248,7 @@
       focusMain();
       return false;
     }
-    return true;
+    return 'full';
   }
 
   function wireSignout(el) {
@@ -460,7 +489,7 @@
       return 'Join';
     }
     const fit = await SO.api('GET', 'intake');
-    if (!fit.intake || query.edit === 'fit') {
+    if (!fit.intake || fit.intake.status !== 'submitted' || query.edit === 'fit') {
       fitCheckForm(step, fit, me);
       return 'Join';
     }
@@ -536,10 +565,12 @@ ${fit.intake.early_stage ? '<div class="notice notice-warn"><p>Smooth Operators 
   ${radios('team_size', 'How many people are on your team? Count full-time staff and contractors, not including you.', fit.options.team_size, v.team_size)}
   <div class="field"><label for="ops_questions">What are your most pressing questions about operations?</label>
   <textarea id="ops_questions" name="ops_questions" maxlength="3000" required>${esc(v.ops_questions || '')}</textarea></div>
-  <div class="notice"><p><strong>How review works.</strong> ${esc(fit.refund_policy || '')}</p>
+  <div class="notice"><p><strong>How review works.</strong> ${esc(fit.refund_policy || '')} We review ${esc(fit.review_turnaround || '')}.</p>
   <label class="check"><input type="checkbox" id="policy_ack"><span>I understand: if it isn’t the right fit I’ll be refunded in full, and once I’m approved my enrollment is non-refundable.</span></label></div>
   <p class="form-error" id="fit-err" role="alert"></p>
   <button class="btn btn-primary btn-lg btn-block" type="submit">Save and continue to payment</button>
+  <p style="text-align:center;margin-top:.75rem"><button class="linklike" type="button" id="save-draft">Save my answers and finish later</button></p>
+  <p id="draft-msg" class="small muted" role="status" style="text-align:center"></p>
 </form>`;
     const form = q('#fit', step);
     const stateSel = q('#state', form);
@@ -552,9 +583,7 @@ ${fit.intake.early_stage ? '<div class="notice notice-warn"><p>Smooth Operators 
     const noWeb = q('#no_website', form), web = q('#website_url', form);
     const syncWeb = () => { web.disabled = noWeb.checked; if (noWeb.checked) web.value = ''; };
     noWeb.addEventListener('change', syncWeb); syncWeb();
-    form.addEventListener('submit', async e => {
-      e.preventDefault();
-      const err = q('#fit-err', form);
+    const collect = () => {
       const radio = n => { const r = form.querySelector(`input[name="${n}"]:checked`); return r ? r.value : null; };
       let site = web.value.trim();
       if (site && !/^https?:\/\//i.test(site)) site = `https://${site}`;
@@ -567,6 +596,17 @@ ${fit.intake.early_stage ? '<div class="notice notice-warn"><p>Smooth Operators 
         prior_ops_work: radio('prior_ops_work'), has_full_time_staff: radio('has_full_time_staff'), team_size: radio('team_size'),
         ops_questions: form.ops_questions.value, policy_ack: q('#policy_ack', form).checked,
       };
+      return payload;
+    };
+    q('#save-draft', form).addEventListener('click', async () => {
+      const msg = q('#draft-msg', form);
+      try { await SO.api('PUT', 'intake', { ...collect(), submit: false }); msg.textContent = 'Saved. Come back any time to finish; we won’t review it until you submit.'; }
+      catch (ex) { msg.textContent = ex.message; }
+    });
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const err = q('#fit-err', form);
+      const payload = { ...collect(), submit: true };
       const btn = q('button[type=submit]', form);
       btn.disabled = true;
       try {
@@ -614,10 +654,10 @@ ${fit.intake.early_stage ? '<div class="notice notice-warn"><p>Smooth Operators 
       }
       if (r.state === 'confirmed') {
         state.me = null;
-        show(`<h1>You’re in.</h1><p>Payment confirmed. Your receipt is on its way from Stripe.</p>
-<a class="btn btn-primary" href="${B}/app" id="open-cohort">Open My Cohort</a>`);
+        show(`<h1>Payment confirmed</h1><p>Thank you. Your receipt is on its way from Stripe.</p>
+<p><strong>Your enrollment is under review.</strong> We’ll email you as soon as there’s a decision. If it isn’t the right fit, you’ll be refunded in full.</p>
+<a class="btn btn-primary" href="${B}/app/status" id="open-cohort">See my enrollment status</a>`);
         q('#open-cohort', box).focus();
-        timer = setTimeout(() => { if (ctx.isCurrent()) navigate(`${B}/app`, { replace: true }); }, 2500);
         return;
       }
       if (r.state === 'failed') { show(`<h1>The payment didn’t go through</h1><p>You haven’t been enrolled and nothing further will be charged.</p><a class="btn btn-primary" href="${B}/checkout">Try again</a><p>${supportLine(email)}</p>`); return; }
@@ -1213,11 +1253,16 @@ ${data.recording_policy ? `<p class="small muted">${esc(data.recording_policy)}<
   <p class="small">Omi and the admin team can read what you submit. It isn’t posted anywhere, and sending it doesn’t guarantee it will be discussed. Please don’t include confidential documents or personal details.</p>
   <form id="ch-form" novalidate>
     ${upcoming.length ? `<div class="field"><label for="ch-call">For which call?</label><select id="ch-call"><option value="">Any upcoming call</option>${upcoming.map(c => `<option value="${esc(c.id)}">${esc(c.title)} · ${esc(SO.fmtDateTime(c.starts_at, tz, { weekday: false }))}</option>`).join('')}</select></div>` : ''}
-    <div class="field"><label for="ch-body">Your business question</label><textarea id="ch-body" maxlength="1200" style="min-height:6rem"></textarea><p class="help">Up to 1,200 characters.</p></div>
+    <div class="field"><label for="ch-work">What are you working on?</label><textarea id="ch-work" maxlength="800" style="min-height:4.5rem"></textarea></div>
+    <div class="field"><label for="ch-stuck">Where are you stuck?</label><textarea id="ch-stuck" maxlength="800" style="min-height:4.5rem"></textarea></div>
+    <div class="field"><label for="ch-help">What help or decision do you want?</label><textarea id="ch-help" maxlength="800" style="min-height:4.5rem"></textarea></div>
+    <fieldset class="field fit-group"><legend class="label">May Omi discuss this with the cohort on the call?</legend>
+      <div class="choice-grid"><label class="choice"><input type="radio" name="ch-share" value="yes"><span>Yes, it can be discussed with the group</span></label>
+      <label class="choice"><input type="radio" name="ch-share" value="no"><span>No, just for Omi’s context</span></label></div></fieldset>
     <p class="form-error" id="ch-err" role="alert"></p>
     <button class="btn btn-primary" type="submit">Send to Omi</button>
   </form>
-  ${data.challenges.length ? `<h3 style="font-size:1.2rem;margin-top:1.5rem">What you’ve sent</h3>${data.challenges.map(c => `<div class="resource-item"><div><p style="color:var(--text);white-space:pre-wrap">${esc(c.body)}</p><p>${esc(new Date(c.created_at).toLocaleDateString())} · ${esc(c.status)}</p></div><button class="btn btn-ghost btn-sm" data-del="${esc(c.id)}">Delete</button></div>`).join('')}` : ''}
+  ${data.challenges.length ? `<h3 style="font-size:1.2rem;margin-top:1.5rem">What you’ve sent</h3>${data.challenges.map(c => `<div class="resource-item"><div><p style="color:var(--text);white-space:pre-wrap">${esc(c.working_on || c.body || '')}</p><p>${esc(new Date(c.created_at).toLocaleDateString())} · ${esc(c.status)}</p></div><button class="btn btn-ghost btn-sm" data-del="${esc(c.id)}">Delete</button></div>`).join('')}` : ''}
 </section>
 ${data.intros_open ? `<p style="margin-top:1.5rem">${link('/app/introductions', 'Cohort introductions')}</p>` : ''}`;
     wireJoin(panel);
@@ -1229,12 +1274,14 @@ ${data.intros_open ? `<p style="margin-top:1.5rem">${link('/app/introductions', 
     }));
     q('#ch-form', panel).addEventListener('submit', async e => {
       e.preventDefault();
-      const body = q('#ch-body', panel).value.trim();
       const err = q('#ch-err', panel);
-      if (!body) { err.textContent = 'Write your question first.'; return; }
+      const share = panel.querySelector('input[name="ch-share"]:checked');
+      const payload = { working_on: q('#ch-work', panel).value.trim(), stuck_on: q('#ch-stuck', panel).value.trim(), help_wanted: q('#ch-help', panel).value.trim(),
+        share_permission: share ? share.value === 'yes' : null };
+      if (!payload.working_on || !payload.stuck_on || !payload.help_wanted || payload.share_permission === null) { err.textContent = 'Please answer each question.'; return; }
       const sel = q('#ch-call', panel);
       try {
-        await SO.api('POST', 'challenges', { body, call_id: sel && sel.value ? sel.value : null });
+        await SO.api('POST', 'challenges', { ...payload, call_id: sel && sel.value ? sel.value : null });
         await drawCalls(panel);
         panel.insertAdjacentHTML('afterbegin', '<div class="notice notice-success" role="status"><p>Sent. Thank you.</p></div>');
       } catch (ex) { err.textContent = ex.message; }
@@ -1247,6 +1294,7 @@ ${data.intros_open ? `<p style="margin-top:1.5rem">${link('/app/introductions', 
 <section class="card" style="margin-top:2rem"><h2 style="font-size:1.45rem">Support</h2>
 ${r.support.email ? `<p>Email <a href="mailto:${esc(r.support.email)}">${esc(r.support.email)}</a>.</p>` : '<p>Support contact details will be posted here before the cohort begins.</p>'}
 ${r.support.note ? SO.paras(r.support.note) : ''}
+<p><a class="btn btn-secondary btn-sm" href="${B}/app/help">Ask for help</a></p>
 <p class="small">${link('/login/help', 'Trouble signing in?')}</p></section>`;
   }
 
@@ -1338,6 +1386,76 @@ ${!others.length ? '<p class="empty" style="margin-top:1rem">No one else has int
       catch (ex) { err.textContent = ex.message; }
     });
     return mine ? 'Edit introduction' : 'Introduce yourself';
+  }
+
+  // ============================================================ Status
+  async function viewStatus(main) {
+    const a = await SO.api('GET', 'application');
+    const tz = SO.viewerTz();
+    const pay = a.payment ? `<section class="card"><h2 style="font-size:1.35rem;margin-top:0">Payment</h2>
+<p style="margin:0">${SO.money(a.payment.amount_cents || 0)} paid ${a.payment.paid_at ? esc(SO.fmtDateTime(a.payment.paid_at, tz, { weekday: false })) : ''}</p>
+${a.payment.receipt_url ? `<p style="margin:.4rem 0 0"><a href="${esc(a.payment.receipt_url)}" target="_blank" rel="noopener">View your receipt</a></p>` : '<p class="small muted" style="margin:.4rem 0 0">Your receipt was emailed by Stripe.</p>'}</section>` : '';
+    const answers = a.intake ? `<details class="more card" style="margin-top:1rem"><summary>Your fit check answers</summary>
+<dl class="kv">${a.intake.answers.filter(x => x.answer).map(x => `<dt>${esc(x.question)}</dt><dd style="white-space:pre-wrap">${esc(x.answer)}</dd>`).join('')}</dl>
+<p class="small muted">These are private to you and our team. They’re never shown to other members.</p></details>` : '';
+    let head;
+    if (a.review_state === 'rejected') {
+      const r = a.refund;
+      const refundLine = !r ? 'No payment needed refunding.'
+        : r.status === 'succeeded' || r.status === 'pending' ? `We’ve initiated a full refund of ${SO.money(r.amount_cents || 0)} to your original payment method.`
+        : `Your full refund of ${SO.money(r.amount_cents || 0)} is being processed. We’ll email you when it’s on its way; you don’t need to do anything.`;
+      head = `<h1>Your enrollment wasn’t approved</h1><p>Thank you for your interest in Smooth Operators. After reviewing your fit check, we decided this cohort isn’t the right match for where your business is right now.</p>
+<div class="notice"><p><strong>Refund:</strong> ${esc(refundLine)}</p></div>`;
+    } else {
+      head = `<h1>Your enrollment is under review</h1>
+<p>Thank you for enrolling. Our team reviews every fit check ${esc(a.review_turnaround)}. We’ll email you as soon as there’s a decision.</p>
+<div class="notice"><p>${esc(a.refund_policy || '')}</p></div>`;
+    }
+    main.innerHTML = `<div class="stack">${head}${pay}${answers}
+<section class="card"><h2 style="font-size:1.35rem;margin-top:0">Questions?</h2><p>Ask about your application, payment or account and we’ll reply here.</p>
+<a class="btn btn-secondary btn-sm" href="${B}/app/help">Ask for help</a></section></div>`;
+    return 'My enrollment';
+  }
+
+  // ============================================================ Help
+  async function viewHelp(main) {
+    const r = await SO.api('GET', 'help/threads');
+    main.innerHTML = `<div class="page-head"><h1>Ask for help</h1><p>Questions about the program, your account, billing or resources. We reply here and email you a link.</p>
+<p class="small muted">For a business challenge you’d like to bring to a live call, use Solutions Seat instead.</p></div>
+<form id="ask" class="card" novalidate>
+  <div class="field"><label for="h-cat">Topic</label><select id="h-cat">${r.categories.map(c => `<option value="${c.key}">${esc(c.label)}</option>`).join('')}</select></div>
+  <div class="field"><label for="h-sub">Subject</label><input id="h-sub" type="text" maxlength="140"></div>
+  <div class="field"><label for="h-body">Your question</label><textarea id="h-body" maxlength="5000"></textarea></div>
+  <p class="form-error" id="h-err" role="alert"></p><button class="btn btn-primary" type="submit">Send</button>
+</form>
+<h2 style="font-size:1.5rem;margin-top:2rem">Your questions</h2>
+${r.threads.length ? `<div class="card" style="padding:.4rem 1.25rem">${r.threads.map(t => `<div class="resource-item"><div><h3><a href="${B}/app/help/${t.id}">${esc(t.subject)}</a></h3>
+<p>${t.status === 'resolved' ? 'Resolved' : t.last_author === 'staff' ? 'New reply from our team' : 'Waiting for our reply'} · ${esc(new Date(t.last_message_at).toLocaleDateString())}</p></div></div>`).join('')}</div>` : '<p class="empty">You haven’t asked anything yet.</p>'}`;
+    q('#ask', main).addEventListener('submit', async e => {
+      e.preventDefault();
+      const err = q('#h-err', main);
+      const body = { category: q('#h-cat', main).value, subject: q('#h-sub', main).value.trim(), body: q('#h-body', main).value.trim() };
+      if (!body.subject || !body.body) { err.textContent = 'Add a subject and your question.'; return; }
+      try { const t = await SO.api('POST', 'help/threads', body); navigate(`${B}/app/help/${t.thread.id}`); } catch (ex) { err.textContent = ex.message; }
+    });
+    return 'Ask for help';
+  }
+
+  async function viewThread(main, [id]) {
+    const r = await SO.api('GET', `help/threads/${id}`);
+    main.innerHTML = `<a class="back-link" href="${B}/app/help">All questions</a>
+<div class="page-head"><h1>${esc(r.thread.subject)}</h1><p>${esc(r.thread.category_label)} · ${r.thread.status === 'resolved' ? 'Resolved' : 'Open'}</p></div>
+<div class="stack">${r.messages.map(m => `<article class="card"><p class="small muted" style="margin:0 0 .4rem">${m.author_type === 'staff' ? 'Smooth Operators team' : 'You'} · ${esc(new Date(m.created_at).toLocaleString())}</p>
+<div style="white-space:pre-wrap">${esc(m.body)}</div></article>`).join('')}</div>
+<form id="rep" class="card" style="margin-top:1rem" novalidate><div class="field"><label for="r-body">Reply</label><textarea id="r-body" maxlength="5000" style="min-height:6rem"></textarea></div>
+<p class="form-error" id="r-err" role="alert"></p><button class="btn btn-primary" type="submit">Send reply</button></form>`;
+    q('#rep', main).addEventListener('submit', async e => {
+      e.preventDefault();
+      const body = q('#r-body', main).value.trim();
+      if (!body) { q('#r-err', main).textContent = 'Write your reply first.'; return; }
+      try { await SO.api('POST', `help/threads/${id}/messages`, { body }); render(); } catch (ex) { q('#r-err', main).textContent = ex.message; }
+    });
+    return r.thread.subject;
   }
 
   // ============================================================ Account

@@ -74,13 +74,27 @@ test('founder pays, gets verified access and saves a private reflection', async 
   await expect(page.locator('#amount')).toHaveText('99900');
   await page.locator('#pay').click();
 
-  await expect(page.getByRole('heading', { name: 'You’re in.' })).toBeVisible({ timeout: 15000 });
-  await page.getByRole('link', { name: 'Open My Cohort' }).click();
+  await expect(page.getByRole('heading', { name: 'Payment confirmed' })).toBeVisible({ timeout: 15000 });
+  await page.getByRole('link', { name: 'See my enrollment status' }).click();
+
+  // Under review: status, receipt and help only. Cohort pages redirect here.
+  await expect(page.getByRole('heading', { name: 'Your enrollment is under review' })).toBeVisible();
+  await expect(page.getByText(/within 3 business days/)).toBeVisible();
+  expect(await axe(page)).toEqual([]);
+  await page.goto(`${base()}/smoothoperators/app/calendar`);
+  await expect(page.getByRole('heading', { name: 'Your enrollment is under review' })).toBeVisible();
+  await page.goto(`${base()}/smoothoperators`);
+  await expect(page.locator('#hero-cta')).toHaveText('My enrollment');
+
+  // Omi approves.
+  await sql`update so_enrollments set review_state = 'approved', reviewed_at = now(), reviewed_by = 'e2e'
+            where user_id = (select user_id from so_profiles where email = ${email})`;
+  await page.goto(`${base()}/smoothoperators/app`);
 
   await expect(page.getByRole('heading', { name: 'You’re in. Let’s build what comes next.' })).toBeVisible();
   await expect(page.getByText('You know how to generate business. We’ll help you build the operations to handle what comes next.')).toBeVisible();
   await expect(page.getByText(/Meet your cohort starting December 1/)).toBeVisible();
-  await expect(page.getByText('Your fit check is with our team.')).toBeVisible();
+  await expect(page.getByText('You’re approved.')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Introduce Yourself' })).toHaveCount(0);
   await expect(page.locator('[data-countdown]')).toBeVisible();
   expect(await axe(page)).toEqual([]);

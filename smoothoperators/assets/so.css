@@ -371,3 +371,46 @@ dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: .35rem 1rem;
 dl.kv dt { color: var(--muted); }
 dl.kv dd { margin: 0; }
 @media (max-width: 560px) { dl.kv { grid-template-columns: 1fr; } dl.kv dt { margin-top: .4rem; } }
+
+.limited-nav { display: flex; flex-wrap: wrap; gap: .25rem 1rem; align-items: center; font-weight: 500; }
+.limited-nav a { text-decoration: none; padding: .5rem 0; }
+.limited-nav a[aria-current="page"] { text-decoration: underline; text-underline-offset: 6px; }
+
+/* ---------------------------------------------------------- admin workspace */
+.admin-subnav { display: flex; gap: .25rem; overflow-x: auto; padding: .4rem 16px; border-bottom: 1px solid var(--line); background: var(--card); }
+.admin-subnav a { padding: .45rem .75rem; border-radius: 8px; text-decoration: none; white-space: nowrap; font-size: .93rem; color: var(--muted); }
+.admin-subnav a[aria-current="page"] { background: var(--plum-100); color: var(--plum-900); font-weight: 500; }
+.grid-4 { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13.5rem), 1fr)); }
+.stat-card { display: block; text-decoration: none; color: var(--text); }
+.stat-card:hover { border-color: var(--plum-700); color: var(--text); }
+.attention { list-style: none; padding: 0; margin: 1rem 0; display: grid; gap: .5rem; }
+.attention a { display: flex; justify-content: space-between; gap: 1rem; align-items: center; padding: .85rem 1rem; border: 1px solid var(--line); border-left: 4px solid var(--copper-400); border-radius: var(--radius-sm); background: var(--card); text-decoration: none; color: var(--text); }
+.attention li.high a { border-left-color: var(--rose-600); }
+.attention a:hover { border-color: var(--plum-700); }
+.member-cards { list-style: none; padding: 0; margin: 0; display: none; gap: .75rem; }
+@media (max-width: 760px) { .member-table { display: none; } .member-cards { display: grid; } }
+dialog.slide-over { margin: 0 0 0 auto; height: 100vh; max-height: 100vh; width: min(720px, 100vw); max-width: 100vw; border-radius: 0; }
+dialog.slide-over .dialog-inner { max-height: none; min-height: 100%; padding-bottom: 0; }
+@media (max-width: 760px) { dialog.slide-over { width: 100vw; } }
+.member-card section { border-top: 1px solid var(--line); padding: 1rem 0; }
+.member-card h3 { font-size: 1.25rem; margin: 0 0 .5rem; }
+.mc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding-bottom: 1rem; }
+.mc-footer { position: sticky; bottom: 0; background: var(--ivory); border-top: 1px solid var(--line-strong); padding: .9rem 0 1.1rem; margin-top: 1rem; }
+.confirm-panel { margin: 1rem 0; border-color: var(--line-strong); }
+.email-preview { white-space: pre-wrap; font-family: var(--sans); font-size: .93rem; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: .9rem; max-height: 18rem; overflow: auto; }
+.history, .timeline { padding-left: 1.1rem; margin: 0; }
+.history li, .timeline li { margin: .35rem 0; }
+.email-status { font-weight: 500; }
+.st-failed, .st-bounced, .st-complained { color: var(--danger); }
+.st-delivered { color: var(--success); }
+.st-skipped { color: var(--copper-700); }
+.internal-note { background: var(--warn-bg); border-color: #EBD3A8; }
+.sales-chart { width: 100%; height: 160px; }
+.sales-chart rect { fill: var(--plum-700); }
+.sales-chart line { stroke: var(--line-strong); }
+.day-bars { display: grid; grid-template-columns: repeat(21, 1fr); gap: 4px; align-items: end; height: 120px; margin: .5rem 0 1.5rem; }
+.day-bar { position: relative; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+.day-bar span { display: block; width: 100%; background: var(--plum-700); border-radius: 3px 3px 0 0; min-height: 2px; }
+.day-bar small { font-size: .7rem; color: var(--muted); margin-top: 2px; }
+@media print { .admin-top, .admin-nav, .admin-subnav, #prep-call, .field label[for="prep-call"], button { display: none !important; } .prep .card { break-inside: avoid; } }
+.member-card section.confirm-panel { padding: 1.25rem; border: 1px solid var(--line-strong); }

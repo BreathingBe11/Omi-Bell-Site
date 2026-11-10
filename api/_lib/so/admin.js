@@ -273,8 +273,8 @@ routes['GET admin/overview'] = admin(async ({ query, sql, now }) => {
 });
 
 // ---------------------------------------------------------------- days
-function dayAdminOut(d, links) {
-  return { ...d, links: links || [] };
+function dayAdminOut(d, links, tz) {
+  return { ...d, links: links || [], publish_local: tz ? localStr(d.publish_at, tz) : null };
 }
 
 routes['GET admin/days'] = admin(async ({ query, sql }) => {
@@ -289,7 +289,7 @@ routes['GET admin/days/:n'] = admin(async ({ query, sql, params }) => {
   const c = await cohortFor(sql, query);
   const d = await member.dayByNumber(sql, c, params.n);
   const links = await sql`select dr.*, r.title, r.kind from so_day_resources dr join so_resources r on r.id = dr.resource_id where dr.day_id = ${d.id} order by dr.sort`;
-  return { day: dayAdminOut(d, links) };
+  return { day: dayAdminOut(d, links, c.timezone) };
 });
 
 routes['PUT admin/days/:n'] = admin(async ({ query, sql, req, params, admin: who }) => {
@@ -306,6 +306,7 @@ routes['PUT admin/days/:n'] = admin(async ({ query, sql, req, params, admin: who
     action_body: H.text(b.action_body ?? d.action_body, { max: 4000, field: 'Action', multiline: true }) || null,
   };
   const previewPublished = b.preview_published === undefined ? d.preview_published : b.preview_published === true;
+  const publishAt = b.publish_local !== undefined ? fromLocal(b.publish_local, c.timezone, 'Scheduled publish time') : d.publish_at;
   const isSample = b.is_sample === undefined ? d.is_sample : b.is_sample === true;
   const status = b.status === undefined ? d.status : H.oneOf(b.status, ['draft', 'published'], 'Status');
   if (status === 'published') {
@@ -320,7 +321,7 @@ routes['PUT admin/days/:n'] = admin(async ({ query, sql, req, params, admin: who
       update so_days set title = ${v.title}, preview_summary = ${v.preview_summary}, purpose = ${v.purpose}, content = ${v.content},
         reflection_prompt = ${v.reflection_prompt}, prompt_version = prompt_version + ${promptChanged ? 1 : 0},
         action_title = ${v.action_title}, action_body = ${v.action_body}, preview_published = ${previewPublished},
-        is_sample = ${isSample}, status = ${status},
+        is_sample = ${isSample}, status = ${status}, publish_at = ${publishAt},
         published_at = case when ${status} = 'published' then coalesce(published_at, now()) else null end,
         updated_at = now()
       where id = ${d.id} returning *`;
@@ -345,7 +346,7 @@ routes['PUT admin/days/:n'] = admin(async ({ query, sql, req, params, admin: who
       { status: d.status, prompt_version: d.prompt_version }, { status: updated.status, prompt_version: updated.prompt_version });
   }
   const links = await sql`select dr.*, r.title, r.kind from so_day_resources dr join so_resources r on r.id = dr.resource_id where dr.day_id = ${d.id} order by dr.sort`;
-  return { day: dayAdminOut(updated, links) };
+  return { day: dayAdminOut(updated, links, c.timezone) };
 });
 
 // ----------------------------------------------------------- resources
