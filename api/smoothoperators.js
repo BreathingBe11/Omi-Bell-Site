@@ -25,8 +25,12 @@ function register(routes) {
 register(require('./_lib/so/member').routes);
 register(require('./_lib/so/payments').routes);
 register(require('./_lib/so/intake').routes);
+register(require('./_lib/so/workspace').routes);
+register(require('./_lib/so/support').routes);
 register(require('./_lib/so/admin').routes);
 register(require('./_lib/so/pages').routes);
+// Fixed paths win over parameterized ones (e.g. admin/members/export vs admin/members/:id).
+table.sort((a, b) => a.names.length - b.names.length);
 
 function routeOf(req) {
   let r = req.query && req.query.route;

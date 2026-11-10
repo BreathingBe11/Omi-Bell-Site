@@ -366,6 +366,178 @@ create table if not exists so_intakes (
   unique (user_id, cohort_id)
 );
 
+-- ------------------------------------------- v3: admin workspace (review, refunds, email, support)
+-- Staff roles. owner: everything; admin: everything except staff management;
+-- support: members, questions and challenges, but no decisions, refunds, finance or settings.
+alter table so_profiles drop constraint if exists so_profiles_role_check;
+alter table so_profiles add constraint so_profiles_role_check check (role in ('member', 'support', 'admin', 'owner'));
+
+-- Shown to buyers before payment and while their enrollment is under review.
+alter table so_cohorts add column if not exists review_turnaround text not null default 'within 3 business days, and always before the cohort begins';
+alter table so_cohorts add column if not exists send_refund_completed_email boolean not null default false;
+
+-- Review states: awaiting_submission is derived; stored states are pending / approved / rejected.
+update so_enrollments set review_state = 'rejected' where review_state = 'not_a_fit';
+alter table so_enrollments drop constraint if exists so_enrollments_review_state_check;
+alter table so_enrollments add constraint so_enrollments_review_state_check check (review_state in ('pending', 'approved', 'rejected'));
+alter table so_enrollments add column if not exists review_version int not null default 0;  -- concurrency guard for decisions
+
+-- Applications: drafts are saved; only explicit, validated submissions enter review.
+alter table so_intakes add column if not exists status text not null default 'submitted';
+alter table so_intakes add column if not exists submitted_at timestamptz;
+alter table so_intakes add column if not exists version int not null default 1;
+alter table so_intakes add column if not exists policy_version text;
+alter table so_intakes add column if not exists policy_text text;
+update so_intakes set submitted_at = coalesce(submitted_at, created_at) where status = 'submitted';
+do $$ declare c text; begin
+  foreach c in array array['first_name','last_name','business_name','phone','address_line1','city','state','postal_code',
+    'business_stage','revenue_to_date','years_in_business','prior_ops_work','has_full_time_staff','team_size','ops_questions','policy_ack_at']
+  loop execute format('alter table so_intakes alter column %I drop not null', c); end loop;
+end $$;
+alter table so_intakes drop constraint if exists so_intakes_status_check;
+alter table so_intakes add constraint so_intakes_status_check check (status in ('draft', 'submitted'));
+
+create table if not exists so_intake_versions (
+  id              uuid primary key default gen_random_uuid(),
+  intake_id       uuid not null references so_intakes(id) on delete cascade,
+  user_id         uuid not null references auth.users(id) on delete cascade,
+  cohort_id       uuid not null references so_cohorts(id) on delete cascade,
+  version         int  not null,
+  data            jsonb not null,
+  policy_version  text,
+  submitted_at    timestamptz not null default now(),
+  unique (intake_id, version)
+);
+
+create table if not exists so_review_decisions (
+  id              uuid primary key default gen_random_uuid(),
+  enrollment_id   uuid not null references so_enrollments(id) on delete cascade,
+  decision        text not null check (decision in ('approved', 'rejected', 'reopened')),
+  intake_version  int,
+  actor           text not null,
+  member_message  text,           -- shown to the member in the decision email
+  internal_note   text,           -- never sent to the member
+  created_at      timestamptz not null default now()
+);
+
+alter table so_purchases add column if not exists stripe_charge_id text;
+alter table so_purchases add column if not exists receipt_url text;
+alter table so_purchases add column if not exists tax_cents int;
+alter table so_purchases add column if not exists fee_cents int;
+alter table so_purchases add column if not exists refunded_cents int not null default 0;
+
+create table if not exists so_refund_attempts (
+  id               uuid primary key default gen_random_uuid(),
+  purchase_id      uuid not null references so_purchases(id) on delete restrict,
+  enrollment_id    uuid references so_enrollments(id) on delete set null,
+  amount_cents     int,
+  currency         text not null default 'usd',
+  status           text not null default 'queued' check (status in ('queued', 'pending', 'succeeded', 'failed', 'requires_action', 'canceled')),
+  stripe_refund_id text unique,
+  idempotency_key  text not null unique,
+  failure_reason   text,
+  needs_attention  boolean not null default false,
+  source           text not null default 'review' check (source in ('review', 'external')),
+  actor            text,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+-- One live refund attempt per purchase: duplicates are impossible.
+create unique index if not exists so_refund_attempts_one_live on so_refund_attempts (purchase_id)
+  where status in ('queued', 'pending', 'succeeded', 'requires_action') and source = 'review';
+
+create table if not exists so_email_templates (
+  key         text primary key,
+  subject     text not null,
+  body        text not null,
+  version     int  not null default 1,
+  enabled     boolean not null default true,
+  updated_at  timestamptz not null default now(),
+  updated_by  text
+);
+create table if not exists so_email_template_versions (
+  key         text not null,
+  version     int  not null,
+  subject     text not null,
+  body        text not null,
+  created_at  timestamptz not null default now(),
+  created_by  text,
+  primary key (key, version)
+);
+
+create table if not exists so_email_outbox (
+  id                uuid primary key default gen_random_uuid(),
+  dedupe_key        text not null unique,
+  template_key      text not null,
+  template_version  int,
+  category          text not null default 'transactional' check (category in ('transactional', 'optional', 'test')),
+  user_id           uuid,
+  cohort_id         uuid,
+  to_email          text not null,
+  subject           text not null,
+  body_text         text not null,
+  edited            boolean not null default false,
+  related_type      text,
+  related_id        text,
+  status            text not null default 'queued' check (status in ('queued', 'sending', 'submitted', 'delivered', 'bounced', 'complained', 'failed', 'skipped')),
+  provider_id       text,
+  attempts          int not null default 0,
+  last_error        text,
+  resend_of         uuid references so_email_outbox(id),
+  actor             text,
+  created_at        timestamptz not null default now(),
+  submitted_at      timestamptz,
+  delivered_at      timestamptz,
+  updated_at        timestamptz not null default now()
+);
+create index if not exists so_email_outbox_user_idx on so_email_outbox (user_id, created_at);
+create index if not exists so_email_outbox_status_idx on so_email_outbox (status);
+
+create table if not exists so_support_threads (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid not null references auth.users(id) on delete cascade,
+  cohort_id     uuid references so_cohorts(id) on delete cascade,
+  category      text not null check (category in ('program', 'account_access', 'billing_refund', 'resources', 'application', 'other')),
+  subject       text not null,
+  status        text not null default 'new' check (status in ('new', 'in_progress', 'resolved')),
+  last_message_at timestamptz not null default now(),
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+create table if not exists so_support_messages (
+  id          uuid primary key default gen_random_uuid(),
+  thread_id   uuid not null references so_support_threads(id) on delete cascade,
+  author_type text not null check (author_type in ('member', 'staff')),
+  author      text,
+  internal    boolean not null default false,   -- staff-only note, never shown or emailed to the member
+  body        text not null check (char_length(body) between 1 and 5000),
+  created_at  timestamptz not null default now()
+);
+
+create table if not exists so_admin_notes (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  cohort_id   uuid references so_cohorts(id) on delete cascade,
+  author      text not null,
+  body        text not null check (char_length(body) between 1 and 4000),
+  created_at  timestamptz not null default now()
+);
+
+-- Solutions Seat challenge details and facilitator workflow.
+alter table so_call_challenges add column if not exists working_on text;
+alter table so_call_challenges add column if not exists stuck_on text;
+alter table so_call_challenges add column if not exists help_wanted text;
+alter table so_call_challenges add column if not exists share_permission boolean;
+alter table so_call_challenges add column if not exists facilitator_note text;
+alter table so_call_challenges alter column body drop not null;
+alter table so_call_challenges drop constraint if exists so_call_challenges_body_check;
+update so_call_challenges set status = case status when 'reviewed' then 'selected' when 'archived' then 'follow_up' else status end;
+alter table so_call_challenges drop constraint if exists so_call_challenges_status_check;
+alter table so_call_challenges add constraint so_call_challenges_status_check check (status in ('submitted', 'selected', 'discussed', 'follow_up'));
+
+-- Scheduled publication: a published day with publish_at in the future stays hidden until then.
+alter table so_days add column if not exists publish_at timestamptz;
+
 -- --------------------------------------------------------------- security
 do $$
 declare t text;
@@ -374,7 +546,9 @@ begin
     'so_profiles','so_cohorts','so_weeks','so_resources','so_days','so_day_resources',
     'so_purchases','so_enrollments','so_journal_entries','so_day_progress','so_playback',
     'so_introductions','so_calls','so_call_challenges','so_faqs','so_site_content',
-    'so_webhook_events','so_admin_audit_log','so_events','so_email_log','so_rate_limits','so_intakes']
+    'so_webhook_events','so_admin_audit_log','so_events','so_email_log','so_rate_limits','so_intakes',
+    'so_intake_versions','so_review_decisions','so_refund_attempts','so_email_templates','so_email_template_versions',
+    'so_email_outbox','so_support_threads','so_support_messages','so_admin_notes']
   loop
     execute format('alter table %I enable row level security', t);
     if exists (select 1 from pg_roles where rolname = 'anon') then

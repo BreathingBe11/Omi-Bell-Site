@@ -44,6 +44,11 @@ function startMocks({ sql, webhookUrl, webhookSecret, port = 0 } = {}) {
     webhookMode: 'immediate', // 'immediate' | 'none'
     sentEvents: [],
     stripeCalls: [],
+    refunds: [],
+    emails: [],
+    refundMode: null,
+    refundStatus: null,
+    emailFail: false,
   };
   let base = '';
 
@@ -172,9 +177,31 @@ function startMocks({ sql, webhookUrl, webhookSecret, port = 0 } = {}) {
         state.stripeCalls.push({ path: p, form });
         const key = req.headers['idempotency-key'];
         if (key && state.idem.has(key)) return json(200, state.idem.get(key));
-        const r = { id: `re_${crypto.randomBytes(6).toString('hex')}`, object: 'refund', status: 'succeeded', payment_intent: form.payment_intent };
+        if (state.refundMode === 'api_error') return json(500, { error: { type: 'api_error' } });
+        if (state.refundMode === 'already') return json(400, { error: { type: 'invalid_request_error', code: 'charge_already_refunded' } });
+        const sess = [...state.sessions.values()].find(x => x.payment_intent === form.payment_intent);
+        const r = { id: `re_${crypto.randomBytes(6).toString('hex')}`, object: 'refund', status: state.refundStatus || 'succeeded',
+          payment_intent: form.payment_intent, amount: sess ? sess.amount_total : 0, currency: 'usd',
+          metadata: { so_refund_attempt: form['metadata[so_refund_attempt]'], so_purchase: form['metadata[so_purchase]'] } };
+        state.refunds.push(r);
         if (key) state.idem.set(key, r);
+        if (state.refundMode === 'lost') return json(502, { error: { type: 'api_error' } }); // refund made, response lost
         return json(200, r);
+      }
+      if (p === '/v1/refunds' && req.method === 'GET') {
+        return json(200, { object: 'list', data: state.refunds.filter(r => r.payment_intent === url.searchParams.get('payment_intent')) });
+      }
+      if ((m = /^\/v1\/payment_intents\/([^/]+)$/.exec(p)) && req.method === 'GET') {
+        return json(200, { id: m[1], object: 'payment_intent', latest_charge: { id: `ch_${m[1].slice(3)}`, receipt_url: `https://pay.stripe.com/receipts/${m[1]}`,
+          balance_transaction: { id: 'txn_1', fee: 2927 } } });
+      }
+      // ---------------- Resend
+      if (p === '/emails' && req.method === 'POST') {
+        const b = JSON.parse((await readBody(req)).toString() || '{}');
+        if (state.emailFail) return json(500, { name: 'internal_server_error' });
+        const id = `em_${crypto.randomBytes(6).toString('hex')}`;
+        state.emails.push({ id, ...b });
+        return json(200, { id });
       }
       // Hosted "checkout" page for browser tests.
       if ((m = /^\/pay\/([^/]+)$/.exec(p)) && req.method === 'GET') {

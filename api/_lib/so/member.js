@@ -179,6 +179,7 @@ routes['GET me'] = async ({ sql, req, now }) => {
     is_admin: profile.role === 'admin',
     enrolled: !!enrollment,
     access: { active: access.active, reason: access.reason },
+    review_state: enrollment ? enrollment.review_state : null,
     test_enrollment: !!(enrollment && enrollment.is_test),
   };
 };
@@ -379,7 +380,7 @@ routes['GET resource/:id/access'] = async ({ sql, req, now, params, query }) => 
 routes['GET calls'] = async ({ sql, req, now }) => {
   const ctx = await ctxFor(sql, req, now);
   const calls = await C.loadMemberCalls(sql, ctx.cohort, now);
-  const challenges = await sql`select id, call_id, body, status, created_at from so_call_challenges
+  const challenges = await sql`select id, call_id, body, working_on, stuck_on, help_wanted, share_permission, status, created_at from so_call_challenges
                                where user_id = ${ctx.user.id} and cohort_id = ${ctx.cohort.id} order by created_at desc`;
   const content = await C.loadContent(sql);
   return {
@@ -432,7 +433,10 @@ routes['POST calls/:id/join'] = async ({ sql, req, now, params }) => {
 routes['POST challenges'] = async ({ sql, req, now }) => {
   const ctx = await ctxFor(sql, req, now);
   const b = H.body(req);
-  const text = H.text(b.body, { max: 1200, required: true, field: 'Your challenge', multiline: true });
+  const workingOn = H.text(b.working_on, { max: 800, required: true, field: 'What you’re working on', multiline: true });
+  const stuckOn = H.text(b.stuck_on, { max: 800, required: true, field: 'Where you’re stuck', multiline: true });
+  const helpWanted = H.text(b.help_wanted, { max: 800, required: true, field: 'The help or decision you want', multiline: true });
+  if (typeof b.share_permission !== 'boolean') throw new HttpError(400, 'invalid_input', 'Tell us whether we may discuss this with the cohort.');
   let callId = null;
   if (b.call_id) {
     callId = H.uuid(b.call_id, 'call');
@@ -440,8 +444,9 @@ routes['POST challenges'] = async ({ sql, req, now }) => {
     if (!ok) throw new HttpError(404, 'not_found', 'That call is not available.');
   }
   await H.rateLimit(sql, `challenge:${ctx.user.id}`, 10, 3600);
-  const rows = await sql`insert into so_call_challenges (cohort_id, call_id, user_id, body)
-                         values (${ctx.cohort.id}, ${callId}, ${ctx.user.id}, ${text}) returning id, call_id, body, status, created_at`;
+  const rows = await sql`insert into so_call_challenges (cohort_id, call_id, user_id, working_on, stuck_on, help_wanted, share_permission)
+                         values (${ctx.cohort.id}, ${callId}, ${ctx.user.id}, ${workingOn}, ${stuckOn}, ${helpWanted}, ${b.share_permission})
+                         returning id, call_id, working_on, stuck_on, help_wanted, share_permission, status, created_at`;
   return { challenge: rows[0] };
 };
 
@@ -478,7 +483,7 @@ routes['GET introductions'] = async ({ sql, req, now }) => {
   // Only introductions from members of THIS cohort with active access.
   const rows = await sql`
     select i.* from so_introductions i
-    join so_enrollments e on e.user_id = i.user_id and e.cohort_id = i.cohort_id and e.access_state = 'active'
+    join so_enrollments e on e.user_id = i.user_id and e.cohort_id = i.cohort_id and e.access_state = 'active' and e.review_state = 'approved'
     where i.cohort_id = ${ctx.cohort.id} and (i.moderation_state = 'visible' or i.user_id = ${ctx.user.id})
     order by i.created_at`;
   const out = [];
@@ -590,6 +595,34 @@ routes['POST events'] = async ({ sql, req }) => {
   const user = await getAuthUser(req).catch(() => null);
   await C.recordEvent(sql, b.name, { userId: user ? user.id : null });
   return { ok: true };
+};
+
+// Application status for any enrolled member, whatever their review state:
+// decision, refund status, receipt and their own submitted answers. No cohort content.
+routes['GET application'] = async ({ sql, req, now }) => {
+  const user = await requireUser(req);
+  await ensureProfile(sql, user);
+  const cohort = await C.loadCohort(sql);
+  const e = await C.loadEnrollment(sql, user.id, cohort.id);
+  const intakeMod = require('./intake');
+  const intake = await intakeMod.loadIntake(sql, user.id, cohort.id);
+  const p = e && e.purchase_id ? (await sql`select * from so_purchases where id = ${e.purchase_id}`)[0] : null;
+  const refund = p ? (await sql`select status, amount_cents, updated_at from so_refund_attempts where purchase_id = ${p.id}
+                                order by created_at desc limit 1`)[0] : null;
+  const content = await C.loadContent(sql);
+  const sched = S.schedule(cohort);
+  return {
+    enrolled: !!e,
+    review_state: e ? e.review_state : null,
+    reviewed_at: e ? e.reviewed_at : null,
+    review_turnaround: cohort.review_turnaround,
+    cohort: { name: cohort.name, start_date: sched.start_date, end_date: sched.end_date, timezone: cohort.timezone },
+    intake: intake ? { status: intake.status, submitted_at: intake.submitted_at, version: intake.version, answers: intakeMod.answersOut(intake) } : null,
+    payment: p ? { amount_cents: p.amount_paid_cents, currency: p.currency, paid_at: p.paid_at, status: p.status, receipt_url: p.receipt_url, tier: p.price_tier } : null,
+    refund: refund ? { status: refund.status, amount_cents: refund.amount_cents, updated_at: refund.updated_at } : null,
+    refund_policy: content.get('purchase.refund_policy'),
+    support_email: content.isPublished('support.email') ? content.get('support.email') : null,
+  };
 };
 
 module.exports = { routes, buildDay, calendarDays, homePayload, dayByNumber };

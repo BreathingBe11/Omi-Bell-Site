@@ -69,14 +69,29 @@ async function ensureProfile(sql, user) {
   return (await sql`select * from so_profiles where user_id = ${user.id}`)[0];
 }
 
-async function requireAdmin(req, sql) {
-  if (verifyAdminToken(req)) return { actor: 'site-admin' };
-  const user = await getAuthUser(req);
-  if (user) {
-    const p = (await sql`select role from so_profiles where user_id = ${user.id}`)[0];
-    if (p && p.role === 'admin') return { actor: user.email, userId: user.id };
+// Least privilege. 'support' can read members and handle questions/challenges,
+// but cannot make review decisions, refund, see finance/exports, or change settings.
+const PERMS = {
+  owner: ['view', 'support', 'decide', 'finance', 'settings', 'staff'],
+  admin: ['view', 'support', 'decide', 'finance', 'settings'],
+  support: ['view', 'support'],
+};
+
+async function requireAdmin(req, sql, perm = 'settings') {
+  let who = null;
+  // The omibell.com admin password login is the owner.
+  if (verifyAdminToken(req)) who = { actor: 'site-admin', role: 'owner' };
+  else {
+    const user = await getAuthUser(req);
+    if (user) {
+      const p = (await sql`select role from so_profiles where user_id = ${user.id}`)[0];
+      if (p && PERMS[p.role]) who = { actor: user.email, userId: user.id, role: p.role };
+    }
   }
-  throw new HttpError(403, 'forbidden', 'Admin access required.');
+  if (!who) throw new HttpError(403, 'forbidden', 'Admin access required.');
+  if (!PERMS[who.role].includes(perm)) throw new HttpError(403, 'forbidden', 'Your staff role doesn’t include this.');
+  who.perms = PERMS[who.role];
+  return who;
 }
 
-module.exports = { getAuthUser, requireUser, ensureProfile, requireAdmin, _cache: cache };
+module.exports = { getAuthUser, requireUser, ensureProfile, requireAdmin, PERMS, _cache: cache };

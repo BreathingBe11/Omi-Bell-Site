@@ -51,6 +51,12 @@ async function memberContext(sql, user, now, { requireAccess = true } = {}) {
       access.reason === 'not_enrolled' ? 'This area is for enrolled members.' : 'Your access to this cohort is not active.',
       { reason: access.reason });
   }
+  // Paid but not yet approved (or not approved): application status only, never cohort content.
+  if (requireAccess && enrollment.review_state !== 'approved') {
+    throw new HttpError(403, 'not_approved',
+      enrollment.review_state === 'rejected' ? 'This enrollment was not approved.' : 'Your enrollment is under review.',
+      { reason: enrollment.review_state === 'rejected' ? 'rejected' : 'under_review' });
+  }
   return { cohort, enrollment, access, user, now };
 }
 

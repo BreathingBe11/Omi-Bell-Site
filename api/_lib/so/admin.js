@@ -14,12 +14,18 @@ const { requireAdmin } = require('./identity');
 const { SITE_CONTENT, SITE_CONTENT_KEYS } = require('./content');
 const member = require('./member');
 const payments = require('./payments');
-const intake = require('./intake');
-const { sendTransactional, approvalEmail } = require('./email');
 
 const { HttpError } = H;
 const routes = {};
-const admin = fn => async ctx => { ctx.admin = await requireAdmin(ctx.req, ctx.sql); return fn(ctx); };
+const admin = (fn, perm = 'settings') => async ctx => { ctx.admin = await requireAdmin(ctx.req, ctx.sql, perm); return fn(ctx); };
+// Shared cohort selector (?cohort=<id>); defaults to the active cohort.
+async function cohortFor(sql, query) {
+  if (query && query.cohort && /^[0-9a-f-]{36}$/i.test(query.cohort)) {
+    const c = (await sql`select * from so_cohorts where id = ${query.cohort}`)[0];
+    if (c) return c;
+  }
+  return C.loadCohort(sql);
+}
 
 const iso = d => (d ? new Date(d).toISOString() : null);
 function localStr(d, tz) {
@@ -51,6 +57,7 @@ function cohortOut(c) {
     access_policy: c.access_policy, access_ends_at: iso(c.access_ends_at), access_ends_local: localStr(c.access_ends_at, tz),
     refund_access_action: c.refund_access_action, dispute_access_action: c.dispute_access_action,
     call_join_window_minutes: c.call_join_window_minutes, sales_enabled: c.sales_enabled, seat_limit: c.seat_limit,
+    review_turnaround: c.review_turnaround, send_refund_completed_email: c.send_refund_completed_email,
     settings_confirmed_at: iso(c.settings_confirmed_at), settings_confirmed_by: c.settings_confirmed_by,
     schedule: {
       starts_at: sched.starts_at.toISOString(), ends_at: sched.ends_at.toISOString(),
@@ -60,7 +67,7 @@ function cohortOut(c) {
 }
 
 const TIMING_FIELDS = ['start_date', 'timezone', 'unlock_time', 'intro_opens_at', 'enrollment_opens_at', 'enrollment_closes_at',
-  'regular_price_cents', 'intro_price_cents', 'price_cutoff_at', 'checkout_ttl_minutes', 'access_policy', 'access_ends_at', 'days_count', 'seat_limit'];
+  'regular_price_cents', 'intro_price_cents', 'price_cutoff_at', 'checkout_ttl_minutes', 'access_policy', 'access_ends_at', 'days_count', 'seat_limit', 'review_turnaround'];
 
 function parseCohortChanges(current, b) {
   const tz = b.timezone !== undefined ? H.text(b.timezone, { max: 64, field: 'Timezone' }) : current.timezone;
@@ -98,6 +105,8 @@ function parseCohortChanges(current, b) {
   if (b.dispute_access_action !== undefined) next.dispute_access_action = H.oneOf(b.dispute_access_action, ['suspend', 'keep'], 'Dispute action');
   if (b.call_join_window_minutes !== undefined) next.call_join_window_minutes = H.int(b.call_join_window_minutes, { min: 0, max: 240, field: 'Join window' });
   if (b.sales_enabled !== undefined) next.sales_enabled = b.sales_enabled === true;
+  if (b.review_turnaround !== undefined) next.review_turnaround = H.text(b.review_turnaround, { max: 200, required: true, field: 'Review turnaround' });
+  if (b.send_refund_completed_email !== undefined) next.send_refund_completed_email = b.send_refund_completed_email === true;
   if (b.seat_limit !== undefined) next.seat_limit = H.int(b.seat_limit, { min: 1, max: 10000, field: 'Seat limit', nullable: true });
   return next;
 }
@@ -113,10 +122,10 @@ function changedTiming(a, b) {
   return TIMING_FIELDS.filter(k => norm(k, a[k]) !== norm(k, b[k]));
 }
 
-routes['GET admin/cohort'] = admin(async ({ sql }) => {
-  const c = await C.loadCohort(sql);
+routes['GET admin/cohort'] = admin(async ({ query, sql }) => {
+  const c = await cohortFor(sql, query);
   return { cohort: cohortOut(c), weeks: await C.loadWeeks(sql, c.id), stripe_mode: env.stripeMode() };
-});
+}, 'view');
 
 async function impact(sql, before, after, now) {
   const a = cohortOut(before), b = cohortOut(after);
@@ -145,14 +154,14 @@ async function impact(sql, before, after, now) {
   };
 }
 
-routes['POST admin/cohort/preview'] = admin(async ({ sql, req, now }) => {
-  const before = await C.loadCohort(sql);
+routes['POST admin/cohort/preview'] = admin(async ({ query, sql, req, now }) => {
+  const before = await cohortFor(sql, query);
   const after = parseCohortChanges(before, H.body(req));
   return { impact: await impact(sql, before, after, now), cohort: cohortOut(after) };
 });
 
-routes['PUT admin/cohort'] = admin(async ({ sql, req, admin: who, now }) => {
-  const before = await C.loadCohort(sql);
+routes['PUT admin/cohort'] = admin(async ({ query, sql, req, admin: who, now }) => {
+  const before = await cohortFor(sql, query);
   const b = H.body(req);
   const after = parseCohortChanges(before, b);
   const timing = changedTiming(before, after);
@@ -169,15 +178,16 @@ routes['PUT admin/cohort'] = admin(async ({ sql, req, admin: who, now }) => {
       checkout_ttl_minutes = ${after.checkout_ttl_minutes}, access_policy = ${after.access_policy},
       access_ends_at = ${after.access_ends_at}, refund_access_action = ${after.refund_access_action},
       dispute_access_action = ${after.dispute_access_action}, call_join_window_minutes = ${after.call_join_window_minutes},
-      sales_enabled = ${after.sales_enabled}, seat_limit = ${after.seat_limit}, settings_confirmed_at = ${confirmedAt}, settings_confirmed_by = ${confirmedBy},
+      sales_enabled = ${after.sales_enabled}, seat_limit = ${after.seat_limit},
+      review_turnaround = ${after.review_turnaround}, send_refund_completed_email = ${after.send_refund_completed_email}, settings_confirmed_at = ${confirmedAt}, settings_confirmed_by = ${confirmedBy},
       updated_at = now()
     where id = ${before.id} returning *`;
   await C.audit(sql, who.actor, 'cohort_updated', 'cohort', before.id, cohortOut(before), cohortOut(rows[0]));
   return { cohort: cohortOut(rows[0]), timing_changed: timing };
 });
 
-routes['PUT admin/weeks/:n'] = admin(async ({ sql, req, params, admin: who }) => {
-  const c = await C.loadCohort(sql);
+routes['PUT admin/weeks/:n'] = admin(async ({ query, sql, req, params, admin: who }) => {
+  const c = await cohortFor(sql, query);
   const n = H.int(params.n, { min: 1, max: 9, field: 'week' });
   const b = H.body(req);
   const pillar = H.oneOf(b.pillar, ['standards', 'systems', 'scorecards'], 'Pillar');
@@ -191,8 +201,8 @@ routes['PUT admin/weeks/:n'] = admin(async ({ sql, req, params, admin: who }) =>
 });
 
 // ------------------------------------------------------------ overview
-routes['GET admin/overview'] = admin(async ({ sql, now }) => {
-  const cohort = await C.loadCohort(sql);
+routes['GET admin/overview'] = admin(async ({ query, sql, now }) => {
+  const cohort = await cohortFor(sql, query);
   const content = await C.loadContent(sql);
   const sales = await C.salesReadiness(sql, cohort, content, now);
   const sched = S.schedule(cohort);
@@ -267,23 +277,23 @@ function dayAdminOut(d, links) {
   return { ...d, links: links || [] };
 }
 
-routes['GET admin/days'] = admin(async ({ sql }) => {
-  const c = await C.loadCohort(sql);
+routes['GET admin/days'] = admin(async ({ query, sql }) => {
+  const c = await cohortFor(sql, query);
   const days = await sql`select * from so_days where cohort_id = ${c.id} order by day_number`;
   const links = await sql`select dr.*, r.title, r.kind from so_day_resources dr join so_resources r on r.id = dr.resource_id
                           join so_days d on d.id = dr.day_id where d.cohort_id = ${c.id} order by dr.sort`;
   return { days: days.map(d => dayAdminOut(d, links.filter(l => l.day_id === d.id))) };
 });
 
-routes['GET admin/days/:n'] = admin(async ({ sql, params }) => {
-  const c = await C.loadCohort(sql);
+routes['GET admin/days/:n'] = admin(async ({ query, sql, params }) => {
+  const c = await cohortFor(sql, query);
   const d = await member.dayByNumber(sql, c, params.n);
   const links = await sql`select dr.*, r.title, r.kind from so_day_resources dr join so_resources r on r.id = dr.resource_id where dr.day_id = ${d.id} order by dr.sort`;
   return { day: dayAdminOut(d, links) };
 });
 
-routes['PUT admin/days/:n'] = admin(async ({ sql, req, params, admin: who }) => {
-  const c = await C.loadCohort(sql);
+routes['PUT admin/days/:n'] = admin(async ({ query, sql, req, params, admin: who }) => {
+  const c = await cohortFor(sql, query);
   const d = await member.dayByNumber(sql, c, params.n);
   const b = H.body(req);
   const v = {
@@ -344,8 +354,8 @@ function resourceAdminOut(r) {
   return { ...rest, has_file: !!storage_path, file_kind: C.fileKind(r) };
 }
 
-routes['GET admin/resources'] = admin(async ({ sql }) => {
-  const c = await C.loadCohort(sql);
+routes['GET admin/resources'] = admin(async ({ query, sql }) => {
+  const c = await cohortFor(sql, query);
   const all = await C.loadResourcesWithDays(sql, c.id);
   return { resources: all.map(r => ({ ...resourceAdminOut(r), links: r.links.map(l => ({ day_number: l.day_number, role: l.role })) })) };
 });
@@ -378,16 +388,16 @@ function parseResource(b, current = {}) {
   return out;
 }
 
-routes['POST admin/resources'] = admin(async ({ sql, req, admin: who }) => {
-  const c = await C.loadCohort(sql);
+routes['POST admin/resources'] = admin(async ({ query, sql, req, admin: who }) => {
+  const c = await cohortFor(sql, query);
   const v = parseResource({ ...H.body(req), status: 'draft' });
   const rows = await sql`insert into so_resources ${sql({ ...v, cohort_id: c.id })} returning *`;
   await C.audit(sql, who.actor, 'resource_created', 'resource', rows[0].id, null, { title: v.title, kind: v.kind });
   return { resource: resourceAdminOut(rows[0]) };
 });
 
-routes['PUT admin/resources/:id'] = admin(async ({ sql, req, params, admin: who }) => {
-  const c = await C.loadCohort(sql);
+routes['PUT admin/resources/:id'] = admin(async ({ query, sql, req, params, admin: who }) => {
+  const c = await cohortFor(sql, query);
   const id = H.uuid(params.id, 'resource');
   const cur = (await sql`select * from so_resources where id = ${id} and cohort_id = ${c.id}`)[0];
   if (!cur) throw new HttpError(404, 'not_found', 'Unknown resource.');
@@ -397,8 +407,8 @@ routes['PUT admin/resources/:id'] = admin(async ({ sql, req, params, admin: who 
   return { resource: resourceAdminOut(rows[0]) };
 });
 
-routes['DELETE admin/resources/:id'] = admin(async ({ sql, params, admin: who }) => {
-  const c = await C.loadCohort(sql);
+routes['DELETE admin/resources/:id'] = admin(async ({ query, sql, params, admin: who }) => {
+  const c = await cohortFor(sql, query);
   const id = H.uuid(params.id, 'resource');
   const rows = await sql`delete from so_resources where id = ${id} and cohort_id = ${c.id} returning storage_path, title`;
   if (!rows[0]) throw new HttpError(404, 'not_found', 'Unknown resource.');
@@ -409,8 +419,8 @@ routes['DELETE admin/resources/:id'] = admin(async ({ sql, params, admin: who })
 
 // Upload: the server issues a signed upload URL for a path it chooses; the
 // browser PUTs the file straight to private storage, then confirms here.
-routes['POST admin/resources/:id/upload-url'] = admin(async ({ sql, req, params }) => {
-  const c = await C.loadCohort(sql);
+routes['POST admin/resources/:id/upload-url'] = admin(async ({ query, sql, req, params }) => {
+  const c = await cohortFor(sql, query);
   const id = H.uuid(params.id, 'resource');
   const r = (await sql`select * from so_resources where id = ${id} and cohort_id = ${c.id}`)[0];
   if (!r) throw new HttpError(404, 'not_found', 'Unknown resource.');
@@ -420,8 +430,8 @@ routes['POST admin/resources/:id/upload-url'] = admin(async ({ sql, req, params 
   return { upload_url: await storage.signedUploadUrl(path), storage_path: path };
 });
 
-routes['POST admin/resources/:id/file'] = admin(async ({ sql, req, params, admin: who }) => {
-  const c = await C.loadCohort(sql);
+routes['POST admin/resources/:id/file'] = admin(async ({ query, sql, req, params, admin: who }) => {
+  const c = await cohortFor(sql, query);
   const id = H.uuid(params.id, 'resource');
   const r = (await sql`select * from so_resources where id = ${id} and cohort_id = ${c.id}`)[0];
   if (!r) throw new HttpError(404, 'not_found', 'Unknown resource.');
@@ -439,8 +449,8 @@ routes['POST admin/resources/:id/file'] = admin(async ({ sql, req, params, admin
   return { resource: resourceAdminOut(rows[0]) };
 });
 
-routes['GET admin/resources/:id/access'] = admin(async ({ sql, params }) => {
-  const c = await C.loadCohort(sql);
+routes['GET admin/resources/:id/access'] = admin(async ({ query, sql, params }) => {
+  const c = await cohortFor(sql, query);
   const id = H.uuid(params.id, 'resource');
   const r = (await sql`select * from so_resources where id = ${id} and cohort_id = ${c.id}`)[0];
   if (!r) throw new HttpError(404, 'not_found', 'Unknown resource.');
@@ -465,14 +475,14 @@ function parseCall(b, cohortTz) {
   };
 }
 
-routes['GET admin/calls'] = admin(async ({ sql }) => {
-  const c = await C.loadCohort(sql);
+routes['GET admin/calls'] = admin(async ({ query, sql }) => {
+  const c = await cohortFor(sql, query);
   const calls = await sql`select * from so_calls where cohort_id = ${c.id} order by starts_at`;
   return { calls: calls.map(x => ({ ...x, starts_local: localStr(x.starts_at, c.timezone) })), timezone: c.timezone };
-});
+}, 'view');
 
-routes['POST admin/calls'] = admin(async ({ sql, req, admin: who }) => {
-  const c = await C.loadCohort(sql);
+routes['POST admin/calls'] = admin(async ({ query, sql, req, admin: who }) => {
+  const c = await cohortFor(sql, query);
   const v = parseCall(H.body(req), c.timezone);
   if (v.replay_published && !v.replay_resource_id) throw new HttpError(400, 'invalid_input', 'Choose the replay before publishing it.');
   const rows = await sql`insert into so_calls ${sql({ ...v, cohort_id: c.id })} returning *`;
@@ -480,8 +490,8 @@ routes['POST admin/calls'] = admin(async ({ sql, req, admin: who }) => {
   return { call: rows[0] };
 });
 
-routes['PUT admin/calls/:id'] = admin(async ({ sql, req, params, admin: who }) => {
-  const c = await C.loadCohort(sql);
+routes['PUT admin/calls/:id'] = admin(async ({ query, sql, req, params, admin: who }) => {
+  const c = await cohortFor(sql, query);
   const id = H.uuid(params.id, 'call');
   const cur = (await sql`select * from so_calls where id = ${id} and cohort_id = ${c.id}`)[0];
   if (!cur) throw new HttpError(404, 'not_found', 'Unknown call.');
@@ -492,8 +502,8 @@ routes['PUT admin/calls/:id'] = admin(async ({ sql, req, params, admin: who }) =
   return { call: rows[0] };
 });
 
-routes['DELETE admin/calls/:id'] = admin(async ({ sql, params, admin: who }) => {
-  const c = await C.loadCohort(sql);
+routes['DELETE admin/calls/:id'] = admin(async ({ query, sql, params, admin: who }) => {
+  const c = await cohortFor(sql, query);
   const id = H.uuid(params.id, 'call');
   const rows = await sql`delete from so_calls where id = ${id} and cohort_id = ${c.id} returning id`;
   if (!rows[0]) throw new HttpError(404, 'not_found', 'Unknown call.');
@@ -501,26 +511,9 @@ routes['DELETE admin/calls/:id'] = admin(async ({ sql, params, admin: who }) => 
   return { ok: true };
 });
 
-routes['GET admin/challenges'] = admin(async ({ sql }) => {
-  const c = await C.loadCohort(sql);
-  const rows = await sql`select ch.id, ch.call_id, ch.body, ch.status, ch.created_at, p.email, p.display_name, i.preferred_name
-                         from so_call_challenges ch join so_profiles p on p.user_id = ch.user_id
-                         left join so_introductions i on i.user_id = ch.user_id and i.cohort_id = ch.cohort_id
-                         where ch.cohort_id = ${c.id} order by ch.created_at desc`;
-  return { challenges: rows };
-});
-
-routes['PUT admin/challenges/:id'] = admin(async ({ sql, req, params }) => {
-  const id = H.uuid(params.id, 'challenge');
-  const status = H.oneOf(H.body(req).status, ['submitted', 'reviewed', 'discussed', 'archived'], 'Status');
-  const rows = await sql`update so_call_challenges set status = ${status}, updated_at = now() where id = ${id} returning id, status`;
-  if (!rows[0]) throw new HttpError(404, 'not_found', 'Unknown challenge.');
-  return { challenge: rows[0] };
-});
-
 // ------------------------------------------------------ introductions
-routes['GET admin/introductions'] = admin(async ({ sql }) => {
-  const c = await C.loadCohort(sql);
+routes['GET admin/introductions'] = admin(async ({ query, sql }) => {
+  const c = await cohortFor(sql, query);
   const rows = await sql`select i.*, p.email from so_introductions i join so_profiles p on p.user_id = i.user_id
                          where i.cohort_id = ${c.id} order by i.created_at`;
   const out = [];
@@ -533,7 +526,7 @@ routes['GET admin/introductions'] = admin(async ({ sql }) => {
   return { introductions: out };
 });
 
-routes['PUT admin/introductions/:id'] = admin(async ({ sql, req, params, admin: who }) => {
+routes['PUT admin/introductions/:id'] = admin(async ({ query, sql, req, params, admin: who }) => {
   const id = H.uuid(params.id, 'introduction');
   const state = H.oneOf(H.body(req).moderation_state, ['visible', 'hidden'], 'Visibility');
   const rows = await sql`update so_introductions set moderation_state = ${state}, updated_at = now() where id = ${id} returning id, moderation_state`;
@@ -542,7 +535,7 @@ routes['PUT admin/introductions/:id'] = admin(async ({ sql, req, params, admin: 
   return { introduction: rows[0] };
 });
 
-routes['DELETE admin/introductions/:id'] = admin(async ({ sql, params, admin: who }) => {
+routes['DELETE admin/introductions/:id'] = admin(async ({ query, sql, params, admin: who }) => {
   const id = H.uuid(params.id, 'introduction');
   const rows = await sql`delete from so_introductions where id = ${id} returning photo_path`;
   if (!rows[0]) throw new HttpError(404, 'not_found', 'Unknown introduction.');
@@ -552,8 +545,8 @@ routes['DELETE admin/introductions/:id'] = admin(async ({ sql, params, admin: wh
 });
 
 // --------------------------------------------------- enrollments/payments
-routes['GET admin/enrollments'] = admin(async ({ sql }) => {
-  const c = await C.loadCohort(sql);
+routes['GET admin/enrollments'] = admin(async ({ query, sql }) => {
+  const c = await cohortFor(sql, query);
   // Counts only. Journal text is never selected here.
   const rows = await sql`
     select e.id, e.user_id, e.access_state, e.source, e.is_test, e.activated_at, e.access_ends_at, e.admin_note,
@@ -565,10 +558,10 @@ routes['GET admin/enrollments'] = admin(async ({ sql }) => {
     left join so_purchases pu on pu.id = e.purchase_id
     where e.cohort_id = ${c.id} order by e.activated_at desc`;
   return { enrollments: rows };
-});
+}, 'finance');
 
-routes['GET admin/purchases'] = admin(async ({ sql }) => {
-  const c = await C.loadCohort(sql);
+routes['GET admin/purchases'] = admin(async ({ query, sql }) => {
+  const c = await cohortFor(sql, query);
   const rows = await sql`
     select pu.id, pu.status, pu.price_tier, pu.amount_cents, pu.amount_paid_cents, pu.currency, pu.quoted_at, pu.expires_at,
            pu.paid_at, pu.refunded_at, pu.livemode, pu.needs_review, pu.created_at,
@@ -576,9 +569,9 @@ routes['GET admin/purchases'] = admin(async ({ sql }) => {
     from so_purchases pu join so_profiles p on p.user_id = pu.user_id
     where pu.cohort_id = ${c.id} order by pu.created_at desc limit 500`;
   return { purchases: rows };
-});
+}, 'finance');
 
-routes['POST admin/purchases/:id/reconcile'] = admin(async ({ sql, params, admin: who }) => {
+routes['POST admin/purchases/:id/reconcile'] = admin(async ({ query, sql, params, admin: who }) => {
   const id = H.uuid(params.id, 'purchase');
   const p = (await sql`select * from so_purchases where id = ${id}`)[0];
   if (!p) throw new HttpError(404, 'not_found', 'Unknown purchase.');
@@ -588,10 +581,10 @@ routes['POST admin/purchases/:id/reconcile'] = admin(async ({ sql, params, admin
   const after = (await sql`select status from so_purchases where id = ${id}`)[0];
   await C.audit(sql, who.actor, 'purchase_reconciled', 'purchase', id, { status: p.status }, { status: after.status });
   return { status: after.status, provider: { status: session.status, payment_status: session.payment_status }, result: r.state || null };
-});
+}, 'finance');
 
-routes['PUT admin/enrollments/:id'] = admin(async ({ sql, req, params, admin: who }) => {
-  const c = await C.loadCohort(sql);
+routes['PUT admin/enrollments/:id'] = admin(async ({ query, sql, req, params, admin: who }) => {
+  const c = await cohortFor(sql, query);
   const id = H.uuid(params.id, 'enrollment');
   const cur = (await sql`select * from so_enrollments where id = ${id} and cohort_id = ${c.id}`)[0];
   if (!cur) throw new HttpError(404, 'not_found', 'Unknown enrollment.');
@@ -606,8 +599,8 @@ routes['PUT admin/enrollments/:id'] = admin(async ({ sql, req, params, admin: wh
   return { enrollment: rows[0] };
 });
 
-routes['POST admin/enrollments/manual'] = admin(async ({ sql, req, admin: who }) => {
-  const c = await C.loadCohort(sql);
+routes['POST admin/enrollments/manual'] = admin(async ({ query, sql, req, admin: who }) => {
+  const c = await cohortFor(sql, query);
   const b = H.body(req);
   const email = H.text(b.email, { max: 200, required: true, field: 'Email' }).toLowerCase();
   const note = H.text(b.note, { max: 500, required: true, field: 'Reason', multiline: true });
@@ -624,7 +617,7 @@ routes['POST admin/enrollments/manual'] = admin(async ({ sql, req, admin: who })
 });
 
 // -------------------------------------------------------- site content
-routes['GET admin/content'] = admin(async ({ sql }) => {
+routes['GET admin/content'] = admin(async ({ query, sql }) => {
   const rows = await sql`select * from so_site_content`;
   const map = new Map(rows.map(r => [r.key, r]));
   return {
@@ -635,7 +628,7 @@ routes['GET admin/content'] = admin(async ({ sql }) => {
   };
 });
 
-routes['PUT admin/content/:key'] = admin(async ({ sql, req, params, admin: who }) => {
+routes['PUT admin/content/:key'] = admin(async ({ query, sql, req, params, admin: who }) => {
   const key = String(params.key);
   if (!SITE_CONTENT_KEYS.has(key)) throw new HttpError(404, 'not_found', 'Unknown content key.');
   const def = SITE_CONTENT.find(c => c.key === key);
@@ -653,7 +646,7 @@ routes['PUT admin/content/:key'] = admin(async ({ sql, req, params, admin: who }
   return { content: rows[0] };
 });
 
-routes['DELETE admin/content/:key'] = admin(async ({ sql, params, admin: who }) => {
+routes['DELETE admin/content/:key'] = admin(async ({ query, sql, params, admin: who }) => {
   const key = String(params.key);
   if (!SITE_CONTENT_KEYS.has(key)) throw new HttpError(404, 'not_found', 'Unknown content key.');
   await sql`delete from so_site_content where key = ${key}`;
@@ -673,18 +666,18 @@ function parseFaq(b) {
   if (v.status === 'published' && !v.answer) throw new HttpError(400, 'invalid_input', 'Add an approved answer before publishing.');
   return v;
 }
-routes['GET admin/faqs'] = admin(async ({ sql }) => ({ faqs: await sql`select * from so_faqs order by sort, question` }));
-routes['POST admin/faqs'] = admin(async ({ sql, req }) => {
-  const c = await C.loadCohort(sql);
+routes['GET admin/faqs'] = admin(async ({ query, sql }) => ({ faqs: await sql`select * from so_faqs order by sort, question` }));
+routes['POST admin/faqs'] = admin(async ({ query, sql, req }) => {
+  const c = await cohortFor(sql, query);
   return { faq: (await sql`insert into so_faqs ${sql({ ...parseFaq(H.body(req)), cohort_id: c.id })} returning *`)[0] };
 });
-routes['PUT admin/faqs/:id'] = admin(async ({ sql, req, params }) => {
+routes['PUT admin/faqs/:id'] = admin(async ({ query, sql, req, params }) => {
   const id = H.uuid(params.id, 'faq');
   const rows = await sql`update so_faqs set ${sql({ ...parseFaq(H.body(req)), updated_at: new Date() })} where id = ${id} returning *`;
   if (!rows[0]) throw new HttpError(404, 'not_found', 'Unknown FAQ.');
   return { faq: rows[0] };
 });
-routes['DELETE admin/faqs/:id'] = admin(async ({ sql, params }) => {
+routes['DELETE admin/faqs/:id'] = admin(async ({ query, sql, params }) => {
   const id = H.uuid(params.id, 'faq');
   await sql`delete from so_faqs where id = ${id}`;
   return { ok: true };
@@ -694,7 +687,7 @@ routes['DELETE admin/faqs/:id'] = admin(async ({ sql, params }) => {
 // Read-only lifecycle preview with a simulated clock. It builds the same
 // payloads members get, with no member data, and never writes anything.
 routes['GET admin/preview'] = admin(async ({ sql, query }) => {
-  const c = await C.loadCohort(sql);
+  const c = await cohortFor(sql, query);
   const at = H.isoDate(query.at, { field: 'Preview time' });
   const view = H.oneOf(query.view || 'home', ['home', 'calendar', 'day', 'offer'], 'View');
   const drafts = query.drafts === '1';
@@ -710,153 +703,12 @@ routes['GET admin/preview'] = admin(async ({ sql, query }) => {
   return { at: at.toISOString(), view, draft_preview: drafts && d.status !== 'published', day: out };
 });
 
-routes['GET admin/audit'] = admin(async ({ sql }) => ({
+routes['GET admin/audit'] = admin(async ({ query, sql }) => ({
   entries: await sql`select id, actor, action, entity, entity_id, before, after, created_at from so_admin_audit_log order by id desc limit 300`,
 }));
 
-routes['GET admin/webhooks'] = admin(async ({ sql }) => ({
+routes['GET admin/webhooks'] = admin(async ({ query, sql }) => ({
   events: await sql`select id, type, status, error, attempts, received_at, processed_at from so_webhook_events order by received_at desc limit 200`,
 }));
-
-// ------------------------------------------------- members & fit checks
-const INTAKE_COLS = ['first_name', 'last_name', 'business_name', 'website_url', 'no_website', 'phone', 'address_line1', 'address_line2',
-  'city', 'state', 'postal_code', 'country', 'business_stage', 'revenue_to_date', 'years_in_business', 'prior_ops_work',
-  'has_full_time_staff', 'team_size', 'ops_questions'];
-
-function intakeAdminOut(i) {
-  if (!i || !i.first_name) return null;
-  const o = Object.fromEntries(INTAKE_COLS.map(k => [k, i[k]]));
-  o.labels = {
-    business_stage: intake.label('business_stage', i.business_stage),
-    revenue_to_date: intake.label('revenue_to_date', i.revenue_to_date),
-    years_in_business: intake.label('years_in_business', i.years_in_business),
-    team_size: intake.label('team_size', i.team_size),
-  };
-  o.early_stage = intake.earlyStage(i);
-  o.submitted_at = i.intake_created_at;
-  return o;
-}
-
-async function memberRows(sql, cohortId) {
-  // Journal text is never selected here.
-  return sql`
-    select e.id, e.user_id, e.access_state, e.review_state, e.reviewed_at, e.reviewed_by, e.review_note, e.source, e.is_test,
-           e.activated_at, e.admin_note, p.email,
-           pu.status as purchase_status, pu.amount_paid_cents, pu.price_tier, pu.needs_review, pu.paid_at,
-           (select count(*)::int from so_day_progress dp where dp.user_id = e.user_id and dp.cohort_id = e.cohort_id and dp.completed_at is not null) as days_completed,
-           exists (select 1 from so_introductions x where x.user_id = e.user_id and x.cohort_id = e.cohort_id) as has_intro,
-           i.*, i.created_at as intake_created_at, e.id as id
-    from so_enrollments e join so_profiles p on p.user_id = e.user_id
-    left join so_purchases pu on pu.id = e.purchase_id
-    left join so_intakes i on i.user_id = e.user_id and i.cohort_id = e.cohort_id
-    where e.cohort_id = ${cohortId} order by e.activated_at desc`;
-}
-
-function memberOut(r) {
-  return {
-    id: r.id, email: r.email, access_state: r.access_state, review_state: r.review_state, reviewed_at: r.reviewed_at,
-    reviewed_by: r.reviewed_by, review_note: r.review_note, source: r.source, is_test: r.is_test, activated_at: r.activated_at,
-    admin_note: r.admin_note, purchase_status: r.purchase_status, amount_paid_cents: r.amount_paid_cents, price_tier: r.price_tier,
-    needs_review: r.needs_review, paid_at: r.paid_at, days_completed: r.days_completed, has_intro: r.has_intro,
-    intake: intakeAdminOut(r),
-  };
-}
-
-routes['GET admin/members'] = admin(async ({ sql, now }) => {
-  const c = await C.loadCohort(sql);
-  const members = (await memberRows(sql, c.id)).map(memberOut);
-  // Fit checks submitted by people who haven't paid (for follow-up).
-  const unpaid = await sql`
-    select i.*, i.created_at as intake_created_at, p.email,
-           (select status from so_purchases pu where pu.user_id = i.user_id and pu.cohort_id = i.cohort_id order by created_at desc limit 1) as last_checkout
-    from so_intakes i join so_profiles p on p.user_id = i.user_id
-    where i.cohort_id = ${c.id} and not exists (select 1 from so_enrollments e where e.user_id = i.user_id and e.cohort_id = i.cohort_id)
-    order by i.created_at desc`;
-  return {
-    members,
-    unpaid: unpaid.map(u => ({ email: u.email, last_checkout: u.last_checkout, intake: intakeAdminOut(u) })),
-    seats: { limit: c.seat_limit, taken: await payments.seatsTaken(sql, c, now) },
-  };
-});
-
-function csvCell(v) {
-  let s = v === null || v === undefined ? '' : typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v);
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`; // stop spreadsheet formula injection
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
-routes['GET admin/members/export'] = admin(async ({ sql, res, admin: who }) => {
-  const c = await C.loadCohort(sql);
-  const members = (await memberRows(sql, c.id)).map(memberOut);
-  const head = ['First name', 'Last name', 'Email', 'Phone', 'Business', 'Website', 'Street address', 'Address line 2', 'City', 'State',
-    'ZIP / postal code', 'Country', 'Stage', 'Revenue so far', 'Years in business', 'Done operations work before', 'Full-time staff',
-    'Team size (staff + contractors)', 'Most pressing operations questions', 'Review', 'Access', 'Payment', 'Amount paid', 'Price',
-    'Enrolled', 'Days completed', 'Introduced', 'Test enrollment'];
-  const rows = members.map(m => {
-    const i = m.intake || {};
-    const L = i.labels || {};
-    return [i.first_name, i.last_name, m.email, i.phone, i.business_name, i.no_website ? 'No website yet' : i.website_url,
-      i.address_line1, i.address_line2, i.city, i.state === intake.OUTSIDE_US ? 'Outside the US' : i.state, i.postal_code, i.country,
-      L.business_stage, L.revenue_to_date, L.years_in_business, i.prior_ops_work, i.has_full_time_staff, L.team_size, i.ops_questions,
-      m.review_state, m.access_state, m.source === 'manual' ? 'Manual grant' : m.purchase_status,
-      m.amount_paid_cents != null ? (m.amount_paid_cents / 100).toFixed(2) : '', m.price_tier,
-      m.activated_at ? new Date(m.activated_at).toISOString().slice(0, 10) : '', m.days_completed, m.has_intro, m.is_test];
-  });
-  await C.audit(sql, who.actor, 'members_exported', 'cohort', c.id, null, { rows: rows.length });
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="smooth-operators-members.csv"');
-  res.setHeader('Cache-Control', 'no-store');
-  res.statusCode = 200;
-  res.end('﻿' + [head, ...rows].map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n');
-  return H.HANDLED;
-});
-
-// Review: approve (enrollment becomes non-refundable) or mark not a fit (full refund).
-routes['POST admin/enrollments/:id/review'] = admin(async ({ sql, req, params, admin: who }) => {
-  const c = await C.loadCohort(sql);
-  const id = H.uuid(params.id, 'enrollment');
-  const b = H.body(req);
-  const decision = H.oneOf(b.decision, ['approved', 'not_a_fit', 'pending'], 'Decision');
-  const note = H.text(b.note, { max: 500, field: 'Note', multiline: true }) || null;
-  const e = (await sql`select * from so_enrollments where id = ${id} and cohort_id = ${c.id}`)[0];
-  if (!e) throw new HttpError(404, 'not_found', 'Unknown enrollment.');
-
-  if (decision === 'not_a_fit') {
-    if (e.review_state !== 'pending') throw new HttpError(409, 'already_reviewed', 'Only members still pending review can be refunded this way. Approved enrollments are non-refundable.');
-    let refund = null;
-    if (e.source === 'stripe' && e.purchase_id) {
-      const p = (await sql`select * from so_purchases where id = ${e.purchase_id}`)[0];
-      if (p && p.stripe_payment_intent_id && ['paid', 'disputed', 'partially_refunded'].includes(p.status)) {
-        const r = await stripe.createRefund({
-          payment_intent: p.stripe_payment_intent_id, reason: 'requested_by_customer',
-          metadata: { enrollment_id: e.id, reason: 'not_a_fit' },
-        }, `so-not-a-fit-${e.id}`);
-        refund = { id: r.id, status: r.status };
-        await sql`update so_purchases set needs_review = null, updated_at = now() where id = ${p.id}`;
-      }
-    }
-    // Access ends now; the member's saved writing is kept. Stripe's refund webhook updates the purchase.
-    const rows = await sql`update so_enrollments set review_state = 'not_a_fit', access_state = ${e.source === 'manual' ? 'revoked' : 'refunded'},
-                           reviewed_at = now(), reviewed_by = ${who.actor}, review_note = ${note}, updated_at = now()
-                           where id = ${id} returning *`;
-    await C.audit(sql, who.actor, 'enrollment_not_a_fit', 'enrollment', id, { review_state: e.review_state }, { refund });
-    return { enrollment: rows[0], refund };
-  }
-
-  if (decision === 'pending' && e.review_state === 'not_a_fit') throw new HttpError(409, 'refunded', 'This member was already refunded.');
-  const rows = await sql`update so_enrollments set review_state = ${decision},
-                         reviewed_at = ${decision === 'pending' ? null : new Date()}, reviewed_by = ${decision === 'pending' ? null : who.actor},
-                         review_note = coalesce(${note}, review_note), updated_at = now() where id = ${id} returning *`;
-  await C.audit(sql, who.actor, `enrollment_${decision}`, 'enrollment', id, { review_state: e.review_state }, { review_state: decision });
-  if (decision === 'approved') {
-    const prof = (await sql`select email from so_profiles where user_id = ${e.user_id}`)[0];
-    const sched = S.schedule(c);
-    const msg = approvalEmail({ cohortName: c.name, startDate: sched.start_date, endDate: sched.end_date,
-      returnUrl: `${env.siteUrl()}${env.BASE_PATH}/login?next=${encodeURIComponent('/app')}` });
-    await sendTransactional(sql, { dedupeKey: `enrollment-approved:${e.id}`, kind: 'enrollment_approved', userId: e.user_id, to: prof.email, ...msg })
-      .catch(err => console.error('[so] approval email error', err.message));
-  }
-  return { enrollment: rows[0] };
-});
 
 module.exports = { routes, cohortOut };

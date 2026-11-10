@@ -96,14 +96,14 @@ async function boot(extraEnv = {}) {
     const s = await mocks.signIn(email);
     await db.sql`insert into so_profiles (user_id, email) values (${s.user.id}, ${email}) on conflict do nothing`;
     const c = await cohort();
-    await db.sql`insert into so_enrollments (user_id, cohort_id, source) values (${s.user.id}, ${c.id}, 'manual') on conflict do nothing`;
+    await db.sql`insert into so_enrollments (user_id, cohort_id, source, review_state) values (${s.user.id}, ${c.id}, 'manual', 'approved') on conflict do nothing`;
     return s;
   }
 
   const FIT = {
     first_name: 'Test', last_name: 'Founder', business_name: 'Test Co', website_url: 'https://test.example.com', phone: '(555) 555-0100',
     address_line1: '1 Main St', city: 'Oakland', state: 'CA', postal_code: '94612', business_stage: 'growing', revenue_to_date: '100k_250k',
-    years_in_business: '3_5', prior_ops_work: 'no', has_full_time_staff: 'yes', team_size: '3_5', ops_questions: 'How do I delegate?', policy_ack: true,
+    years_in_business: '3_5', prior_ops_work: 'no', has_full_time_staff: 'yes', team_size: '3_5', ops_questions: 'How do I delegate?', policy_ack: true, submit: true,
   };
   // Signed-in buyer who has completed the required fit check.
   async function buyer(email, overrides = {}) {

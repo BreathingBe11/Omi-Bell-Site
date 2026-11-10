@@ -132,8 +132,9 @@ test('verified payment enrolls exactly once, even with duplicate and repeated we
   assert.equal(en.length, 1);
   assert.equal(en[0].access_state, 'active');
   assert.equal(en[0].is_test, true, 'test-mode payments are flagged as test enrollments');
-  const emails = await h.sql`select * from so_email_log where user_id = ${user.id}`;
-  assert.equal(emails.length, 1, 'confirmation is attempted once');
+  const emails = await h.sql`select * from so_email_outbox where user_id = ${user.id} and template_key = 'purchase_next_steps'`;
+  assert.equal(emails.length, 1, 'confirmation is queued once');
+  assert.equal(emails[0].status, 'skipped', 'delivery is off in tests, and that is recorded honestly');
 
   const status = await h.api('GET', `checkout/status?session_id=${sid}`, { token });
   assert.equal(status.body.state, 'confirmed');
@@ -142,8 +143,13 @@ test('verified payment enrolls exactly once, even with duplicate and repeated we
   const again = await h.api('POST', 'checkout/session', { token, body: {} });
   assert.equal(again.body.state, 'already_enrolled');
   assert.equal(stripeCreates(), before);
+  // Paid is not approved: cohort content stays closed until Omi approves.
   const home = await h.api('GET', 'home', { token });
-  assert.equal(home.status, 200);
+  assert.equal(home.status, 403);
+  assert.equal(home.body.reason, 'under_review');
+  const app = await h.api('GET', 'application', { token });
+  assert.equal(app.body.review_state, 'pending');
+  assert.equal(app.body.payment.amount_cents, 99900);
 });
 
 test('delayed webhook: returning to the success page reconciles with Stripe server-side', async () => {
@@ -299,50 +305,4 @@ test('hidden seat limit: site says "All seats are full" without revealing the nu
   assert.equal((await h.api('POST', 'checkout/session', { token: holder.token, body: {} })).body.state, 'redirect');
   assert.equal((await h.api('GET', 'offer', { token: holder.token })).body.sales.can_checkout, true);
   await h.setCohort({ seat_limit: 30 });
-});
-
-test('review: approve makes it non-refundable; not a fit refunds in full and ends access', async () => {
-  const admin = (m, p, body) => h.api(m, p, { token: h.adminToken, body });
-  const pay = async email => {
-    const s = await h.buyer(email);
-    const r = await h.api('POST', 'checkout/session', { token: s.token, body: {} });
-    const sess = await h.mocks.completeSession(r.body.url.split('/pay/')[1]);
-    await h.mocks.sendEvent('checkout.session.completed', sess);
-    const e = (await h.sql`select * from so_enrollments where user_id = ${s.user.id}`)[0];
-    return { ...s, e, sess };
-  };
-  const yes = await pay('approve-me@example.com');
-  assert.equal(yes.e.review_state, 'pending');
-  assert.equal((await h.api('GET', 'home', { token: yes.token })).body.review_state, 'pending');
-  const ok = await admin('POST', `admin/enrollments/${yes.e.id}/review`, { decision: 'approved' });
-  assert.equal(ok.body.enrollment.review_state, 'approved');
-  const noRefund = await admin('POST', `admin/enrollments/${yes.e.id}/review`, { decision: 'not_a_fit' });
-  assert.equal(noRefund.status, 409, 'approved enrollments are non-refundable through review');
-
-  const no = await pay('not-a-fit@example.com');
-  const before = h.mocks.state.stripeCalls.filter(c => c.path === '/v1/refunds').length;
-  const nf = await admin('POST', `admin/enrollments/${no.e.id}/review`, { decision: 'not_a_fit', note: 'pre-revenue' });
-  assert.equal(nf.status, 200);
-  const refunds = h.mocks.state.stripeCalls.filter(c => c.path === '/v1/refunds');
-  assert.equal(refunds.length, before + 1);
-  assert.equal(refunds.at(-1).form.payment_intent, no.sess.payment_intent);
-  assert.equal((await h.api('GET', 'home', { token: no.token })).status, 403);
-  await h.mocks.sendEvent('charge.refunded', { id: 'ch_nf', object: 'charge', payment_intent: no.sess.payment_intent, amount: 99900, amount_refunded: 99900 });
-  assert.equal((await h.sql`select status from so_purchases where stripe_payment_intent_id = ${no.sess.payment_intent}`)[0].status, 'refunded');
-  assert.equal((await h.sql`select review_state from so_enrollments where id = ${no.e.id}`)[0].review_state, 'not_a_fit');
-  // Members can't change their fit check after review.
-  assert.equal((await h.api('PUT', 'intake', { token: yes.token, body: h.FIT })).status, 409);
-
-  // Members dashboard shows fit-check details and CSV export guards against formulas.
-  await h.api('PUT', 'intake', { token: (await h.buyer('formula@example.com', { business_name: '=HYPERLINK("x")' })).token, body: { ...h.FIT, business_name: '=HYPERLINK("x")' } });
-  const m = await admin('GET', 'admin/members');
-  const row = m.body.members.find(x => x.email === 'approve-me@example.com');
-  assert.equal(row.intake.phone, '(555) 555-0100');
-  assert.equal(row.intake.labels.revenue_to_date, '$100K–$250K');
-  assert.ok(m.body.unpaid.some(u => u.email === 'formula@example.com'), 'unpaid fit checks are listed for follow-up');
-  const csv = await admin('GET', 'admin/members/export');
-  assert.match(csv.text, /First name,Last name,Email,Phone/);
-  assert.match(csv.text, /approve-me@example\.com/);
-  assert.equal((await h.api('GET', 'admin/members', { token: yes.token })).status, 403);
-  assert.equal((await h.api('GET', 'admin/members/export')).status, 403);
 });

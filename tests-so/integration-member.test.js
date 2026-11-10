@@ -272,7 +272,10 @@ test('calls: banner, join window, calendar file, replay and challenges come from
   assert.match(ics.text, new RegExp(`DTSTART:${dt}`));
   assert.match(ics.text, /BEGIN:VEVENT/);
 
-  const ch = await h.api('POST', 'challenges', { token: A.token, body: { call_id: c.body.call.id, body: 'How do I hand off invoicing?' } });
+  const missing = await h.api('POST', 'challenges', { token: A.token, body: { call_id: c.body.call.id, working_on: 'Invoicing' } });
+  assert.equal(missing.status, 400);
+  const ch = await h.api('POST', 'challenges', { token: A.token, body: { call_id: c.body.call.id, working_on: 'How do I hand off invoicing?',
+    stuck_on: 'Nobody else knows the follow-up rules', help_wanted: 'A first handoff step', share_permission: true } });
   assert.equal(ch.status, 200);
   assert.equal((await h.api('GET', 'calls', { token: B.token })).body.challenges.length, 0, 'challenges are private to the author and admin');
   assert.match((await admin('GET', 'admin/challenges')).text, /hand off invoicing/);
@@ -348,7 +351,7 @@ test('after the cohort: calm completion state; access follows the configured pol
 test('rate limiting and input validation on member writes', async () => {
   const long = await h.api('PUT', 'journal/1', { token: A.token, body: { body: 'x'.repeat(20001), base_revision: 1 } });
   assert.equal(long.status, 400);
-  const bad = await h.api('POST', 'challenges', { token: A.token, body: { body: '' } });
+  const bad = await h.api('POST', 'challenges', { token: A.token, body: { working_on: '', stuck_on: 'x', help_wanted: 'y', share_permission: true } });
   assert.equal(bad.status, 400);
   const weird = await h.api('GET', 'resource/not-a-uuid/access', { token: A.token });
   assert.equal(weird.status, 404);

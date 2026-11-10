@@ -5,10 +5,16 @@
 // Events: checkout.session.completed, checkout.session.async_payment_succeeded,
 //   checkout.session.async_payment_failed, checkout.session.expired,
 //   charge.refunded, charge.dispute.created, charge.dispute.closed
+//   refund.created, refund.updated, refund.failed
 // The signing secret goes in STRIPE_WEBHOOK_SECRET.
+//
+// Resend delivery webhooks use the same URL (Resend -> Webhooks; events
+// email.sent, email.delivered, email.bounced, email.complained, email.failed),
+// signing secret in RESEND_WEBHOOK_SECRET.
 
 const { getSql } = require('./_lib/so/db');
 const { processWebhook } = require('./_lib/so/payments');
+const { processResendEvent } = require('./_lib/so/email');
 const H = require('./_lib/so/http');
 
 // Signature verification needs the exact bytes Stripe sent.
@@ -27,7 +33,10 @@ async function handler(req, res) {
   try {
     const raw = await rawBody(req);
     if (raw.length > 1024 * 1024) return H.sendJson(res, 413, { error: 'too_large' });
-    const out = await processWebhook(getSql(), raw, req.headers['stripe-signature']);
+    // Resend delivery events (Svix-signed) share this endpoint; everything else is Stripe.
+    const out = req.headers['svix-id']
+      ? await processResendEvent(getSql(), raw, req.headers)
+      : await processWebhook(getSql(), raw, req.headers['stripe-signature']);
     return H.sendJson(res, out.status, out.body);
   } catch (err) {
     return H.sendError(res, err);

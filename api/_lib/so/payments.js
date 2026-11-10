@@ -20,7 +20,8 @@ const stripe = require('./stripe');
 const env = require('./env');
 const { requireUser, ensureProfile, getAuthUser } = require('./identity');
 const { loadIntake } = require('./intake');
-const { sendTransactional, confirmationEmail } = require('./email');
+const email = require('./email');
+const refunds = require('./refunds');
 
 const { HttpError } = H;
 const INFLIGHT = ['created', 'open', 'pending'];
@@ -38,7 +39,7 @@ function priceOut(price) {
 async function seatsTaken(sql, cohort, now, excludeUserId = null) {
   const countTest = env.stripeMode() !== 'live';
   const e = await sql`select count(*)::int as n from so_enrollments where cohort_id = ${cohort.id}
-                      and access_state = 'active' and review_state <> 'not_a_fit' and (${countTest} or not is_test)`;
+                      and access_state = 'active' and review_state <> 'rejected' and (${countTest} or not is_test)`;
   const holds = await sql`select count(*)::int as n from so_purchases where cohort_id = ${cohort.id}
                           and (status = 'pending' or (status in ('created', 'open') and expires_at > ${now}))
                           and user_id is distinct from ${excludeUserId}
@@ -137,7 +138,7 @@ async function checkoutSession({ sql, req, now }) {
     return { state: readiness.reason === 'enrollment_closed' ? 'enrollment_closed' : 'unavailable', reason: readiness.reason };
   }
   const intake = await loadIntake(sql, user.id, cohort.id);
-  if (!intake || !intake.policy_ack_at) return { state: 'intake_required' };
+  if (!intake || intake.status !== 'submitted' || !intake.policy_ack_at) return { state: 'intake_required' };
   await H.rateLimit(sql, `checkout:${user.id}`, 12, 600);
   if (await seatsFull(sql, cohort, now, user.id)) return { state: 'full' };
 
@@ -222,6 +223,7 @@ async function applySession(sql, session) {
       paymentIntent: typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent && session.payment_intent.id,
       amountTotal: session.amount_total, amountSubtotal: session.amount_subtotal,
       currency: session.currency, livemode: !!session.livemode,
+      taxCents: session.total_details ? session.total_details.amount_tax : null,
     });
   }
   if (session.status === 'complete') {
@@ -236,14 +238,14 @@ async function applySession(sql, session) {
   return { applied: false, state: 'open' };
 }
 
-async function activatePurchase(sql, purchase, { paymentIntent, amountTotal, amountSubtotal, currency, livemode }) {
+async function activatePurchase(sql, purchase, { paymentIntent, amountTotal, amountSubtotal, currency, livemode, taxCents = null }) {
   const result = await sql.begin(async tx => {
     const expected = purchase.amount_cents;
     const mismatch = (amountSubtotal != null && amountSubtotal !== expected) || (currency && currency !== purchase.currency);
     const up = await tx`
       update so_purchases set status = 'paid', paid_at = coalesce(paid_at, now()),
         stripe_payment_intent_id = coalesce(stripe_payment_intent_id, ${paymentIntent || null}),
-        amount_paid_cents = ${amountTotal ?? null}, livemode = ${livemode},
+        amount_paid_cents = ${amountTotal ?? null}, livemode = ${livemode}, tax_cents = ${taxCents},
         needs_review = case when ${mismatch} then 'amount_mismatch' else needs_review end, updated_at = now()
       where id = ${purchase.id} and status in ('created', 'open', 'pending', 'expired', 'failed', 'canceled')
       returning *`;
@@ -266,36 +268,43 @@ async function activatePurchase(sql, purchase, { paymentIntent, amountTotal, amo
     const cohort = (await tx`select seat_limit from so_cohorts where id = ${p.cohort_id}`)[0];
     if (cohort.seat_limit) {
       const n = (await tx`select count(*)::int as n from so_enrollments where cohort_id = ${p.cohort_id}
-                          and access_state = 'active' and review_state <> 'not_a_fit' and (${!livemode} or not is_test)`)[0].n;
+                          and access_state = 'active' and review_state <> 'rejected' and (${!livemode} or not is_test)`)[0].n;
       if (n > cohort.seat_limit) await tx`update so_purchases set needs_review = 'over_capacity' where id = ${p.id}`;
     }
     return { activated: true, purchase: p, enrollment: en[0] };
   });
   if (result.activated) {
     C.recordEvent(sql, 'payment_confirmed', { userId: result.purchase.user_id, cohortId: result.purchase.cohort_id, refId: result.purchase.price_tier });
+    await enrichPurchase(sql, result.purchase).catch(e => console.error('[so] receipt lookup failed', e.code || e.message));
     await sendConfirmation(sql, result.enrollment).catch(e => console.error('[so] confirmation email error', e.message));
   }
   return { applied: true, state: 'paid', ...result };
 }
 
+// Receipt link, charge id and Stripe fee, for the admin payment summary (best effort).
+async function enrichPurchase(sql, purchase) {
+  if (!purchase.stripe_payment_intent_id) return;
+  const pi = await stripe.stripeRequest('GET', `/v1/payment_intents/${encodeURIComponent(purchase.stripe_payment_intent_id)}`,
+    { expand: ['latest_charge.balance_transaction'] });
+  const ch = pi && typeof pi.latest_charge === 'object' ? pi.latest_charge : null;
+  if (!ch) return;
+  const bt = ch.balance_transaction && typeof ch.balance_transaction === 'object' ? ch.balance_transaction : null;
+  await sql`update so_purchases set stripe_charge_id = ${ch.id}, receipt_url = ${ch.receipt_url || null}, fee_cents = ${bt ? bt.fee : null}
+            where id = ${purchase.id}`;
+}
+
+// "Payment received: next steps" (the review is still to come).
 async function sendConfirmation(sql, enrollment) {
   const cohort = (await sql`select * from so_cohorts where id = ${enrollment.cohort_id}`)[0];
   const profile = (await sql`select email from so_profiles where user_id = ${enrollment.user_id}`)[0];
   if (!profile) return;
-  const content = await C.loadContent(sql);
-  const sched = S.schedule(cohort);
-  const msg = confirmationEmail({
-    cohortName: cohort.name, startDate: sched.start_date, endDate: sched.end_date,
-    returnUrl: `${env.siteUrl()}${env.BASE_PATH}/login?next=${encodeURIComponent('/app')}`,
-    supportEmail: content.isPublished('support.email') ? content.get('support.email') : null,
+  const m = await email.enqueue(sql, {
+    key: 'purchase_next_steps', dedupeKey: `purchase-next-steps:${enrollment.id}`, to: profile.email, userId: enrollment.user_id,
+    cohortId: cohort.id, vars: await email.baseVars(sql, cohort, enrollment.user_id), related: { type: 'enrollment', id: enrollment.id }, actor: 'system',
   });
-  const r = await sendTransactional(sql, {
-    dedupeKey: `enrollment-confirmed:${enrollment.id}`, kind: 'enrollment_confirmed', userId: enrollment.user_id,
-    to: profile.email, ...msg,
-  });
-  if (r.status === 'sent' || r.status.startsWith('skipped')) {
-    await sql`update so_enrollments set confirmation_email_sent_at = coalesce(confirmation_email_sent_at, now())
-              where id = ${enrollment.id} and ${r.status === 'sent'}`;
+  if (m) {
+    await email.processOutbox(sql, { ids: [m.id] });
+    await sql`update so_enrollments set confirmation_email_sent_at = coalesce(confirmation_email_sent_at, now()) where id = ${enrollment.id}`;
   }
 }
 
@@ -358,8 +367,9 @@ async function handleEvent(sql, event) {
       if (!p) return { applied: false };
       const cohort = (await sql`select * from so_cohorts where id = ${p.cohort_id}`)[0];
       const full = obj.amount_refunded >= obj.amount;
-      await sql`update so_purchases set status = ${full ? 'refunded' : 'partially_refunded'},
+      await sql`update so_purchases set status = ${full ? 'refunded' : 'partially_refunded'}, refunded_cents = ${obj.amount_refunded || 0},
                 refunded_at = coalesce(refunded_at, now()), updated_at = now() where id = ${p.id}`;
+      for (const r of (obj.refunds && obj.refunds.data) || []) await refunds.applyRefundEvent(sql, { ...r, payment_intent: r.payment_intent || obj.payment_intent });
       // Access data (journal, progress) is never deleted; only the access state changes.
       if (full && cohort.refund_access_action === 'suspend') await setEnrollmentForPurchase(sql, p, ['active', 'disputed'], 'refunded');
       await C.audit(sql, 'stripe', full ? 'purchase_refunded' : 'purchase_partially_refunded', 'purchase', p.id, null,
@@ -389,6 +399,11 @@ async function handleEvent(sql, event) {
       await C.audit(sql, 'stripe', 'dispute_closed', 'purchase', p.id, null, { outcome: obj.status });
       return { applied: true };
     }
+    case 'refund.created':
+    case 'refund.updated':
+    case 'refund.failed':
+    case 'charge.refund.updated':
+      return refunds.applyRefundEvent(sql, obj);
     default:
       return { applied: false, ignored: true };
   }
