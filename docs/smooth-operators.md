@@ -98,11 +98,13 @@ Log in at `/admin` and choose **Smooth Operators admin**. There are seven sectio
 ## Setup
 
 1. **Database:** in the Supabase SQL editor, run `supabase/smooth_operators.sql`, then `supabase/smooth_operators_seed.sql`. Both are safe to re-run. The migration also creates the private `smooth-operators` storage bucket.
-2. **Supabase Auth:**
-   - Enable Email sign-in.
-   - Add `https://www.omibell.com/smoothoperators/login` to Redirect URLs.
-   - Edit the "Magic Link" email template to include the code (`{{ .Token }}`) as well as the link.
-   - Configure custom SMTP (the built-in sender is heavily rate-limited).
+2. **Supabase Auth:** members sign in with **Continue with Google** or an **emailed 6-digit code**. There are no passwords and no magic links.
+   - Authentication → Sign In / Providers: Email **on**, Confirm email **off**, Allow new users to sign up **on**.
+   - Authentication → URL Configuration: Site URL `https://www.omibell.com`. Add `https://www.omibell.com/smoothoperators/login` (and any preview URL's `/smoothoperators/login`) to Redirect URLs.
+   - Authentication → Emails → **Magic Link** template: replace the body with a code-only message that uses `{{ .Token }}` and no link.
+   - Authentication → Emails → SMTP: connect Resend. The built-in sender is heavily rate-limited.
+   - **Google:** in Google Cloud Console, set up the OAuth consent screen and create an OAuth client ID of type "Web application". Use Supabase's callback URL (shown on the Google provider page, `https://<project>.supabase.co/auth/v1/callback`) as the authorized redirect URI. Paste the client ID and secret into Authentication → Sign In / Providers → Google, and enable it.
+   - Google and email-code sign-ins with the same verified email land in the same Supabase account, so the enrollment follows the email.
 3. **Stripe (test mode first):**
    - Create a webhook endpoint at `https://<domain>/api/smoothoperators-webhook` for these events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.closed`.
    - Turn on "Email customers for successful payments" so Stripe sends receipts.

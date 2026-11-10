@@ -353,7 +353,10 @@
   // ============================================================ sign in
   function loginForm(container, { next, heading = true, intro } = {}) {
     container.innerHTML = `${heading ? '<h1>Sign in</h1>' : ''}
-<p>${intro || 'Use the email you enrolled with. We’ll send you a one-time sign-in code. There’s no password to remember.'}</p>
+<p>${intro || 'Continue with Google, or use your email and we’ll send you a 6-digit code. There’s no password to remember.'}</p>
+<div id="oauth-err" role="alert"></div>
+<button class="btn btn-secondary btn-block google-btn" type="button" id="google-btn"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.6 13.2l7.9 6.2C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.5 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.2C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.8l7.9-6.2z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.7 2.2-8.5 2.2-6.3 0-11.6-4.1-13.5-9.9l-7.9 6.2C6.6 42.6 14.6 48 24 48z"/></svg> Continue with Google</button>
+<p class="or-divider"><span>or use your email</span></p>
 <form id="email-form" novalidate>
   <div class="field"><label for="email">Email address</label>
   <input id="email" type="email" name="email" autocomplete="email" required inputmode="email"></div>
@@ -382,13 +385,11 @@
       btn.disabled = true; btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Sending…';
       const client = await SO.auth();
       if (!client) { err.textContent = 'Sign-in isn’t configured yet. Please try again later.'; btn.disabled = false; btn.textContent = 'Send my code'; return; }
-      const { error } = await client.auth.signInWithOtp({
-        email, options: { shouldCreateUser: true, emailRedirectTo: `${location.origin}${B}/login?next=${encodeURIComponent(next)}` },
-      });
+      const { error } = await client.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
       btn.disabled = false; btn.textContent = 'Send my code';
       if (error) { err.textContent = /rate|seconds/i.test(error.message) ? 'Please wait a minute before requesting another code.' : 'We couldn’t send a code. Check the address and try again.'; return; }
       ef.hidden = true; cf.hidden = false;
-      q('#code-intro', container).innerHTML = `We sent a code to <strong>${esc(email)}</strong>. Enter it below, or open the sign-in link in that email.`;
+      q('#code-intro', container).innerHTML = `We sent a 6-digit code to <strong>${esc(email)}</strong>. Enter it below. It can take a minute to arrive; check spam if you don’t see it.`;
       q('#code', container).focus();
     });
     cf.addEventListener('submit', async e => {
@@ -406,10 +407,24 @@
       navigate(`${B}${next}`, { replace: true });
     });
     q('#change-email', container).addEventListener('click', () => { cf.hidden = true; ef.hidden = false; q('#email', container).focus(); });
+    // Google: Supabase sends them to Google and back to /login with a session, then on to `next`.
+    q('#google-btn', container).addEventListener('click', async () => {
+      const btn = q('#google-btn', container);
+      const client = await SO.auth();
+      if (!client) { q('#oauth-err', container).innerHTML = '<p class="form-error">Sign-in isn’t configured yet. Please try again later.</p>'; return; }
+      btn.disabled = true;
+      const { error } = await client.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${location.origin}${B}/login?next=${encodeURIComponent(next)}`, queryParams: { prompt: 'select_account' } },
+      });
+      if (error) { btn.disabled = false; q('#oauth-err', container).innerHTML = '<p class="form-error">Google sign-in isn’t available right now. Use your email instead.</p>'; }
+    });
   }
 
   async function viewLogin(main, _p, query) {
     const next = safeNext(query.next);
+    const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
+    const oauthError = query.error_description || hashParams.get('error_description');
     const client = await SO.auth();
     const session = client ? (await client.auth.getSession()).data.session : null;
     if (session) {
@@ -427,6 +442,7 @@
     main.innerHTML = '';
     main.appendChild(wrap);
     loginForm(wrap, { next });
+    if (oauthError) q('#oauth-err', wrap).innerHTML = `<p class="notice notice-error">Google sign-in didn’t finish (${esc(oauthError)}). Try again, or use your email.</p>`;
     return 'Sign in';
   }
 
@@ -435,12 +451,12 @@
     main.innerHTML = `<div class="stack">
 <a class="back-link" href="${B}/login">Back to sign in</a>
 <h1>Trouble signing in?</h1>
-<p>Smooth Operators uses one-time codes instead of passwords, so there’s nothing to reset. Request a new code any time from the sign-in page, on any device.</p>
+<p>There are no passwords, so there’s nothing to reset. Sign in with Google, or request a 6-digit code by email, any time and on any device.</p>
 <ul>
-  <li>Sign in with the same email address you used to enroll. Your enrollment belongs to that account.</li>
-  <li>Codes expire after a short time. If one doesn’t work, request a fresh code.</li>
-  <li>Check your spam or promotions folder for the email.</li>
-  <li>If you open the sign-in link on a different device than the one you requested it on, enter the code instead.</li>
+  <li>Use the same email address you enrolled with. Your enrollment belongs to that address, whether you sign in with Google or with a code.</li>
+  <li>“Continue with Google” works when your Google account uses that same email.</li>
+  <li>Codes expire after a short time. If one doesn’t work, request a fresh one.</li>
+  <li>Check your spam or promotions folder for the code email.</li>
 </ul>
 <p>${supportLine(email)}</p></div>`;
     return 'Sign-in help';

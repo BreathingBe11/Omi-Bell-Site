@@ -179,3 +179,12 @@ test('signed-out visitors are sent to sign in; non-members cannot open the cohor
   await expect(page.getByRole('heading', { name: 'This space is for enrolled members' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Join the cohort' })).toBeVisible();
 });
+
+test('Continue with Google signs in and returns to checkout', async ({ page }) => {
+  await page.goto(`${base()}/smoothoperators/checkout`);
+  await page.getByRole('button', { name: 'Continue with Google' }).click();
+  await expect(page).toHaveURL(/\/smoothoperators\/checkout/);
+  await expect(page.getByRole('heading', { name: 'Fit check' })).toBeVisible();
+  await page.goto(`${base()}/smoothoperators/login`);
+  await expect(page.getByText(/Signed in as/)).toContainText('google-user@gmail.com');
+});

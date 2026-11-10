@@ -119,6 +119,16 @@ function startMocks({ sql, webhookUrl, webhookSecret, port = 0 } = {}) {
         if (!u) return json(401, { msg: 'invalid' });
         return json(200, { id: u.id, email: u.email, email_confirmed_at: new Date().toISOString(), aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {} });
       }
+      if (p === '/auth/v1/authorize' && req.method === 'GET') {
+        // Stand-in for Google: signs in a fixed Google account and returns tokens in the URL hash (implicit flow).
+        const u = await ensureUser(state.googleEmail || 'google-user@gmail.com');
+        const t = issue(u);
+        const back = new URL(url.searchParams.get('redirect_to'));
+        back.hash = new URLSearchParams({ access_token: t, refresh_token: `r_${crypto.randomBytes(6).toString('hex')}`, expires_in: '3600',
+          expires_at: String(Math.floor(Date.now() / 1000) + 3600), token_type: 'bearer', provider_token: 'google-token' }).toString();
+        res.writeHead(302, { Location: back.toString() });
+        return res.end();
+      }
       if (p === '/auth/v1/token') return json(400, { error: 'refresh not supported in mock' });
       if (p === '/auth/v1/logout') return json(204, {});
 

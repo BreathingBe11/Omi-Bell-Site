@@ -414,3 +414,7 @@ dialog.slide-over .dialog-inner { max-height: none; min-height: 100%; padding-bo
 .day-bar small { font-size: .7rem; color: var(--muted); margin-top: 2px; }
 @media print { .admin-top, .admin-nav, .admin-subnav, #prep-call, .field label[for="prep-call"], button { display: none !important; } .prep .card { break-inside: avoid; } }
 .member-card section.confirm-panel { padding: 1.25rem; border: 1px solid var(--line-strong); }
+
+.google-btn { gap: .6rem; background: #fff; }
+.or-divider { display: flex; align-items: center; gap: .75rem; color: var(--muted); font-size: .9rem; margin: 1.25rem 0; }
+.or-divider::before, .or-divider::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
