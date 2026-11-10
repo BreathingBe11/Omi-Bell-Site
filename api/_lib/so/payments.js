@@ -121,6 +121,14 @@ async function createStripeSession(req, cohort, purchase, user) {
     cancel_url: `${env.appUrl(req, '/checkout')}?canceled=1`,
   };
   if (process.env.STRIPE_AUTOMATIC_TAX === 'true') params.automatic_tax = { enabled: true };
+  // Shown above the Pay button on Stripe's page. Useful when the Stripe account's
+  // business name differs from the program (e.g. a shared company account).
+  const note = process.env.SO_CHECKOUT_NOTE === undefined
+    ? 'Smooth Operators with Omi Bell. Payment is processed by Omi’s World Media.'
+    : process.env.SO_CHECKOUT_NOTE;
+  if (note) params.custom_text = { submit: { message: note.slice(0, 1200) } };
+  // Optional card-statement suffix (needs a shortened descriptor set in Stripe).
+  if (process.env.SO_STATEMENT_SUFFIX) params.payment_intent_data.statement_descriptor_suffix = process.env.SO_STATEMENT_SUFFIX.slice(0, 22);
   return stripe.createCheckoutSession(params, `so-purchase-${purchase.id}`);
 }
 

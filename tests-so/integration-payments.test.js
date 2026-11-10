@@ -53,6 +53,7 @@ test('price comes from server time; client-sent amounts are ignored', async () =
   assert.equal(call.form['line_items[0][price_data][unit_amount]'], '99900');
   assert.equal(call.form['line_items[0][price_data][currency]'], 'usd');
   assert.equal(call.form.mode, 'payment');
+  assert.equal(call.form['custom_text[submit][message]'], 'Smooth Operators with Omi Bell. Payment is processed by Omi’s World Media.');
 });
 
 test('repeated and concurrent clicks reuse one checkout session', async () => {
