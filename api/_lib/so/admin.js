@@ -14,6 +14,8 @@ const { requireAdmin } = require('./identity');
 const { SITE_CONTENT, SITE_CONTENT_KEYS } = require('./content');
 const member = require('./member');
 const payments = require('./payments');
+const intake = require('./intake');
+const { sendTransactional, approvalEmail } = require('./email');
 
 const { HttpError } = H;
 const routes = {};
@@ -48,7 +50,7 @@ function cohortOut(c) {
     checkout_ttl_minutes: c.checkout_ttl_minutes,
     access_policy: c.access_policy, access_ends_at: iso(c.access_ends_at), access_ends_local: localStr(c.access_ends_at, tz),
     refund_access_action: c.refund_access_action, dispute_access_action: c.dispute_access_action,
-    call_join_window_minutes: c.call_join_window_minutes, sales_enabled: c.sales_enabled,
+    call_join_window_minutes: c.call_join_window_minutes, sales_enabled: c.sales_enabled, seat_limit: c.seat_limit,
     settings_confirmed_at: iso(c.settings_confirmed_at), settings_confirmed_by: c.settings_confirmed_by,
     schedule: {
       starts_at: sched.starts_at.toISOString(), ends_at: sched.ends_at.toISOString(),
@@ -58,7 +60,7 @@ function cohortOut(c) {
 }
 
 const TIMING_FIELDS = ['start_date', 'timezone', 'unlock_time', 'intro_opens_at', 'enrollment_opens_at', 'enrollment_closes_at',
-  'regular_price_cents', 'intro_price_cents', 'price_cutoff_at', 'checkout_ttl_minutes', 'access_policy', 'access_ends_at', 'days_count'];
+  'regular_price_cents', 'intro_price_cents', 'price_cutoff_at', 'checkout_ttl_minutes', 'access_policy', 'access_ends_at', 'days_count', 'seat_limit'];
 
 function parseCohortChanges(current, b) {
   const tz = b.timezone !== undefined ? H.text(b.timezone, { max: 64, field: 'Timezone' }) : current.timezone;
@@ -96,6 +98,7 @@ function parseCohortChanges(current, b) {
   if (b.dispute_access_action !== undefined) next.dispute_access_action = H.oneOf(b.dispute_access_action, ['suspend', 'keep'], 'Dispute action');
   if (b.call_join_window_minutes !== undefined) next.call_join_window_minutes = H.int(b.call_join_window_minutes, { min: 0, max: 240, field: 'Join window' });
   if (b.sales_enabled !== undefined) next.sales_enabled = b.sales_enabled === true;
+  if (b.seat_limit !== undefined) next.seat_limit = H.int(b.seat_limit, { min: 1, max: 10000, field: 'Seat limit', nullable: true });
   return next;
 }
 
@@ -166,7 +169,7 @@ routes['PUT admin/cohort'] = admin(async ({ sql, req, admin: who, now }) => {
       checkout_ttl_minutes = ${after.checkout_ttl_minutes}, access_policy = ${after.access_policy},
       access_ends_at = ${after.access_ends_at}, refund_access_action = ${after.refund_access_action},
       dispute_access_action = ${after.dispute_access_action}, call_join_window_minutes = ${after.call_join_window_minutes},
-      sales_enabled = ${after.sales_enabled}, settings_confirmed_at = ${confirmedAt}, settings_confirmed_by = ${confirmedBy},
+      sales_enabled = ${after.sales_enabled}, seat_limit = ${after.seat_limit}, settings_confirmed_at = ${confirmedAt}, settings_confirmed_by = ${confirmedBy},
       updated_at = now()
     where id = ${before.id} returning *`;
   await C.audit(sql, who.actor, 'cohort_updated', 'cohort', before.id, cohortOut(before), cohortOut(rows[0]));
@@ -253,6 +256,9 @@ routes['GET admin/overview'] = admin(async ({ sql, now }) => {
     failed_webhooks: failedHooks[0].n,
     funnel: Object.fromEntries(events.map(e => [e.name, e.n])),
     live_revenue_cents: revenue[0].cents,
+    seats: { limit: cohort.seat_limit, taken: await payments.seatsTaken(sql, cohort, now) },
+    pending_reviews: (await sql`select count(*)::int as n from so_enrollments where cohort_id = ${cohort.id}
+                                and access_state = 'active' and review_state = 'pending'`)[0].n,
   };
 });
 
@@ -607,9 +613,11 @@ routes['POST admin/enrollments/manual'] = admin(async ({ sql, req, admin: who })
   const note = H.text(b.note, { max: 500, required: true, field: 'Reason', multiline: true });
   const p = (await sql`select user_id from so_profiles where email = ${email}`)[0];
   if (!p) throw new HttpError(404, 'no_account', 'That person needs to sign in once (at /smoothoperators/login) before access can be granted.');
-  const rows = await sql`insert into so_enrollments (user_id, cohort_id, source, access_state, admin_note)
-                         values (${p.user_id}, ${c.id}, 'manual', 'active', ${note})
-                         on conflict (user_id, cohort_id) do update set access_state = 'active', admin_note = excluded.admin_note, updated_at = now()
+  // Granting access by hand is itself the approval.
+  const rows = await sql`insert into so_enrollments (user_id, cohort_id, source, access_state, admin_note, review_state, reviewed_at, reviewed_by)
+                         values (${p.user_id}, ${c.id}, 'manual', 'active', ${note}, 'approved', now(), ${who.actor})
+                         on conflict (user_id, cohort_id) do update set access_state = 'active', admin_note = excluded.admin_note,
+                           review_state = 'approved', reviewed_at = now(), reviewed_by = excluded.reviewed_by, updated_at = now()
                          returning *`;
   await C.audit(sql, who.actor, 'enrollment_granted_manually', 'enrollment', rows[0].id, null, { email, note });
   return { enrollment: rows[0] };
@@ -709,5 +717,146 @@ routes['GET admin/audit'] = admin(async ({ sql }) => ({
 routes['GET admin/webhooks'] = admin(async ({ sql }) => ({
   events: await sql`select id, type, status, error, attempts, received_at, processed_at from so_webhook_events order by received_at desc limit 200`,
 }));
+
+// ------------------------------------------------- members & fit checks
+const INTAKE_COLS = ['first_name', 'last_name', 'business_name', 'website_url', 'no_website', 'phone', 'address_line1', 'address_line2',
+  'city', 'state', 'postal_code', 'country', 'business_stage', 'revenue_to_date', 'years_in_business', 'prior_ops_work',
+  'has_full_time_staff', 'team_size', 'ops_questions'];
+
+function intakeAdminOut(i) {
+  if (!i || !i.first_name) return null;
+  const o = Object.fromEntries(INTAKE_COLS.map(k => [k, i[k]]));
+  o.labels = {
+    business_stage: intake.label('business_stage', i.business_stage),
+    revenue_to_date: intake.label('revenue_to_date', i.revenue_to_date),
+    years_in_business: intake.label('years_in_business', i.years_in_business),
+    team_size: intake.label('team_size', i.team_size),
+  };
+  o.early_stage = intake.earlyStage(i);
+  o.submitted_at = i.intake_created_at;
+  return o;
+}
+
+async function memberRows(sql, cohortId) {
+  // Journal text is never selected here.
+  return sql`
+    select e.id, e.user_id, e.access_state, e.review_state, e.reviewed_at, e.reviewed_by, e.review_note, e.source, e.is_test,
+           e.activated_at, e.admin_note, p.email,
+           pu.status as purchase_status, pu.amount_paid_cents, pu.price_tier, pu.needs_review, pu.paid_at,
+           (select count(*)::int from so_day_progress dp where dp.user_id = e.user_id and dp.cohort_id = e.cohort_id and dp.completed_at is not null) as days_completed,
+           exists (select 1 from so_introductions x where x.user_id = e.user_id and x.cohort_id = e.cohort_id) as has_intro,
+           i.*, i.created_at as intake_created_at, e.id as id
+    from so_enrollments e join so_profiles p on p.user_id = e.user_id
+    left join so_purchases pu on pu.id = e.purchase_id
+    left join so_intakes i on i.user_id = e.user_id and i.cohort_id = e.cohort_id
+    where e.cohort_id = ${cohortId} order by e.activated_at desc`;
+}
+
+function memberOut(r) {
+  return {
+    id: r.id, email: r.email, access_state: r.access_state, review_state: r.review_state, reviewed_at: r.reviewed_at,
+    reviewed_by: r.reviewed_by, review_note: r.review_note, source: r.source, is_test: r.is_test, activated_at: r.activated_at,
+    admin_note: r.admin_note, purchase_status: r.purchase_status, amount_paid_cents: r.amount_paid_cents, price_tier: r.price_tier,
+    needs_review: r.needs_review, paid_at: r.paid_at, days_completed: r.days_completed, has_intro: r.has_intro,
+    intake: intakeAdminOut(r),
+  };
+}
+
+routes['GET admin/members'] = admin(async ({ sql, now }) => {
+  const c = await C.loadCohort(sql);
+  const members = (await memberRows(sql, c.id)).map(memberOut);
+  // Fit checks submitted by people who haven't paid (for follow-up).
+  const unpaid = await sql`
+    select i.*, i.created_at as intake_created_at, p.email,
+           (select status from so_purchases pu where pu.user_id = i.user_id and pu.cohort_id = i.cohort_id order by created_at desc limit 1) as last_checkout
+    from so_intakes i join so_profiles p on p.user_id = i.user_id
+    where i.cohort_id = ${c.id} and not exists (select 1 from so_enrollments e where e.user_id = i.user_id and e.cohort_id = i.cohort_id)
+    order by i.created_at desc`;
+  return {
+    members,
+    unpaid: unpaid.map(u => ({ email: u.email, last_checkout: u.last_checkout, intake: intakeAdminOut(u) })),
+    seats: { limit: c.seat_limit, taken: await payments.seatsTaken(sql, c, now) },
+  };
+});
+
+function csvCell(v) {
+  let s = v === null || v === undefined ? '' : typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v);
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`; // stop spreadsheet formula injection
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+routes['GET admin/members/export'] = admin(async ({ sql, res, admin: who }) => {
+  const c = await C.loadCohort(sql);
+  const members = (await memberRows(sql, c.id)).map(memberOut);
+  const head = ['First name', 'Last name', 'Email', 'Phone', 'Business', 'Website', 'Street address', 'Address line 2', 'City', 'State',
+    'ZIP / postal code', 'Country', 'Stage', 'Revenue so far', 'Years in business', 'Done operations work before', 'Full-time staff',
+    'Team size (staff + contractors)', 'Most pressing operations questions', 'Review', 'Access', 'Payment', 'Amount paid', 'Price',
+    'Enrolled', 'Days completed', 'Introduced', 'Test enrollment'];
+  const rows = members.map(m => {
+    const i = m.intake || {};
+    const L = i.labels || {};
+    return [i.first_name, i.last_name, m.email, i.phone, i.business_name, i.no_website ? 'No website yet' : i.website_url,
+      i.address_line1, i.address_line2, i.city, i.state === intake.OUTSIDE_US ? 'Outside the US' : i.state, i.postal_code, i.country,
+      L.business_stage, L.revenue_to_date, L.years_in_business, i.prior_ops_work, i.has_full_time_staff, L.team_size, i.ops_questions,
+      m.review_state, m.access_state, m.source === 'manual' ? 'Manual grant' : m.purchase_status,
+      m.amount_paid_cents != null ? (m.amount_paid_cents / 100).toFixed(2) : '', m.price_tier,
+      m.activated_at ? new Date(m.activated_at).toISOString().slice(0, 10) : '', m.days_completed, m.has_intro, m.is_test];
+  });
+  await C.audit(sql, who.actor, 'members_exported', 'cohort', c.id, null, { rows: rows.length });
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="smooth-operators-members.csv"');
+  res.setHeader('Cache-Control', 'no-store');
+  res.statusCode = 200;
+  res.end('﻿' + [head, ...rows].map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n');
+  return H.HANDLED;
+});
+
+// Review: approve (enrollment becomes non-refundable) or mark not a fit (full refund).
+routes['POST admin/enrollments/:id/review'] = admin(async ({ sql, req, params, admin: who }) => {
+  const c = await C.loadCohort(sql);
+  const id = H.uuid(params.id, 'enrollment');
+  const b = H.body(req);
+  const decision = H.oneOf(b.decision, ['approved', 'not_a_fit', 'pending'], 'Decision');
+  const note = H.text(b.note, { max: 500, field: 'Note', multiline: true }) || null;
+  const e = (await sql`select * from so_enrollments where id = ${id} and cohort_id = ${c.id}`)[0];
+  if (!e) throw new HttpError(404, 'not_found', 'Unknown enrollment.');
+
+  if (decision === 'not_a_fit') {
+    if (e.review_state !== 'pending') throw new HttpError(409, 'already_reviewed', 'Only members still pending review can be refunded this way. Approved enrollments are non-refundable.');
+    let refund = null;
+    if (e.source === 'stripe' && e.purchase_id) {
+      const p = (await sql`select * from so_purchases where id = ${e.purchase_id}`)[0];
+      if (p && p.stripe_payment_intent_id && ['paid', 'disputed', 'partially_refunded'].includes(p.status)) {
+        const r = await stripe.createRefund({
+          payment_intent: p.stripe_payment_intent_id, reason: 'requested_by_customer',
+          metadata: { enrollment_id: e.id, reason: 'not_a_fit' },
+        }, `so-not-a-fit-${e.id}`);
+        refund = { id: r.id, status: r.status };
+        await sql`update so_purchases set needs_review = null, updated_at = now() where id = ${p.id}`;
+      }
+    }
+    // Access ends now; the member's saved writing is kept. Stripe's refund webhook updates the purchase.
+    const rows = await sql`update so_enrollments set review_state = 'not_a_fit', access_state = ${e.source === 'manual' ? 'revoked' : 'refunded'},
+                           reviewed_at = now(), reviewed_by = ${who.actor}, review_note = ${note}, updated_at = now()
+                           where id = ${id} returning *`;
+    await C.audit(sql, who.actor, 'enrollment_not_a_fit', 'enrollment', id, { review_state: e.review_state }, { refund });
+    return { enrollment: rows[0], refund };
+  }
+
+  if (decision === 'pending' && e.review_state === 'not_a_fit') throw new HttpError(409, 'refunded', 'This member was already refunded.');
+  const rows = await sql`update so_enrollments set review_state = ${decision},
+                         reviewed_at = ${decision === 'pending' ? null : new Date()}, reviewed_by = ${decision === 'pending' ? null : who.actor},
+                         review_note = coalesce(${note}, review_note), updated_at = now() where id = ${id} returning *`;
+  await C.audit(sql, who.actor, `enrollment_${decision}`, 'enrollment', id, { review_state: e.review_state }, { review_state: decision });
+  if (decision === 'approved') {
+    const prof = (await sql`select email from so_profiles where user_id = ${e.user_id}`)[0];
+    const sched = S.schedule(c);
+    const msg = approvalEmail({ cohortName: c.name, startDate: sched.start_date, endDate: sched.end_date,
+      returnUrl: `${env.siteUrl()}${env.BASE_PATH}/login?next=${encodeURIComponent('/app')}` });
+    await sendTransactional(sql, { dedupeKey: `enrollment-approved:${e.id}`, kind: 'enrollment_approved', userId: e.user_id, to: prof.email, ...msg })
+      .catch(err => console.error('[so] approval email error', err.message));
+  }
+  return { enrollment: rows[0] };
+});
 
 module.exports = { routes, cohortOut };

@@ -41,7 +41,7 @@ const SITE_CONTENT = [
   ['enroll.headline', 'Join the cohort', 'Enrollment headline', 'Landing: enrollment'],
   ['enroll.includes', 'A daily business reflection and practical action\nToolkit templates for the work\nGuided breathwork and meditation practices\nLive Solutions Seat calls\nA private journal that keeps your reflections in one place', 'What’s included (one per line)', 'Landing: enrollment', true],
   ['enroll.footer_cta_note', 'One-time payment. Live cohort; everyone follows the same 21-day calendar.', 'Footer CTA note', 'Landing: enrollment'],
-  ['purchase.refund_policy', '', 'Refund policy (required before live sales)', 'Purchase & legal', true],
+  ['purchase.refund_policy', 'After you enroll, our team reviews your fit check. If we decide Smooth Operators isn’t the right fit for where your business is right now, we’ll refund your payment in full. Once you’re approved, your enrollment is non-refundable.', 'Refund policy (publish before live sales)', 'Purchase & legal', true],
   ['purchase.access_terms', '', 'Access duration statement (required before live sales)', 'Purchase & legal', true],
   ['purchase.tax_treatment', '', 'Tax treatment statement (required before live sales)', 'Purchase & legal', true],
   ['purchase.disclosure', '', 'Additional purchase disclosure shown at checkout', 'Purchase & legal', true],

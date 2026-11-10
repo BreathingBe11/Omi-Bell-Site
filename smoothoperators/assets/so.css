@@ -358,3 +358,16 @@ dialog.so-dialog::backdrop { background: rgba(46, 22, 49, .4); }
 
 /* Headings receive focus programmatically after navigation (for screen readers); no ring needed. */
 h1[tabindex="-1"]:focus, h1[tabindex="-1"]:focus-visible, main[tabindex="-1"]:focus-visible { outline: none; }
+
+/* Fit check choices: large tap targets */
+.fit-group { border: 0; padding: 0; margin: 0 0 1.4rem; }
+.choice-grid { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr)); }
+.choice { display: flex; align-items: center; gap: .6rem; min-height: 48px; padding: .55rem .85rem; border: 1.5px solid var(--line-strong); border-radius: var(--radius-sm); background: #fff; cursor: pointer; }
+.choice input { width: 1.15rem; height: 1.15rem; accent-color: var(--plum-700); flex: none; }
+.choice:has(input:checked) { border-color: var(--plum-700); background: var(--plum-100); }
+.choice:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: .35rem 1rem; margin: .5rem 0; font-size: .95rem; }
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; }
+@media (max-width: 560px) { dl.kv { grid-template-columns: 1fr; } dl.kv dt { margin-top: .4rem; } }

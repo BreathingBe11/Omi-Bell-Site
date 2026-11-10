@@ -188,6 +188,7 @@ routes['GET home'] = async ({ sql, req, now }) => {
   C.recordEvent(sql, 'welcome_viewed', { userId: ctx.user.id, cohortId: ctx.cohort.id });
   const out = await homePayload(sql, ctx.cohort, now, ctx.user.id, ctx.access);
   out.test_enrollment = !!ctx.enrollment.is_test;
+  out.review_state = ctx.enrollment.review_state;
   return out;
 };
 

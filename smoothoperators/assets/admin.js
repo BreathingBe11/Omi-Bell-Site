@@ -8,8 +8,8 @@
   const root = document.getElementById('admin-root');
   const TOKEN_KEY = 'ob_admin_token';
   const SECTIONS = [
-    ['overview', 'Overview'], ['cohort', 'Cohort settings'], ['days', '21 days'], ['resources', 'Resources'],
-    ['calls', 'Calls'], ['members', 'Members & payments'], ['intros', 'Introductions'], ['content', 'Site content & FAQs'],
+    ['overview', 'Overview'], ['people', 'Members'], ['cohort', 'Cohort settings'], ['days', '21 days'], ['resources', 'Resources'],
+    ['calls', 'Calls'], ['members', 'Payments & access'], ['intros', 'Introductions'], ['content', 'Site content & FAQs'],
     ['preview', 'Preview'], ['log', 'Audit log'],
   ];
   const q = (s, el = document) => el.querySelector(s);
@@ -59,7 +59,7 @@ ${msg ? `<div class="notice notice-warn"><p>${esc(msg)}</p></div>` : ''}
     if (!token()) return showLogin();
     const s = section();
     root.innerHTML = `<header class="admin-top"><span class="wordmark">Smooth Operators · Admin</span>
-<div class="row"><a href="/smoothoperators" target="_blank" rel="noopener">View landing page</a><button class="btn btn-ghost btn-sm" id="logout">Log out</button></div></header>
+<div class="row"><a href="/admin">← Omi Bell admin</a><a href="/smoothoperators" target="_blank" rel="noopener">View landing page</a><button class="btn btn-ghost btn-sm" id="logout">Log out</button></div></header>
 <nav class="admin-nav" aria-label="Admin sections">${SECTIONS.map(([k, l]) => `<a href="#${k}"${k === s ? ' aria-current="page"' : ''}>${l}</a>`).join('')}</nav>
 <main id="admin-main" class="admin-main" tabindex="-1"><p class="loading">Loading…</p></main>`;
     q('#logout').addEventListener('click', () => { sessionStorage.removeItem(TOKEN_KEY); showLogin(); });
@@ -82,9 +82,11 @@ ${msg ? `<div class="notice notice-warn"><p>${esc(msg)}</p></div>` : ''}
 <p class="muted">Server time ${esc(dt(o.now))} · Phase: <strong>${esc(o.phase.replace('_', ' '))}</strong>${o.current_day ? ` · Day ${o.current_day}` : ''} · Current price <strong>${money(o.price.amount_cents)}</strong> (${esc(o.price.tier)})</p>
 ${o.sales.test_mode ? '<div class="notice notice-warn"><p><strong>Stripe is in TEST mode.</strong> Checkouts use test cards and create test enrollments.</p></div>' : ''}
 ${alerts.length ? `<div class="notice notice-error"><p><strong>${alerts.length} day(s) unlock within 7 days and aren’t ready:</strong> ${alerts.map(d => `Day ${d.day_number}`).join(', ')}.</p></div>` : ''}
+${o.pending_reviews ? `<div class="notice notice-warn"><p><strong>${o.pending_reviews} paid member(s) waiting for your review.</strong> <a href="#people">Review fit checks</a></p></div>` : ''}
 ${o.needs_review ? `<div class="notice notice-warn"><p>${o.needs_review} purchase(s) need review. <a href="#members">Members & payments</a></p></div>` : ''}
 ${o.failed_webhooks ? `<div class="notice notice-error"><p>${o.failed_webhooks} payment webhook(s) failed to process. <a href="#log">See log</a></p></div>` : ''}
 <div class="grid-3">
+  <div class="card"><p class="muted small">Seats (private)</p><p class="stat">${o.seats.taken}${o.seats.limit ? ` / ${o.seats.limit}` : ''}</p><p class="small muted">${o.seats.limit ? (o.seats.taken >= o.seats.limit ? 'Full: the site says “All seats are full.”' : `${o.seats.limit - o.seats.taken} left. The limit is never shown publicly.`) : 'No limit set.'}</p></div>
   <div class="card"><p class="muted small">Active enrollments</p><p class="stat">${enr.active || 0}</p><p class="small muted">${enr.test ? `${enr.test} test · ` : ''}${['refunded', 'suspended', 'disputed', 'revoked'].map(k => enr[k] ? `${enr[k]} ${k}` : '').filter(Boolean).join(' · ')}</p></div>
   <div class="card"><p class="muted small">Live revenue (confirmed)</p><p class="stat">${money(o.live_revenue_cents)}</p></div>
   <div class="card"><p class="muted small">Funnel</p><p class="small" style="margin:0">CTA clicks ${o.funnel.landing_cta_clicked || 0} · Checkouts ${o.funnel.checkout_started || 0} · Paid ${o.funnel.payment_confirmed || 0}<br>Welcome views ${o.funnel.welcome_viewed || 0} · Days opened ${o.funnel.day_opened || 0} · Completed ${o.funnel.day_completed || 0}<br>Resources opened ${o.funnel.resource_opened || 0} · Call link clicks ${o.funnel.call_link_clicked || 0}</p></div>
@@ -128,6 +130,7 @@ ${f('price_cutoff_local', 'Introductory price ends', loc('price_cutoff_local', c
 ${f('regular', 'Regular price (USD)', `<input id="regular" type="number" min="1" step="1" value="${c.regular_price_cents / 100}">`)}
 ${f('intro', 'Introductory price (USD, blank = none)', `<input id="intro" type="number" min="1" step="1" value="${c.intro_price_cents ? c.intro_price_cents / 100 : ''}">`)}
 ${f('ttl', 'Checkout session expiry (minutes)', `<input id="ttl" type="number" min="30" max="1440" value="${c.checkout_ttl_minutes}">`, 'An open checkout keeps its quoted price until it expires (30–1440 minutes, enforced by Stripe). New checkouts after the cutoff use the regular price.')}
+${f('seat_limit', 'Seat limit (private; blank = no limit)', `<input id="seat_limit" type="number" min="1" value="${c.seat_limit || ''}">`, 'Never shown publicly. When it’s reached, the site just says “All seats are full.”')}
 ${f('join', 'Default call join window (minutes before start)', `<input id="join" type="number" min="0" max="240" value="${c.call_join_window_minutes}">`)}
 ${f('access_policy', 'Post-cohort access policy', `<select id="access_policy">${[['unset', 'Not decided yet (blocks live sales)'], ['until_date', 'Access until a date'], ['indefinite', 'No end date']].map(([v, l]) => `<option value="${v}"${c.access_policy === v ? ' selected' : ''}>${l}</option>`).join('')}</select>`)}
 ${f('access_ends_local', 'Access ends (for “until a date”)', loc('access_ends_local', c.access_ends_local))}
@@ -153,6 +156,7 @@ ${f('dispute', 'While a payment is disputed', `<select id="dispute">${[['keep', 
       intro_price_cents: val(form, '#intro') ? Math.round(Number(val(form, '#intro')) * 100) : null,
       checkout_ttl_minutes: Number(val(form, '#ttl')), call_join_window_minutes: Number(val(form, '#join')),
       access_policy: val(form, '#access_policy'), access_ends_local: val(form, '#access_ends_local'),
+      seat_limit: val(form, '#seat_limit') ? Number(val(form, '#seat_limit')) : null,
       refund_access_action: val(form, '#refund'), dispute_access_action: val(form, '#dispute'), sales_enabled: q('#sales').checked,
     });
     const showImpact = async () => {
@@ -354,11 +358,73 @@ ${challenges.length ? challenges.map(c => `<tr><td>${esc(c.preferred_name || c.d
     qa('[data-ch]', main).forEach(s => s.addEventListener('change', () => api('PUT', `admin/challenges/${s.dataset.ch}`, { status: s.value }).catch(e => alert(e.message))));
   };
 
+  // --------------------------------------------------------------- people
+  VIEWS.people = async main => {
+    const data = await api('GET', 'admin/members');
+    const filter = hashArg() || 'all';
+    const counts = { all: data.members.length, pending: 0, approved: 0, not_a_fit: 0 };
+    data.members.forEach(m => { counts[m.review_state] = (counts[m.review_state] || 0) + 1; });
+    const shown = data.members.filter(m => filter === 'all' || m.review_state === filter);
+    const reviewPill = m => ({ pending: '<span class="pill pill-progress">Pending review</span>', approved: '<span class="pill pill-complete">Approved</span>', not_a_fit: '<span class="pill">Not a fit · refunded</span>' }[m.review_state]);
+    const detail = i => i ? `<dl class="kv">
+<dt>Phone</dt><dd><a href="tel:${esc(i.phone)}">${esc(i.phone)}</a></dd>
+<dt>Business</dt><dd>${esc(i.business_name)}${i.no_website ? ' · <span class="muted">no website yet</span>' : i.website_url ? ` · <a href="${esc(i.website_url)}" target="_blank" rel="noopener noreferrer">${esc(i.website_url.replace(/^https?:\/\//, ''))}</a>` : ''}</dd>
+<dt>Address</dt><dd>${esc(i.address_line1)}${i.address_line2 ? `, ${esc(i.address_line2)}` : ''}, ${esc(i.city)}, ${esc(i.state === 'OUTSIDE_US' ? i.country : i.state)} ${esc(i.postal_code)}</dd>
+<dt>Stage</dt><dd>${esc(i.labels.business_stage)}</dd>
+<dt>Revenue so far</dt><dd>${esc(i.labels.revenue_to_date)}</dd>
+<dt>In business</dt><dd>${esc(i.labels.years_in_business)}</dd>
+<dt>Ops work before</dt><dd>${i.prior_ops_work ? 'Yes' : 'No'}</dd>
+<dt>Full-time staff</dt><dd>${i.has_full_time_staff ? 'Yes' : 'No'}</dd>
+<dt>Team size</dt><dd>${esc(i.labels.team_size)}</dd>
+<dt>Pressing questions</dt><dd style="white-space:pre-wrap">${esc(i.ops_questions)}</dd></dl>` : '<p class="muted small">No fit check on file (for example, access granted manually).</p>';
+    main.innerHTML = `<div class="row-between"><h1>Members</h1><button class="btn btn-secondary btn-sm" id="export">Download spreadsheet (CSV)</button></div>
+<p class="muted">Seats: <strong>${data.seats.taken}${data.seats.limit ? ` of ${data.seats.limit}` : ''}</strong> (private). Everything people shared in their fit check is here. Their journals stay private.</p>
+<nav class="row" aria-label="Filter members" style="margin-bottom:1rem">${[['all', 'All'], ['pending', 'Pending review'], ['approved', 'Approved'], ['not_a_fit', 'Not a fit']].map(([k, l]) =>
+      `<a class="btn btn-sm ${filter === k ? 'btn-primary' : 'btn-secondary'}" href="#people/${k}"${filter === k ? ' aria-current="page"' : ''}>${l} (${counts[k] || 0})</a>`).join('')}</nav>
+<div class="stack">${shown.length ? shown.map(m => {
+      const i = m.intake;
+      const name = i ? `${i.first_name} ${i.last_name}` : (m.email);
+      return `<article class="card" data-member="${m.id}">
+<div class="row-between"><div><h2 style="margin:0;font-size:1.5rem">${esc(name)}</h2>
+<p class="small muted" style="margin:.2rem 0 0"><a href="mailto:${esc(m.email)}">${esc(m.email)}</a> · ${m.source === 'manual' ? 'Manual grant' : `${esc(m.purchase_status || '—')} ${money(m.amount_paid_cents)}`} · enrolled ${esc(dt(m.activated_at))}${m.is_test ? ' · <span class="pill pill-draft">test</span>' : ''}</p></div>
+<div>${reviewPill(m)}${i && i.early_stage ? ' <span class="pill pill-draft">Early stage</span>' : ''}${m.needs_review ? ` <span class="pill pill-live">${esc(m.needs_review)}</span>` : ''}</div></div>
+<details class="more" ${m.review_state === 'pending' ? 'open' : ''}><summary>Fit check answers</summary>${detail(i)}</details>
+<p class="small muted" style="margin:.4rem 0">Days completed: ${m.days_completed} · Introduced: ${m.has_intro ? 'yes' : 'no'}${m.reviewed_by ? ` · Reviewed by ${esc(m.reviewed_by)} ${esc(dt(m.reviewed_at))}` : ''}${m.review_note ? ` · Note: ${esc(m.review_note)}` : ''}</p>
+<div class="row">${m.review_state === 'pending' ? `<button class="btn btn-primary btn-sm" data-review="approved">Approve</button>
+<button class="btn btn-danger btn-sm" data-review="not_a_fit">Not a fit: refund in full</button>` : ''}
+${m.review_state === 'approved' ? '<button class="btn btn-ghost btn-sm" data-review="pending">Move back to pending</button>' : ''}</div>
+</article>`;
+    }).join('') : '<p class="empty">No one here yet.</p>'}</div>
+<h2>Fit checks without payment</h2><p class="small muted">People who filled out the fit check but haven’t paid. Useful for a personal follow-up.</p>
+<div class="table-wrap"><table class="data"><thead><tr><th>Name</th><th>Email / phone</th><th>Business</th><th>Stage · revenue</th><th>Checkout</th><th>Submitted</th></tr></thead><tbody>
+${data.unpaid.length ? data.unpaid.map(u => `<tr><td>${esc(u.intake.first_name)} ${esc(u.intake.last_name)}</td><td class="small">${esc(u.email)}<br>${esc(u.intake.phone)}</td>
+<td>${esc(u.intake.business_name)}<br><span class="small muted">${esc(u.intake.city)}, ${esc(u.intake.state === 'OUTSIDE_US' ? u.intake.country : u.intake.state)}</span></td>
+<td class="small">${esc(u.intake.labels.business_stage)}<br>${esc(u.intake.labels.revenue_to_date)}</td><td class="small">${esc(u.last_checkout || 'not started')}</td><td class="small">${esc(dt(u.intake.submitted_at))}</td></tr>`).join('') : '<tr><td colspan="6">None.</td></tr>'}</tbody></table></div>`;
+    q('#export').addEventListener('click', async () => {
+      const res = await fetch('/api/so/admin/members/export', { headers: { Authorization: `Bearer ${token()}` } });
+      if (!res.ok) { alert('Export failed.'); return; }
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a'); a.href = url; a.download = 'smooth-operators-members.csv'; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    });
+    qa('[data-member]', main).forEach(card => qa('[data-review]', card).forEach(b => b.addEventListener('click', async () => {
+      const decision = b.dataset.review;
+      const name = q('h2', card).textContent;
+      if (decision === 'not_a_fit' && !confirm(`Mark ${name} as not a fit?\n\nThis refunds their payment in full through Stripe and ends their access. It can’t be undone. You may want to reach out to them personally.`)) return;
+      if (decision === 'approved' && !confirm(`Approve ${name}?\n\nOnce approved, their enrollment is non-refundable, and they’ll get an approval email (if email sending is on).`)) return;
+      const note = decision === 'pending' ? null : prompt('Optional note (only admins see this):', '') ;
+      if (note === null && decision !== 'pending') return;
+      b.disabled = true;
+      try { await api('POST', `admin/enrollments/${card.dataset.member}/review`, { decision, note: note || '' }); VIEWS.people(main); }
+      catch (e) { alert(e.message); b.disabled = false; }
+    })));
+  };
+
   // -------------------------------------------------------------- members
   VIEWS.members = async main => {
     const [{ enrollments }, { purchases }, { cohort }] = await Promise.all([api('GET', 'admin/enrollments'), api('GET', 'admin/purchases'), api('GET', 'admin/cohort')]);
     cohortTz = cohort.timezone;
-    main.innerHTML = `<h1>Members & payments</h1><p class="muted">Completion counts only. Members’ journals are private and are not available here.</p>
+    main.innerHTML = `<h1>Payments & access</h1><p class="muted">Completion counts only. Members’ journals are private and are not available here.</p>
 <div class="table-wrap"><table class="data"><thead><tr><th>Member</th><th>Access</th><th>Payment</th><th>Days complete</th><th>Intro</th><th></th></tr></thead><tbody>
 ${enrollments.length ? enrollments.map(e => `<tr><td>${esc(e.display_name || '')}<br><span class="small">${esc(e.email)}</span>${e.is_test ? ' <span class="pill pill-draft">test</span>' : ''}</td>
 <td><select data-state="${e.id}">${['active', 'suspended', 'refunded', 'disputed', 'revoked'].map(s => `<option${e.access_state === s ? ' selected' : ''}>${s}</option>`).join('')}</select>

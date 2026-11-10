@@ -24,6 +24,7 @@ function register(routes) {
 }
 register(require('./_lib/so/member').routes);
 register(require('./_lib/so/payments').routes);
+register(require('./_lib/so/intake').routes);
 register(require('./_lib/so/admin').routes);
 register(require('./_lib/so/pages').routes);
 

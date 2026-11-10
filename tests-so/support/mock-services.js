@@ -167,6 +167,15 @@ function startMocks({ sql, webhookUrl, webhookSecret, port = 0 } = {}) {
         s.status = 'expired';
         return json(200, sessionView(s));
       }
+      if (p === '/v1/refunds' && req.method === 'POST') {
+        const form = parseForm((await readBody(req)).toString());
+        state.stripeCalls.push({ path: p, form });
+        const key = req.headers['idempotency-key'];
+        if (key && state.idem.has(key)) return json(200, state.idem.get(key));
+        const r = { id: `re_${crypto.randomBytes(6).toString('hex')}`, object: 'refund', status: 'succeeded', payment_intent: form.payment_intent };
+        if (key) state.idem.set(key, r);
+        return json(200, r);
+      }
       // Hosted "checkout" page for browser tests.
       if ((m = /^\/pay\/([^/]+)$/.exec(p)) && req.method === 'GET') {
         const s = state.sessions.get(m[1]);

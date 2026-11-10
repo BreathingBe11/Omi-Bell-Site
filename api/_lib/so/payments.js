@@ -18,7 +18,8 @@ const C = require('./core');
 const H = require('./http');
 const stripe = require('./stripe');
 const env = require('./env');
-const { requireUser, ensureProfile } = require('./identity');
+const { requireUser, ensureProfile, getAuthUser } = require('./identity');
+const { loadIntake } = require('./intake');
 const { sendTransactional, confirmationEmail } = require('./email');
 
 const { HttpError } = H;
@@ -32,11 +33,33 @@ function priceOut(price) {
   };
 }
 
-async function offerPayload(sql, now) {
+// Seats in use: active enrollments (not marked "not a fit") plus other people's
+// unexpired checkouts. The limit itself is never sent to browsers.
+async function seatsTaken(sql, cohort, now, excludeUserId = null) {
+  const countTest = env.stripeMode() !== 'live';
+  const e = await sql`select count(*)::int as n from so_enrollments where cohort_id = ${cohort.id}
+                      and access_state = 'active' and review_state <> 'not_a_fit' and (${countTest} or not is_test)`;
+  const holds = await sql`select count(*)::int as n from so_purchases where cohort_id = ${cohort.id}
+                          and (status = 'pending' or (status in ('created', 'open') and expires_at > ${now}))
+                          and user_id is distinct from ${excludeUserId}
+                          and not exists (select 1 from so_enrollments x where x.user_id = so_purchases.user_id
+                                          and x.cohort_id = so_purchases.cohort_id and x.access_state = 'active')`;
+  return e[0].n + holds[0].n;
+}
+async function seatsFull(sql, cohort, now, excludeUserId) {
+  if (!cohort.seat_limit) return false;
+  return (await seatsTaken(sql, cohort, now, excludeUserId)) >= cohort.seat_limit;
+}
+
+async function offerPayload(sql, now, viewerId = null) {
   const cohort = await C.loadCohort(sql);
   const content = await C.loadContent(sql);
   const sched = S.schedule(cohort);
   const readiness = await C.salesReadiness(sql, cohort, content, now);
+  if (readiness.can_checkout && await seatsFull(sql, cohort, now, viewerId)) {
+    readiness.can_checkout = false;
+    readiness.reason = 'full';
+  }
   return {
     cohort: {
       name: cohort.name, timezone: cohort.timezone, start_date: sched.start_date, end_date: sched.end_date,
@@ -45,7 +68,7 @@ async function offerPayload(sql, now) {
     price: priceOut(S.priceAt(cohort, now)),
     sales: { mode: readiness.mode, can_checkout: readiness.can_checkout, reason: readiness.reason, test_mode: readiness.test_mode },
     disclosure: {
-      refund_policy: content.isPublished('purchase.refund_policy') ? content.get('purchase.refund_policy') : null,
+      refund_policy: content.get('purchase.refund_policy') || null,
       access_terms: content.isPublished('purchase.access_terms') ? content.get('purchase.access_terms') : null,
       tax_treatment: content.isPublished('purchase.tax_treatment') ? content.get('purchase.tax_treatment') : null,
       extra: content.isPublished('purchase.disclosure') ? content.get('purchase.disclosure') : null,
@@ -113,7 +136,10 @@ async function checkoutSession({ sql, req, now }) {
   if (!readiness.can_checkout) {
     return { state: readiness.reason === 'enrollment_closed' ? 'enrollment_closed' : 'unavailable', reason: readiness.reason };
   }
+  const intake = await loadIntake(sql, user.id, cohort.id);
+  if (!intake || !intake.policy_ack_at) return { state: 'intake_required' };
   await H.rateLimit(sql, `checkout:${user.id}`, 12, 600);
+  if (await seatsFull(sql, cohort, now, user.id)) return { state: 'full' };
 
   for (let attempt = 0; attempt < 3; attempt++) {
     if (attempt > 0) {
@@ -236,6 +262,13 @@ async function activatePurchase(sql, purchase, { paymentIntent, amountTotal, amo
                             then excluded.purchase_id else so_enrollments.purchase_id end,
         updated_at = now()
       returning *`;
+    // Rare race at the last seat: they paid, so they're in; flag it for Omi.
+    const cohort = (await tx`select seat_limit from so_cohorts where id = ${p.cohort_id}`)[0];
+    if (cohort.seat_limit) {
+      const n = (await tx`select count(*)::int as n from so_enrollments where cohort_id = ${p.cohort_id}
+                          and access_state = 'active' and review_state <> 'not_a_fit' and (${!livemode} or not is_test)`)[0].n;
+      if (n > cohort.seat_limit) await tx`update so_purchases set needs_review = 'over_capacity' where id = ${p.id}`;
+    }
     return { activated: true, purchase: p, enrollment: en[0] };
   });
   if (result.activated) {
@@ -388,9 +421,12 @@ async function processWebhook(sql, rawBody, signature) {
 }
 
 const routes = {
-  'GET offer': async ({ sql, now }) => offerPayload(sql, now),
+  'GET offer': async ({ sql, now, req }) => {
+    const viewer = await getAuthUser(req).catch(() => null);
+    return offerPayload(sql, now, viewer ? viewer.id : null);
+  },
   'POST checkout/session': checkoutSession,
   'GET checkout/status': checkoutStatus,
 };
 
-module.exports = { routes, offerPayload, applySession, activatePurchase, processWebhook, handleEvent, sendConfirmation, retireSession };
+module.exports = { routes, offerPayload, seatsTaken, applySession, activatePurchase, processWebhook, handleEvent, sendConfirmation, retireSession };

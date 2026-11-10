@@ -100,6 +100,19 @@ async function boot(extraEnv = {}) {
     return s;
   }
 
+  const FIT = {
+    first_name: 'Test', last_name: 'Founder', business_name: 'Test Co', website_url: 'https://test.example.com', phone: '(555) 555-0100',
+    address_line1: '1 Main St', city: 'Oakland', state: 'CA', postal_code: '94612', business_stage: 'growing', revenue_to_date: '100k_250k',
+    years_in_business: '3_5', prior_ops_work: 'no', has_full_time_staff: 'yes', team_size: '3_5', ops_questions: 'How do I delegate?', policy_ack: true,
+  };
+  // Signed-in buyer who has completed the required fit check.
+  async function buyer(email, overrides = {}) {
+    const s = await mocks.signIn(email);
+    const r = await api('PUT', 'intake', { token: s.token, body: { ...FIT, ...overrides } });
+    if (r.status !== 200) throw new Error(`fit check failed: ${JSON.stringify(r.body)}`);
+    return s;
+  }
+
   async function close() {
     await new Promise(r => server.close(r));
     await mocks.close();
@@ -109,7 +122,7 @@ async function boot(extraEnv = {}) {
     await dropDatabase(db.name);
   }
 
-  return { appBase, db, sql: db.sql, mocks, api, adminToken, cohort, setCohort, setLiveDay, enroll, close, WEBHOOK_SECRET };
+  return { appBase, db, sql: db.sql, mocks, api, buyer, FIT, adminToken, cohort, setCohort, setLiveDay, enroll, close, WEBHOOK_SECRET };
 }
 
 module.exports = { boot };

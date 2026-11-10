@@ -34,6 +34,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 /* SHELL */
 #adminShell{display:none;min-height:100vh;}
+#hubScreen{display:none;min-height:100vh;flex-direction:column;align-items:center;justify-content:center;gap:2rem;padding:2rem;}
+.hub-title{font-family:'Cormorant Garamond',serif;font-size:2.2rem;font-weight:400;text-align:center;}
+.hub-grid{display:grid;gap:1.25rem;width:100%;max-width:760px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));}
+.hub-card{display:flex;flex-direction:column;gap:.6rem;background:var(--surface);border:1px solid var(--border);padding:2rem;text-decoration:none;color:var(--text);text-align:left;font-family:'DM Sans',sans-serif;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.05);transition:border-color .2s,transform .2s;}
+.hub-card:hover,.hub-card:focus-visible{border-color:var(--teal);transform:translateY(-2px);}
+.hub-card-label{font-size:.65rem;letter-spacing:.2em;text-transform:uppercase;color:var(--teal);}
+.hub-card-name{font-family:'Cormorant Garamond',serif;font-size:1.7rem;line-height:1.15;}
+.hub-card-desc{font-size:.9rem;color:var(--muted);line-height:1.5;}
+.hub-foot{display:flex;gap:1.5rem;align-items:center;font-size:.85rem;}
 .admin-top{display:flex;align-items:center;justify-content:space-between;padding:0.9rem 2rem;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;box-shadow:0 1px 0 var(--sand);}
 .admin-brand{font-family:'Cormorant Garamond',serif;font-size:1.1rem;letter-spacing:0.08em;}
 .admin-brand span{color:var(--teal);}
@@ -184,11 +193,33 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   </div>
 </div>
 
+<div id="hubScreen">
+  <div class="login-logo">Omi Bell</div>
+  <h1 class="hub-title">Where would you like to go?</h1>
+  <div class="hub-grid">
+    <button type="button" class="hub-card" onclick="openBlogAdmin()">
+      <span class="hub-card-label">Journal</span>
+      <span class="hub-card-name">Blog admin</span>
+      <span class="hub-card-desc">Posts, scheduling, and writers.</span>
+    </button>
+    <a class="hub-card" href="/smoothoperators/admin">
+      <span class="hub-card-label">Cohort</span>
+      <span class="hub-card-name">Smooth Operators admin</span>
+      <span class="hub-card-desc">Sales, members and their fit checks, approvals, the 21 days, calls, and settings.</span>
+    </a>
+  </div>
+  <div class="hub-foot">
+    <a href="/coterie/list" class="view-link">Coterie bookings</a>
+    <button class="btn-sm btn-ghost" onclick="logout()">Log Out</button>
+  </div>
+</div>
+
 <div id="adminShell">
   <div class="admin-top">
     <div class="admin-brand">Omi Bell · <span>Journal</span><span class="admin-badge">Super Admin</span></div>
     <div class="top-actions">
-      <a href="blog.html" target="_blank" class="view-link">View Blog ↗</a>
+      <a href="/admin" class="view-link" onclick="event.preventDefault();showHub()">← Dashboard</a>
+      <a href="blog.html" target="_blank" class="view-link" style="margin-left:0.3rem">View Blog ↗</a>
       <a href="writer.html" target="_blank" class="view-link" style="margin-left:0.3rem">Writer Portal ↗</a>
       <a href="/coterie/list" class="view-link" style="margin-left:0.3rem">Coterie Bookings</a>
       <button class="btn-sm btn-teal" onclick="newPost()">+ New Post</button>
@@ -365,7 +396,9 @@ window.onload = () => {
     document.getElementById('resetCard').style.display = 'block';
     return;
   }
-  if (sessionStorage.getItem('ob_admin_token')) showAdmin();
+  if (sessionStorage.getItem('ob_admin_token')) {
+    if (location.hash === '#blog') showAdmin(); else showHub();
+  }
 };
 
 async function forgotPassword() {
@@ -429,7 +462,7 @@ async function login() {
     }
     sessionStorage.setItem('ob_admin_token', d.token);
     document.getElementById('loginErr').style.display = 'none';
-    showAdmin();
+    showHub();
   } catch {
     document.getElementById('loginErr').style.display = 'block';
     document.getElementById('pwInput').value = '';
@@ -443,10 +476,23 @@ function authHeaders() {
     'Authorization': `Bearer ${sessionStorage.getItem('ob_admin_token')}`,
   };
 }
+// After login: choose Blog admin or Smooth Operators admin.
+function showHub() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('adminShell').style.display = 'none';
+  document.getElementById('hubScreen').style.display = 'flex';
+  if (location.hash) history.replaceState(null, '', location.pathname);
+}
+function openBlogAdmin() {
+  history.replaceState(null, '', location.pathname + '#blog');
+  showAdmin();
+}
+let blogLoaded = false;
 async function showAdmin() {
   document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('hubScreen').style.display = 'none';
   document.getElementById('adminShell').style.display = 'block';
-  loadList(); loadWriters();
+  if (!blogLoaded) { blogLoaded = true; loadList(); loadWriters(); }
 }
 
 function switchTab(tab) {

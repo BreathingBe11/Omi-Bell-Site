@@ -86,7 +86,8 @@ function footer(content) {
 function cta(offer, { id, variant = 'primary' } = {}) {
   const label = `Join the Cohort — ${money(offer.price.amount_cents)}`;
   if (!offer.sales.can_checkout) {
-    const msg = offer.sales.reason === 'enrollment_closed' ? 'Enrollment for this cohort has closed.' : 'Enrollment opens soon.';
+    const msg = offer.sales.reason === 'full' ? 'All seats are full.'
+      : offer.sales.reason === 'enrollment_closed' ? 'Enrollment for this cohort has closed.' : 'Enrollment opens soon.';
     return `<p class="cta-closed" data-so-cta-closed>${e(msg)}</p>`;
   }
   return `<a class="btn btn-${variant} btn-lg" href="${B}/checkout" data-so-cta ${id ? `id="${id}"` : ''}>${e(label)}</a>`;

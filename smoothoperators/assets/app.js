@@ -450,7 +450,7 @@
       return 'Join';
     }
     if (!offer.sales.can_checkout) {
-      step.innerHTML = `<div class="notice"><p>${offer.sales.reason === 'enrollment_closed' ? 'Enrollment for this cohort has closed.' : 'Enrollment isn’t open yet. Please check back soon.'}</p></div>
+      step.innerHTML = `<div class="notice"><p>${offer.sales.reason === 'full' ? 'All seats are full.' : offer.sales.reason === 'enrollment_closed' ? 'Enrollment for this cohort has closed.' : 'Enrollment isn’t open yet. Please check back soon.'}</p></div>
 <p>${supportLine(offer.support_email)}</p>`;
       return 'Join';
     }
@@ -459,7 +459,14 @@
       loginForm(q('#login', step), { next: '/checkout', heading: false, intro: 'We’ll send a one-time code to confirm it’s you. Your enrollment and cohort access will belong to this email.' });
       return 'Join';
     }
+    const fit = await SO.api('GET', 'intake');
+    if (!fit.intake || query.edit === 'fit') {
+      fitCheckForm(step, fit, me);
+      return 'Join';
+    }
     step.innerHTML = `<p>Signed in as <strong>${esc(me.email)}</strong>. <button class="linklike" data-signout>Not you?</button></p>
+<div class="notice notice-success"><p><strong>Fit check complete.</strong> Thanks, ${esc(fit.intake.first_name)}. <a href="${B}/checkout?edit=fit">Review my answers</a></p></div>
+${fit.intake.early_stage ? '<div class="notice notice-warn"><p>Smooth Operators is built for founders who already have customers and revenue. You’re welcome to join; just know it may be early for where your business is today.</p></div>' : ''}
 <button class="btn btn-primary btn-lg btn-block" id="pay-btn">Continue to secure payment — ${SO.money(offer.price.amount_cents)}</button>
 <p class="small muted">You’ll finish on Stripe’s secure checkout page. Your receipt comes from Stripe.</p>
 <div id="pay-msg" role="status" aria-live="polite"></div>`;
@@ -475,6 +482,8 @@
         const text = {
           already_enrolled: `You’re already enrolled. <a href="${B}/app">Open My Cohort</a>.`,
           pending: 'We’re confirming your enrollment. You won’t need to pay again. Check back in a few minutes.',
+          full: 'All seats are full.',
+          intake_required: `Please complete the fit check first. <a href="${B}/checkout">Continue</a>`,
           enrollment_closed: 'Enrollment for this cohort has closed.',
           unavailable: 'Enrollment isn’t open right now.',
           contact_support: `Your account needs a quick review before checkout. ${supportLine(offer.support_email)}`,
@@ -488,6 +497,87 @@
       }
     });
     return 'Join';
+  }
+
+  // Fit check: mostly buttons, one open question. Required before payment.
+  function fitCheckForm(step, fit, me) {
+    const v = fit.intake || {};
+    const radios = (name, legend, opts, cur) => `<fieldset class="field fit-group"><legend class="label">${legend}</legend>
+<div class="choice-grid">${opts.map(([val, lab]) => `<label class="choice"><input type="radio" name="${name}" value="${esc(String(val))}"${String(cur) === String(val) ? ' checked' : ''} required><span>${esc(lab)}</span></label>`).join('')}</div></fieldset>`;
+    const yn = (name, legend, cur) => radios(name, legend, [['yes', 'Yes'], ['no', 'No']], cur === true ? 'yes' : cur === false ? 'no' : '');
+    const input = (id, label, val, attrs = '') => `<div class="field"><label for="${id}">${label}</label><input id="${id}" name="${id}" value="${esc(val || '')}" ${attrs}></div>`;
+    const isOutside = v.state === fit.outside_us;
+    step.innerHTML = `<h2 style="font-size:1.6rem">Fit check</h2>
+<p>Smooth Operators is a cohort, so we want everyone in the room at a similar stage. These answers are private: only Omi and the admin team see them. Most questions are a single tap.</p>
+<form id="fit" class="card" novalidate>
+  <h3 style="font-size:1.25rem">About you</h3>
+  <div class="grid-2">${input('first_name', 'First name', v.first_name, 'autocomplete="given-name" required maxlength="80"')}${input('last_name', 'Last name', v.last_name, 'autocomplete="family-name" required maxlength="80"')}</div>
+  ${input('phone', 'Phone number', v.phone, 'type="tel" autocomplete="tel" required maxlength="30"')}
+  <h3 style="font-size:1.25rem">Your business</h3>
+  ${input('business_name', 'Business name', v.business_name, 'autocomplete="organization" required maxlength="160"')}
+  ${input('website_url', 'Website', v.website_url, 'type="url" placeholder="https://" maxlength="300"')}
+  <label class="check" style="margin-top:-.6rem"><input type="checkbox" id="no_website"${v.no_website ? ' checked' : ''}><span>I don’t have a website yet</span></label>
+  <h3 style="font-size:1.25rem">Business address</h3>
+  ${input('address_line1', 'Street address', v.address_line1, 'autocomplete="address-line1" required maxlength="200"')}
+  ${input('address_line2', 'Apartment, suite, etc. <span class="muted small">(optional)</span>', v.address_line2, 'autocomplete="address-line2" maxlength="200"')}
+  <div class="grid-3">
+    ${input('city', 'City', v.city, 'autocomplete="address-level2" required maxlength="120"')}
+    <div class="field"><label for="state">State</label><select id="state" name="state" required autocomplete="address-level1"><option value="">Choose…</option>
+      ${fit.states.map(s => `<option${v.state === s ? ' selected' : ''}>${s}</option>`).join('')}<option value="${fit.outside_us}"${isOutside ? ' selected' : ''}>Outside the US</option></select></div>
+    ${input('postal_code', 'ZIP code', v.postal_code, 'autocomplete="postal-code" required maxlength="12" inputmode="numeric"')}
+  </div>
+  <div id="country-wrap"${isOutside ? '' : ' hidden'}>${input('country', 'Country', v.country && v.country !== 'United States' ? v.country : '', 'autocomplete="country-name" maxlength="80"')}</div>
+  <h3 style="font-size:1.25rem">Where you are in business</h3>
+  ${radios('business_stage', 'Stage of business', fit.options.business_stage, v.business_stage)}
+  ${radios('revenue_to_date', 'Revenue generated so far (total, since you started)', fit.options.revenue_to_date, v.revenue_to_date)}
+  ${radios('years_in_business', 'How long have you been in business?', fit.options.years_in_business, v.years_in_business)}
+  ${yn('prior_ops_work', 'Have you done any operations work before (SOPs, workflows, role descriptions, scorecards)?', v.prior_ops_work)}
+  ${yn('has_full_time_staff', 'Do you have full-time staff?', v.has_full_time_staff)}
+  ${radios('team_size', 'How many people are on your team? Count full-time staff and contractors, not including you.', fit.options.team_size, v.team_size)}
+  <div class="field"><label for="ops_questions">What are your most pressing questions about operations?</label>
+  <textarea id="ops_questions" name="ops_questions" maxlength="3000" required>${esc(v.ops_questions || '')}</textarea></div>
+  <div class="notice"><p><strong>How review works.</strong> ${esc(fit.refund_policy || '')}</p>
+  <label class="check"><input type="checkbox" id="policy_ack"><span>I understand: if it isn’t the right fit I’ll be refunded in full, and once I’m approved my enrollment is non-refundable.</span></label></div>
+  <p class="form-error" id="fit-err" role="alert"></p>
+  <button class="btn btn-primary btn-lg btn-block" type="submit">Save and continue to payment</button>
+</form>`;
+    const form = q('#fit', step);
+    const stateSel = q('#state', form);
+    const syncState = () => {
+      const out = stateSel.value === fit.outside_us;
+      q('#country-wrap', form).hidden = !out;
+      q('label[for=postal_code]', form).textContent = out ? 'Postal code' : 'ZIP code';
+    };
+    stateSel.addEventListener('change', syncState); syncState();
+    const noWeb = q('#no_website', form), web = q('#website_url', form);
+    const syncWeb = () => { web.disabled = noWeb.checked; if (noWeb.checked) web.value = ''; };
+    noWeb.addEventListener('change', syncWeb); syncWeb();
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const err = q('#fit-err', form);
+      const radio = n => { const r = form.querySelector(`input[name="${n}"]:checked`); return r ? r.value : null; };
+      let site = web.value.trim();
+      if (site && !/^https?:\/\//i.test(site)) site = `https://${site}`;
+      const payload = {
+        first_name: form.first_name.value, last_name: form.last_name.value, phone: form.phone.value,
+        business_name: form.business_name.value, website_url: site, no_website: noWeb.checked,
+        address_line1: form.address_line1.value, address_line2: form.address_line2.value, city: form.city.value,
+        state: stateSel.value, postal_code: form.postal_code.value, country: form.country.value,
+        business_stage: radio('business_stage'), revenue_to_date: radio('revenue_to_date'), years_in_business: radio('years_in_business'),
+        prior_ops_work: radio('prior_ops_work'), has_full_time_staff: radio('has_full_time_staff'), team_size: radio('team_size'),
+        ops_questions: form.ops_questions.value, policy_ack: q('#policy_ack', form).checked,
+      };
+      const btn = q('button[type=submit]', form);
+      btn.disabled = true;
+      try {
+        await SO.api('PUT', 'intake', payload);
+        navigate(`${B}/checkout`, { replace: true });
+      } catch (ex) {
+        err.textContent = ex.message;
+        btn.disabled = false;
+        err.scrollIntoView({ block: 'center' });
+      }
+    });
   }
 
   async function viewSuccess(main, _p, query, ctx) {
@@ -600,6 +690,7 @@
   <p class="abs-date">Begins ${esc(startLocal)} <span class="small">(cohort time, ${esc(c.timezone)})</span></p>
   <p class="sr-only">The cohort begins ${esc(startLocal)}.</p>
   <p>Your 21-day experience begins ${esc(startDay)}. Your daily guidance, practices, and tools will appear here when we begin.</p>
+  ${reviewNote(home.review_state)}
   ${intro}
   ${nextCallBanner(home.next_call)}
   <p>${link('/app/calendar', 'Preview the 21 days')}</p>
@@ -641,6 +732,12 @@ ${nextCallBanner(home.next_call)}<p>${link('/app/calendar', 'View all days')}</p
     }
     renderDay(main, day, { currentDay: home.current_day, isToday: true, introsOpen: home.intros_open });
     return `Today · Day ${day.day_number}`;
+  }
+
+  function reviewNote(state) {
+    if (state === 'pending') return '<div class="notice" role="note"><p><strong>Your fit check is with our team.</strong> We review every enrollment to make sure the cohort is the right match for where your business is. We’ll email you once you’re approved.</p></div>';
+    if (state === 'approved') return '<div class="notice notice-success" role="note"><p><strong>You’re approved.</strong> Your seat is confirmed.</p></div>';
+    return '';
   }
 
   function nextCallBanner(call) {

@@ -47,6 +47,29 @@ BLYMI is untouched.
 | `/api/so/*` | JSON API |
 | `/api/smoothoperators-webhook` | Stripe webhook endpoint |
 
+## Enrollment flow: pay first, fit check, review
+
+1. **Sign in** with an email code.
+2. **Fit check** (required before payment; private to admins). It asks for:
+   - first and last name, phone
+   - business name, website (or "no website yet")
+   - full address (US state + ZIP, or outside the US)
+   - stage of business, revenue so far, years in business
+   - prior operations work (yes/no), full-time staff (yes/no), team size (staff + contractors)
+   - one open question: most pressing operations questions
+
+   Everything except the names, contact details and the open question is a single tap. Early-stage answers (idea stage, or under $10K revenue) show a gentle note, never a block. The member must tick that they understand the review and refund policy.
+3. **Payment** through Stripe Checkout.
+4. **Review** in admin → Members. Each paid member is "pending review" until Omi chooses one of:
+   - **Approve:** the enrollment becomes non-refundable, and an approval email goes out (if email sending is on).
+   - **Not a fit:** a full refund is issued through Stripe, and access ends. Their saved writing is kept.
+
+   Approved enrollments can't be refunded from the review screen.
+
+**Hidden seat limit:** default 30, set in Cohort settings and never shown publicly. Seats count active enrollments that aren't "not a fit", plus other people's unexpired checkouts. When none are left, the landing page and checkout just say "All seats are full." If two people pay for the last seat at the same moment, both get in, and the purchase is flagged `over_capacity` for review.
+
+**Admin entry:** log in at `/admin`, then choose **Blog admin** or **Smooth Operators admin**. The Smooth Operators admin links back with "← Omi Bell admin". The **Members** tab shows every fit-check answer, filters by review state, lists fit checks without payment (for follow-up), and exports a spreadsheet (CSV).
+
 ## Key design decisions
 
 - **Identity:** Supabase Auth email one-time codes (or the emailed link). There are no passwords, so recovery is the same as sign-in on any device. Members sign in *before* paying, so every purchase belongs to a verified user ID. A purchase can never be claimed by typing an email.
@@ -133,7 +156,8 @@ Default cohort dates are **January 4–24, 2027** (Week 1 Jan 4–10, Week 2 Jan
   - Enrollment closing date and late-entry behaviour
   - Checkout expiry
 - [ ] Post-cohort access policy chosen (until a date, or no end date), and an "Access duration statement" published.
-- [ ] Published refund policy, terms, privacy policy, and call recording and replay policy.
+- [ ] Publish the refund policy. Omi's wording is pre-filled: refund in full if not a fit; non-refundable once approved. Have it reviewed, then click Publish. Also publish the terms, privacy policy, and call recording and replay policy.
+- [ ] Decide how quickly fit checks are reviewed (for example, within 3 business days, and always before January 4), and add that to the refund policy text.
 - [ ] Support contact email (and optional response expectations) published.
 - [ ] At least one Solutions Seat call scheduled with a confirmed date.
 - [ ] Live transactional email: a verified Resend sender domain, `SO_EMAIL_DELIVERY=live`, and the Supabase Auth SMTP and template configured.

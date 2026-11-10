@@ -320,6 +320,52 @@ create table if not exists so_rate_limits (
   count         int not null
 );
 
+-- ------------------------------------------------- v2: fit check & review
+-- Hidden seat cap (never shown publicly; the site just says seats are full).
+alter table so_cohorts add column if not exists seat_limit int default 30 check (seat_limit is null or seat_limit > 0);
+
+-- Paid members start "pending" review. Omi approves them, or marks them
+-- not a fit (full refund). Once approved, the enrollment is non-refundable.
+alter table so_enrollments add column if not exists review_state text not null default 'pending';
+alter table so_enrollments add column if not exists reviewed_at timestamptz;
+alter table so_enrollments add column if not exists reviewed_by text;
+alter table so_enrollments add column if not exists review_note text;
+do $$ begin
+  alter table so_enrollments add constraint so_enrollments_review_state_check
+    check (review_state in ('pending', 'approved', 'not_a_fit'));
+exception when duplicate_object then null; end $$;
+
+-- Fit check, required before payment. Private to the member and admins:
+-- never shown in introductions, analytics or logs.
+create table if not exists so_intakes (
+  id                   uuid primary key default gen_random_uuid(),
+  user_id              uuid not null references auth.users(id) on delete cascade,
+  cohort_id            uuid not null references so_cohorts(id) on delete cascade,
+  first_name           text not null,
+  last_name            text not null,
+  business_name        text not null,
+  website_url          text,
+  no_website           boolean not null default false,
+  phone                text not null,
+  address_line1        text not null,
+  address_line2        text,
+  city                 text not null,
+  state                text not null,
+  postal_code          text not null,
+  country              text not null default 'United States',
+  business_stage       text not null,
+  revenue_to_date      text not null,
+  years_in_business    text not null,
+  prior_ops_work       boolean not null,
+  has_full_time_staff  boolean not null,
+  team_size            text not null,
+  ops_questions        text not null,
+  policy_ack_at        timestamptz not null,
+  created_at           timestamptz not null default now(),
+  updated_at           timestamptz not null default now(),
+  unique (user_id, cohort_id)
+);
+
 -- --------------------------------------------------------------- security
 do $$
 declare t text;
@@ -328,7 +374,7 @@ begin
     'so_profiles','so_cohorts','so_weeks','so_resources','so_days','so_day_resources',
     'so_purchases','so_enrollments','so_journal_entries','so_day_progress','so_playback',
     'so_introductions','so_calls','so_call_challenges','so_faqs','so_site_content',
-    'so_webhook_events','so_admin_audit_log','so_events','so_email_log','so_rate_limits']
+    'so_webhook_events','so_admin_audit_log','so_events','so_email_log','so_rate_limits','so_intakes']
   loop
     execute format('alter table %I enable row level security', t);
     if exists (select 1 from pg_roles where rolname = 'anon') then

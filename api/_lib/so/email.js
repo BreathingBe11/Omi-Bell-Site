@@ -69,4 +69,18 @@ function confirmationEmail({ cohortName, startDate, endDate, returnUrl, supportE
   return { subject: `You’re in: ${cohortName}`, html, text };
 }
 
-module.exports = { sendTransactional, confirmationEmail };
+function approvalEmail({ cohortName, startDate, endDate, returnUrl }) {
+  const fmt = d => new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+  const dates = `${fmt(startDate)} – ${fmt(endDate)}`;
+  const html = `
+<div style="font-family:Georgia,serif;max-width:540px;margin:0 auto;padding:32px 24px;color:#3a1f3d;background:#fbf7f1;line-height:1.7">
+  <p style="font-size:12px;letter-spacing:3px;text-transform:uppercase;color:#8a4b2c;margin:0 0 8px">${escapeHtml(cohortName)}</p>
+  <h1 style="font-weight:normal;font-size:28px;margin:0 0 20px">You’re approved. Welcome to the cohort.</h1>
+  <p>We’ve reviewed your fit check and your seat is confirmed for ${escapeHtml(dates)}.</p>
+  <p><a href="${escapeHtml(returnUrl)}" style="display:inline-block;background:#5b2a5e;color:#fff;padding:12px 22px;border-radius:999px;text-decoration:none">Open My Cohort</a></p>
+</div>`;
+  const text = `You’re approved. Welcome to the cohort.\n\nWe’ve reviewed your fit check and your seat in ${cohortName} is confirmed for ${dates}.\n\nOpen your cohort: ${returnUrl}`;
+  return { subject: `You’re approved: ${cohortName}`, html, text };
+}
+
+module.exports = { sendTransactional, confirmationEmail, approvalEmail };

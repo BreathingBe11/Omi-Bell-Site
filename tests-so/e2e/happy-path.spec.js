@@ -40,6 +40,31 @@ test('founder pays, gets verified access and saves a private reflection', async 
   await page.getByLabel('Sign-in code').fill('123456');
   await page.getByRole('button', { name: 'Sign in' }).click();
 
+  // Fit check (required before payment).
+  await expect(page.getByRole('heading', { name: 'Fit check' })).toBeVisible();
+  expect(await axe(page)).toEqual([]);
+  await page.getByLabel('First name').fill('Ada');
+  await page.getByLabel('Last name').fill('Lovelace');
+  await page.getByLabel('Phone number').fill('(555) 555-0100');
+  await page.getByLabel('Business name').fill('Analytical Ops');
+  await page.getByLabel('Website', { exact: true }).fill('analytical.example.com');
+  await page.getByLabel('Street address').fill('12 Engine Way');
+  await page.getByLabel('City').fill('Oakland');
+  await page.getByLabel('State').selectOption('CA');
+  await page.getByLabel('ZIP code').fill('94612');
+  await page.getByText('Growing: steady, repeat revenue').click();
+  await page.getByText('$100K–$250K').click();
+  await page.getByText('3–5 years').click();
+  await page.getByRole('group', { name: /operations work before/ }).getByText('No').click();
+  await page.getByRole('group', { name: /full-time staff/ }).getByText('Yes').click();
+  await page.getByText('3–5 people').click();
+  await page.getByLabel('What are your most pressing questions about operations?').fill('How do I hand off client onboarding?');
+  await page.getByRole('button', { name: 'Save and continue to payment' }).click();
+  await expect(page.getByRole('alert')).toContainText(/refund policy/);
+  await page.getByLabel(/I understand: if it isn’t the right fit/).check();
+  await page.getByRole('button', { name: 'Save and continue to payment' }).click();
+  await expect(page.getByText('Fit check complete.')).toBeVisible();
+
   const pay = page.getByRole('button', { name: 'Continue to secure payment — $999' });
   await expect(pay).toBeVisible();
   expect(await axe(page)).toEqual([]);
@@ -55,6 +80,7 @@ test('founder pays, gets verified access and saves a private reflection', async 
   await expect(page.getByRole('heading', { name: 'You’re in. Let’s build what comes next.' })).toBeVisible();
   await expect(page.getByText('You know how to generate business. We’ll help you build the operations to handle what comes next.')).toBeVisible();
   await expect(page.getByText(/Meet your cohort starting December 1/)).toBeVisible();
+  await expect(page.getByText('Your fit check is with our team.')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Introduce Yourself' })).toHaveCount(0);
   await expect(page.locator('[data-countdown]')).toBeVisible();
   expect(await axe(page)).toEqual([]);

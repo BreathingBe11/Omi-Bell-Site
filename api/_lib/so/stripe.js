@@ -70,6 +70,9 @@ function retrieveCheckoutSession(id) {
 function expireCheckoutSession(id) {
   return stripeRequest('POST', `/v1/checkout/sessions/${encodeURIComponent(id)}/expire`, {});
 }
+function createRefund(params, idempotencyKey) {
+  return stripeRequest('POST', '/v1/refunds', params, { idempotencyKey });
+}
 function retrievePrice(id) {
   return stripeRequest('GET', `/v1/prices/${encodeURIComponent(id)}`);
 }
@@ -106,5 +109,5 @@ function signPayload(payload, secret, t = Math.floor(Date.now() / 1000)) {
 
 module.exports = {
   encodeForm, stripeRequest, createCheckoutSession, retrieveCheckoutSession, expireCheckoutSession,
-  retrievePrice, verifyWebhook, signPayload, apiBase,
+  retrievePrice, createRefund, verifyWebhook, signPayload, apiBase,
 };
