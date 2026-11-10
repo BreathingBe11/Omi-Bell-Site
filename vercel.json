@@ -24,7 +24,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net fonts.googleapis.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com fonts.gstatic.com; img-src 'self' data: blob: https:; font-src 'self' fonts.gstatic.com; media-src 'self' blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co https://connect.mailerlite.com; frame-ancestors 'none';"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net fonts.googleapis.com https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' fonts.googleapis.com fonts.gstatic.com https://accounts.google.com/gsi/style; img-src 'self' data: blob: https:; font-src 'self' fonts.gstatic.com; media-src 'self' blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co https://connect.mailerlite.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; frame-ancestors 'none';"
         }
       ]
     },

@@ -355,7 +355,7 @@
     container.innerHTML = `${heading ? '<h1>Sign in</h1>' : ''}
 <p>${intro || 'Continue with Google, or use your email and we’ll send you a 6-digit code. There’s no password to remember.'}</p>
 <div id="oauth-err" role="alert"></div>
-<button class="btn btn-secondary btn-block google-btn" type="button" id="google-btn"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.6 13.2l7.9 6.2C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.5 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.2C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.8l7.9-6.2z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.7 2.2-8.5 2.2-6.3 0-11.6-4.1-13.5-9.9l-7.9 6.2C6.6 42.6 14.6 48 24 48z"/></svg> Continue with Google</button>
+<div id="google-slot" class="google-slot" aria-busy="true"></div><div id="google-fallback" hidden><button class="btn btn-secondary btn-block google-btn" type="button" id="google-btn"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.6 13.2l7.9 6.2C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.5 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.2C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.8l7.9-6.2z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.7 2.2-8.5 2.2-6.3 0-11.6-4.1-13.5-9.9l-7.9 6.2C6.6 42.6 14.6 48 24 48z"/></svg> Continue with Google</button></div>
 <p class="or-divider"><span>or use your email</span></p>
 <form id="email-form" novalidate>
   <div class="field"><label for="email">Email address</label>
@@ -407,7 +407,9 @@
       navigate(`${B}${next}`, { replace: true });
     });
     q('#change-email', container).addEventListener('click', () => { cf.hidden = true; ef.hidden = false; q('#email', container).focus(); });
-    // Google: Supabase sends them to Google and back to /login with a session, then on to `next`.
+    // Preferred: Google's own button on this page (no redirect through the Supabase address).
+    setupGoogleButton(container, next);
+    // Fallback if Google's button can't load: Supabase redirect flow.
     q('#google-btn', container).addEventListener('click', async () => {
       const btn = q('#google-btn', container);
       const client = await SO.auth();
@@ -418,6 +420,64 @@
         options: { redirectTo: `${location.origin}${B}/login?next=${encodeURIComponent(next)}`, queryParams: { prompt: 'select_account' } },
       });
       if (error) { btn.disabled = false; q('#oauth-err', container).innerHTML = '<p class="form-error">Google sign-in isn’t available right now. Use your email instead.</p>'; }
+    });
+  }
+
+  // ------------------------------------------------ Sign in with Google (GIS)
+  // Google's official button renders on omibell.com; Google returns a signed ID
+  // token to this page, and Supabase verifies it (signInWithIdToken), including
+  // a one-time nonce. People never see the Supabase project address.
+  let gisLoad = null;
+  function loadGis() {
+    if (window.google && window.google.accounts && window.google.accounts.id) return Promise.resolve();
+    if (!gisLoad) {
+      gisLoad = new Promise((resolve, reject) => {
+        const sc = document.createElement('script');
+        sc.src = 'https://accounts.google.com/gsi/client';
+        sc.async = true;
+        sc.onload = () => (window.google && window.google.accounts ? resolve() : reject(new Error('gis')));
+        sc.onerror = () => { gisLoad = null; reject(new Error('gis')); };
+        document.head.appendChild(sc);
+        setTimeout(() => reject(new Error('gis timeout')), 8000);
+      });
+    }
+    return gisLoad;
+  }
+  async function sha256Hex(text) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  async function setupGoogleButton(container, next) {
+    const cfg = await SO.config();
+    const slot = q('#google-slot', container);
+    // Show the redirect-based backup only when Google's own button can't be used.
+    const fallback = () => { if (!slot) return; slot.remove(); const f = q('#google-fallback', container); if (f) f.hidden = false; };
+    if (!slot || !cfg.google_client_id || !window.crypto || !crypto.subtle) return fallback();
+    try { await loadGis(); } catch { return fallback(); }
+    if (!document.contains(slot)) return;
+    const raw = Array.from(crypto.getRandomValues(new Uint8Array(24))).map(b => b.toString(16).padStart(2, '0')).join('');
+    const hashed = await sha256Hex(raw);
+    const errBox = q('#oauth-err', container);
+    window.google.accounts.id.initialize({
+      client_id: cfg.google_client_id,
+      nonce: hashed,
+      ux_mode: 'popup',
+      context: 'signin',
+      itp_support: true,
+      callback: async resp => {
+        errBox.innerHTML = '<p class="small muted" role="status"><span class="spinner" aria-hidden="true"></span> Signing you in…</p>';
+        const client = await SO.auth();
+        const { error } = client ? await client.auth.signInWithIdToken({ provider: 'google', token: resp.credential, nonce: raw }) : { error: true };
+        if (error) { errBox.innerHTML = '<p class="form-error">Google sign-in didn’t work. Please try again, or use your email.</p>'; return; }
+        state.me = null;
+        navigate(`${B}${next}`, { replace: true });
+      },
+    });
+    slot.innerHTML = '';
+    slot.removeAttribute('aria-busy');
+    window.google.accounts.id.renderButton(slot, {
+      type: 'standard', theme: 'outline', size: 'large', text: 'continue_with', shape: 'pill', logo_alignment: 'center',
+      width: Math.min(Math.max(slot.clientWidth || 320, 240), 400),
     });
   }
 

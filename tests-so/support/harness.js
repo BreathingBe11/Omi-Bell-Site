@@ -58,6 +58,7 @@ async function boot(extraEnv = {}) {
     SO_SITE_URL: appBase,
     SO_EMAIL_DELIVERY: 'off',
     SO_DEV_EXTRA_ORIGINS: mocks.base,
+    SO_GOOGLE_CLIENT_ID: 'test-client.apps.googleusercontent.com',
     ...extraEnv,
   });
   delete process.env.VERCEL_ENV;

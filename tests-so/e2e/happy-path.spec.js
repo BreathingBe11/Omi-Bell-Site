@@ -180,7 +180,30 @@ test('signed-out visitors are sent to sign in; non-members cannot open the cohor
   await expect(page.getByRole('link', { name: 'Join the cohort' })).toBeVisible();
 });
 
-test('Continue with Google signs in and returns to checkout', async ({ page }) => {
+// Stand-in for Google's script: renders a button and returns an ID token carrying the page's nonce.
+const FAKE_GIS = `window.google = { accounts: { id: {
+  initialize(c) { window.__gis = c; },
+  renderButton(el) {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Continue with Google';
+    const enc = o => btoa(JSON.stringify(o)).replace(/=+$/, '').replace(/\\+/g, '-').replace(/\\//g, '_');
+    b.onclick = () => window.__gis.callback({ credential: enc({ alg: 'RS256' }) + '.' + enc({ email: 'gis-user@gmail.com', nonce: window.__gis.nonce, aud: window.__gis.client_id }) + '.sig' });
+    el.appendChild(b);
+  } } } };`;
+
+test('Google’s own button signs in on our page (no redirect), then checkout continues', async ({ page }) => {
+  await page.route('https://accounts.google.com/gsi/client', r => r.fulfill({ contentType: 'text/javascript', body: FAKE_GIS }));
+  let redirected = false;
+  page.on('request', r => { if (r.url().includes('/auth/v1/authorize')) redirected = true; });
+  await page.goto(`${base()}/smoothoperators/checkout`);
+  await page.getByRole('button', { name: 'Continue with Google' }).click();
+  await expect(page.getByRole('heading', { name: 'Fit check' })).toBeVisible();
+  expect(redirected).toBe(false);
+  await page.goto(`${base()}/smoothoperators/login`);
+  await expect(page.getByText(/Signed in as/)).toContainText('gis-user@gmail.com');
+});
+
+test('if Google’s button can’t load, the fallback Google sign-in still works', async ({ page }) => {
+  await page.route('https://accounts.google.com/**', r => r.abort());
   await page.goto(`${base()}/smoothoperators/checkout`);
   await page.getByRole('button', { name: 'Continue with Google' }).click();
   await expect(page).toHaveURL(/\/smoothoperators\/checkout/);

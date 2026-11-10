@@ -418,3 +418,5 @@ dialog.slide-over .dialog-inner { max-height: none; min-height: 100%; padding-bo
 .google-btn { gap: .6rem; background: #fff; }
 .or-divider { display: flex; align-items: center; gap: .75rem; color: var(--muted); font-size: .9rem; margin: 1.25rem 0; }
 .or-divider::before, .or-divider::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+
+.google-slot { display: flex; justify-content: center; min-height: 44px; }

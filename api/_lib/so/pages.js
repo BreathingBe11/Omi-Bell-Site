@@ -300,6 +300,8 @@ const routes = {
   'GET public-config': async () => ({
     supabase_url: process.env.SUPABASE_URL || null,
     supabase_anon_key: process.env.SUPABASE_ANON_KEY || null,
+    // Google OAuth web client ID (public by design). Enables Google's own sign-in button.
+    google_client_id: process.env.SO_GOOGLE_CLIENT_ID || null,
     base_path: B,
   }),
 };

@@ -103,7 +103,11 @@ Log in at `/admin` and choose **Smooth Operators admin**. There are seven sectio
    - Authentication → URL Configuration: Site URL `https://www.omibell.com`. Add `https://www.omibell.com/smoothoperators/login` (and any preview URL's `/smoothoperators/login`) to Redirect URLs.
    - Authentication → Emails → **Magic Link** template: replace the body with a code-only message that uses `{{ .Token }}` and no link.
    - Authentication → Emails → SMTP: connect Resend. The built-in sender is heavily rate-limited.
-   - **Google:** in Google Cloud Console, set up the OAuth consent screen and create an OAuth client ID of type "Web application". Use Supabase's callback URL (shown on the Google provider page, `https://<project>.supabase.co/auth/v1/callback`) as the authorized redirect URI. Paste the client ID and secret into Authentication → Sign In / Providers → Google, and enable it.
+   - **Google:** members use Google's own "Sign in with Google" button on omibell.com, so they never see the Supabase project address. Google returns a signed ID token that Supabase verifies, along with a one-time nonce.
+     - Google Cloud Console → Google Auth Platform → Clients: create a **Web application** client. Under **Authorized JavaScript origins**, add `https://www.omibell.com` and `https://omibell.com` (plus any preview URL). Under **Authorized redirect URIs**, add Supabase's callback URL, which is used only by the backup redirect flow.
+     - Supabase → Authentication → Sign In / Providers → Google: paste the client ID and secret, and enable. Leave "Skip nonce checks" **off**.
+     - Vercel: set `SO_GOOGLE_CLIENT_ID` to the same client ID. Without it, the page falls back to the redirect flow.
+     - Testing mode: until the privacy and terms pages are live, keep the Google app in Testing and add test users. Before launch, add both links on the Branding page and click **Publish app**.
    - Google and email-code sign-ins with the same verified email land in the same Supabase account, so the enrollment follows the email.
 3. **Stripe (test mode first):**
    - Create a webhook endpoint at `https://<domain>/api/smoothoperators-webhook` for these events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.closed`.

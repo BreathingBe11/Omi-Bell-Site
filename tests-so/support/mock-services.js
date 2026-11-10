@@ -129,6 +129,19 @@ function startMocks({ sql, webhookUrl, webhookSecret, port = 0 } = {}) {
         res.writeHead(302, { Location: back.toString() });
         return res.end();
       }
+      if (p === '/auth/v1/token' && url.searchParams.get('grant_type') === 'id_token') {
+        // signInWithIdToken: check the nonce the way Supabase does (sha256(raw) must equal the token's nonce).
+        const b = JSON.parse((await readBody(req)).toString() || '{}');
+        let claims = {};
+        try { claims = JSON.parse(Buffer.from(String(b.id_token).split('.')[1], 'base64url').toString()); } catch { /* bad token */ }
+        const ok = b.provider === 'google' && claims.email && claims.nonce === crypto.createHash('sha256').update(String(b.nonce || '')).digest('hex');
+        if (!ok) return json(400, { error: 'invalid_request', error_description: 'Nonces mismatch' });
+        const u = await ensureUser(String(claims.email).toLowerCase());
+        const access = issue(u);
+        const now = Math.floor(Date.now() / 1000);
+        return json(200, { access_token: access, token_type: 'bearer', expires_in: 3600, expires_at: now + 3600, refresh_token: `r_${crypto.randomBytes(8).toString('hex')}`,
+          user: { id: u.id, aud: 'authenticated', role: 'authenticated', email: u.email, email_confirmed_at: new Date().toISOString(), app_metadata: { provider: 'google' }, user_metadata: {}, created_at: new Date().toISOString() } });
+      }
       if (p === '/auth/v1/token') return json(400, { error: 'refresh not supported in mock' });
       if (p === '/auth/v1/logout') return json(204, {});
 
