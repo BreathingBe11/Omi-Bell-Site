@@ -65,7 +65,7 @@ const SITE_CONTENT = [
   ['purchase.refund_policy', 'You may request a full refund before the cohort begins on January 4, 2027. Once the cohort begins on January 4, all sales are final and no refunds are available. To request a refund before the start date, email hello@omisworld.com.', 'Refund policy summary shown at checkout (publish before live sales)', 'Purchase & legal', true],
   ['purchase.refund_timing', 'Depending on your bank, refunds usually appear within 5–10 business days.', 'Refund timing sentence used in refund emails (owner to approve)', 'Purchase & legal'],
   ['purchase.access_terms', 'You receive 12 months of access to program materials and call recordings, from January 4, 2027 through January 3, 2028. Daily guided programming runs January 4–24, 2027. Direct Q&A support from Omi is available during the 21-day cohort, Monday through Friday.', 'Access duration statement (required before live sales)', 'Purchase & legal', true],
-  ['purchase.tax_treatment', '', 'Tax treatment statement (required before live sales)', 'Purchase & legal', true],
+  ['purchase.tax_treatment', 'Prices are in U.S. dollars. No sales tax is added at checkout; the price shown is the total you pay.', 'Tax treatment statement (required before live sales)', 'Purchase & legal', true],
   ['purchase.disclosure', '', 'Additional purchase disclosure shown at checkout', 'Purchase & legal', true],
   ['calls.recording_policy', 'Live calls are recorded. Recordings are available inside the platform for your 12-month access period.', 'Call recording & replay policy (required before live sales)', 'Purchase & legal', true],
   ['legal.terms', LEGAL.TERMS, 'Terms of purchase / use (full text; "## " = heading, "- " = bullet)', 'Purchase & legal', true],
@@ -138,6 +138,6 @@ const RETIRED_FAQS = ['Is this for solo founders?', 'Do I need employees?', 'Wha
 // Owner-confirmed wording published by the v3 migration so every surface agrees.
 const CONFIRMED_KEYS = ['hero.headline', 'hero.body', 'days.headline', 'days.body', 'days.calls', 'days.time', 'days.calls_schedule', 'days.support',
   'access.summary', 'fit.body', 'fit.time_commitment', 'enroll.includes', 'purchase.refund_policy', 'purchase.access_terms',
-  'calls.recording_policy', 'support.note', 'legal.terms', 'legal.privacy'];
+  'calls.recording_policy', 'support.note', 'legal.terms', 'legal.privacy', 'purchase.tax_treatment'];
 
 module.exports = { SITE_CONTENT, SITE_CONTENT_KEYS, PILLARS, WEEKS, PROVISIONAL_DAYS, FAQ_SEED, RETIRED_FAQS, CONFIRMED_KEYS };

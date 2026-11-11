@@ -24,7 +24,7 @@ test('admin overview, day publishing, impact preview and lifecycle preview', asy
 
   await page.goto(`${base()}/smoothoperators/admin#settings/readiness`);
   await expect(page.getByText('Blocks live sales')).toBeVisible();
-  await expect(page.getByText('Tax treatment statement (published)')).toBeVisible();
+  await expect(page.getByText('Sales switched on in admin settings')).toBeVisible();
   await page.goto(`${base()}/smoothoperators/admin#program/days/7`);
   await expect(page.getByRole('heading', { name: 'Day 7' })).toBeVisible();
   await page.getByLabel('Status').selectOption('published');

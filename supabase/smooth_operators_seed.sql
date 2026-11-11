@@ -314,6 +314,8 @@ Omi Bell
 Los Angeles, CA 90034
 hello@omisworld.com', 'published', 'migration')
     on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    insert into so_site_content (key, value, status, updated_by) values ('purchase.tax_treatment', 'Prices are in U.S. dollars. No sales tax is added at checkout; the price shown is the total you pay.', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
     update so_cohorts set access_policy = 'until_date', access_ends_at = '2028-01-04T08:00:00Z' where slug = '2027-01';
     update so_calls set description = 'Group coaching on Zoom, led by Omi Bell. A participant brings a business challenge they’re working through that week, the group contributes ideas and experience, and Omi guides the conversation toward practical next steps. The recording is available in the platform afterward.', duration_minutes = 60
       where cohort_id = (select id from so_cohorts where slug = '2027-01') and starts_at in ('2027-01-06T21:00:00Z', '2027-01-13T21:00:00Z', '2027-01-20T21:00:00Z');

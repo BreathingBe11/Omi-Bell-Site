@@ -256,11 +256,11 @@ test('live-mode checkout stays disabled until every launch requirement is met', 
     assert.doesNotMatch(html, /href="\/smoothoperators\/checkout"/);
     const ov = await h.api('GET', 'admin/overview', { token: h.adminToken });
     const keys = ov.body.sales.blockers.map(b => b.key);
-    for (const k of ['settings_confirmed', 'content:purchase.tax_treatment', 'content:support.email', 'email', 'sales_enabled']) {
+    for (const k of ['settings_confirmed', 'content:support.email', 'email', 'sales_enabled']) {
       assert.ok(keys.includes(k), `missing blocker ${k}`);
     }
     // Owner-confirmed policy text and the 12-month access period come from the v3 migration.
-    for (const k of ['access_policy', 'content:purchase.refund_policy', 'content:purchase.access_terms', 'content:legal.terms', 'content:legal.privacy']) {
+    for (const k of ['access_policy', 'content:purchase.refund_policy', 'content:purchase.access_terms', 'content:purchase.tax_treatment', 'content:legal.terms', 'content:legal.privacy']) {
       assert.ok(!keys.includes(k), `unexpected blocker ${k}`);
     }
     assert.ok(!keys.includes('calls'), 'the seeded Wednesday Zoom calls satisfy the call requirement');
