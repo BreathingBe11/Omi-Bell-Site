@@ -100,7 +100,7 @@
     [/^\/app\/resource\/([0-9a-f-]{36})$/, viewResource, { shell: true, nav: '/app/library' }],
     [/^\/app\/introductions$/, viewIntroductions, { shell: true, nav: null }],
     [/^\/app\/introductions\/edit$/, viewIntroEdit, { shell: true, nav: null }],
-    [/^\/app\/account$/, viewAccount, { shell: true, nav: null, limitedOk: true }],
+    [/^\/app\/account$/, viewAccount, { shell: true, nav: '/app/account', limitedOk: true }],
     [/^\/app\/status$/, viewStatus, { shell: 'limited' }],
     [/^\/app\/help$/, viewHelp, { shell: true, nav: '/app/calls-help', limitedOk: true }],
     [/^\/app\/help\/([0-9a-f-]{36})$/, viewThread, { shell: true, nav: '/app/calls-help', limitedOk: true }],
@@ -151,6 +151,7 @@
     const params = m.slice(1);
     const query = Object.fromEntries(new URLSearchParams(location.search));
     let container;
+    let spinnerTimer = null;
     if (opts.shell) {
       const mode = await ensureMember(path, opts);
       if (!mode || id !== state.renderId) return;
@@ -160,7 +161,16 @@
         wireSignout(root);
       } else renderShell(opts.nav);
       container = q('#main');
-      container.innerHTML = '<p class="loading" role="status"><span class="spinner" aria-hidden="true"></span> Loading…</p>';
+      // Keep the previous page on screen, softly faded, while the next one loads;
+      // only show a spinner if loading takes a noticeable moment.
+      if (container.children.length && !container.querySelector(':scope > .loading')) {
+        container.classList.remove('page-enter');
+        container.classList.add('is-leaving');
+        container.setAttribute('aria-busy', 'true');
+        spinnerTimer = setTimeout(() => {
+          if (id === state.renderId) container.innerHTML = '<p class="loading" role="status"><span class="spinner" aria-hidden="true"></span> Loading…</p>';
+        }, 450);
+      } else container.innerHTML = '<p class="loading" role="status"><span class="spinner" aria-hidden="true"></span> Loading…</p>';
     } else {
       state.shell = false;
       root.innerHTML = publicFrame();
@@ -168,7 +178,7 @@
     }
     try {
       const title = await fn(container, params, query, { isCurrent: () => id === state.renderId });
-      if (id !== state.renderId) return;
+      if (id !== state.renderId) { clearTimeout(spinnerTimer); return; }
       setTitle(title);
     } catch (err) {
       if (id !== state.renderId) return;
@@ -177,6 +187,11 @@
       wireRetry(container);
       setTitle('Something went wrong');
     }
+    clearTimeout(spinnerTimer);
+    container.classList.remove('is-leaving', 'page-enter');
+    container.removeAttribute('aria-busy');
+    void container.offsetWidth; // restart the entrance animation
+    container.classList.add('page-enter');
     const y = restoreScroll && history.state && typeof history.state.scroll === 'number' ? history.state.scroll : 0;
     window.scrollTo(0, y);
     if (!restoreScroll) focusMain();
@@ -188,7 +203,7 @@
     const cur = relPath();
     const a = (p, l) => `<a href="${B}${p}"${cur === p ? ' aria-current="page"' : ''}>${l}</a>`;
     return `<header class="pub-header"><a class="wordmark" href="${B}">Smooth Operators</a>
-<nav aria-label="Account" class="limited-nav">${a('/app/status', 'My enrollment')}${a('/app/help', 'Help')}${a('/app/account', 'Account')}<button class="linklike" data-signout>Sign out</button></nav></header>
+<nav aria-label="Account" class="limited-nav">${a('/app/status', 'My enrollment')}${a('/app/help', 'Help')}<a class="nav-account" href="${B}/app/account"${cur === '/app/account' ? ' aria-current="page"' : ''}><span data-avatar="sm">${avatarHtml('sm')}</span><span>My Account</span></a></nav></header>
 <main id="main" class="main" tabindex="-1"></main>`;
   }
 
@@ -261,12 +276,25 @@
     }));
   }
 
+  function initials() {
+    const me = state.me || {};
+    const src = (me.display_name || '').trim() || (me.email || '').split('@')[0] || '';
+    const parts = src.split(/[\s._-]+/).filter(Boolean);
+    return ((parts[0] || '?')[0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+  }
+  function avatarHtml(size = 'sm') {
+    const url = state.me && state.me.avatar_url;
+    return `<span class="avatar avatar-${size}" aria-hidden="true">${url ? `<img src="${esc(url)}" alt="">` : `<span>${esc(initials())}</span>`}</span>`;
+  }
+  function refreshAvatars() {
+    qa('[data-avatar]').forEach(el => { el.innerHTML = avatarHtml(el.dataset.avatar); });
+  }
+
   function navHtml(active, idPrefix) {
     const items = NAV.map(([p, label]) => `<li><a href="${B}${p}"${p === active ? ' aria-current="page"' : ''}>${label}</a></li>`).join('');
     return `<ul class="nav-list" id="${idPrefix}-nav">${items}</ul>
 <ul class="nav-list nav-secondary">
-  <li><a href="${B}/app/account">Account</a></li>
-  <li><button class="linklike" style="min-height:42px;padding:0 .9rem" data-signout>Sign out</button></li>
+  <li><a class="nav-account" href="${B}/app/account"${active === '/app/account' ? ' aria-current="page"' : ''}><span data-avatar="sm">${avatarHtml('sm')}</span><span>My Account</span></a></li>
 </ul>`;
   }
 
@@ -279,9 +307,10 @@
     <button class="menu-btn" type="button" aria-expanded="false" aria-controls="drawer" id="menu-btn"><span class="menu-icon" aria-hidden="true"></span>Menu</button>
     <p class="topbar-title" id="topbar-title" aria-hidden="true"></p>
     <a class="call-chip" id="call-chip" hidden></a>
+    <a class="topbar-avatar" href="${B}/app/account" aria-label="My Account"><span data-avatar="sm">${avatarHtml('sm')}</span></a>
   </header>
   <nav class="sidebar" aria-label="Main">
-    <a class="wordmark" href="${B}/app">Smooth Operators</a>
+    <a class="wordmark" href="${B}/app">Smooth Operators<span class="wordmark-by">with Omi Bell</span></a>
     <div id="side-nav-wrap">${navHtml(active, 'side')}</div>
     <div class="sidebar-call" id="side-call"></div>
   </nav>
@@ -530,7 +559,7 @@
       ? `<p class="small muted">Introductory price. Regular enrollment: ${SO.money(p.regular_cents)}. Ends ${esc(SO.fmtDateTime(p.cutoff_at, o.cohort.timezone, { weekday: false }))} (${esc(o.cohort.timezone)}).</p>` : '';
     return `<div class="card stack">
   <p class="eyebrow" style="margin:0">Smooth Operators · Live 21-day cohort</p>
-  <p style="margin:0"><span style="font-family:var(--serif);font-size:2.4rem;color:var(--plum-900);font-weight:600">${SO.money(p.amount_cents)}</span> <span class="muted">USD · one-time payment</span></p>
+  <p style="margin:0"><span style="font-family:var(--serif);font-size:2.4rem;color:var(--ink);font-weight:600">${SO.money(p.amount_cents)}</span> <span class="muted">USD · one-time payment</span></p>
   ${intro}
   <p style="margin:0">${esc(SO.fmtCohortDate(o.cohort.start_date, { weekday: undefined }))} – ${esc(SO.fmtCohortDate(o.cohort.end_date, { weekday: undefined }))} · Hosted by Omi Bell · Everyone follows the same calendar.</p>
   ${o.disclosure.access_terms ? `<p class="small" style="margin:0">${esc(o.disclosure.access_terms)}</p>` : ''}
@@ -1651,28 +1680,143 @@ ${r.threads.length ? `<div class="card" style="padding:.4rem 1.25rem">${r.thread
   }
 
   // ============================================================ Account
+  // Square-crop and shrink a chosen photo in the browser so uploads are small and consistent.
+  async function squarePhoto(file, px = 480) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('That image couldn’t be opened. Try a JPEG or PNG.')); i.src = url; });
+      const side = Math.min(img.naturalWidth, img.naturalHeight);
+      const c = document.createElement('canvas');
+      c.width = c.height = Math.min(px, side);
+      c.getContext('2d').drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, c.width, c.height);
+      return await new Promise((res, rej) => c.toBlob(b => (b ? res(b) : rej(new Error('That image couldn’t be processed.'))), 'image/jpeg', 0.88));
+    } finally { URL.revokeObjectURL(url); }
+  }
+
+  function refundHtml(a) {
+    const r = a.refund;
+    const tz = (a.cohort && a.cohort.timezone) || 'America/Los_Angeles';
+    const deadline = esc(SO.fmtDateTime(new Date(new Date(r.deadline).getTime() - 60000).toISOString(), tz, { weekday: true }));
+    if (r.state === 'available') return `<p>Changed your mind? You can request a refund through <strong>${deadline}</strong>, the night before the cohort begins.</p>
+<div id="refund-box"><button class="btn btn-secondary btn-sm" type="button" id="refund-open">Request a refund</button></div>`;
+    if (r.state === 'requested') return `<div class="notice"><p><strong>Refund requested</strong> on ${esc(new Date(r.requested_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric' }))}. We’ll reply in <a href="${B}/app/help">Ask for help</a> and by email.</p></div>
+<button class="btn btn-ghost btn-sm" type="button" id="refund-withdraw">Withdraw my request</button>`;
+    if (r.state === 'processing') return '<div class="notice"><p><strong>Your refund is being processed.</strong> It goes back to your original payment method, usually within 5–10 business days.</p></div>';
+    if (r.state === 'refunded') return '<div class="notice notice-success"><p><strong>Refunded.</strong> Your payment was returned to your original payment method.</p></div>';
+    if (r.state === 'closed') return `<p class="muted">Refund requests closed at ${deadline}, when the cohort began.</p>`;
+    return '';
+  }
+
   async function viewAccount(main) {
     const a = await SO.api('GET', 'account');
+    if (state.me) { state.me.avatar_url = a.avatar_url; state.me.display_name = a.display_name; }
     let zones = [];
     try { zones = Intl.supportedValuesOf('timeZone'); } catch { /* older browsers */ }
     const prefs = a.email_prefs || {};
-    main.innerHTML = `<div class="page-head"><h1>Account</h1><p>Signed in as <strong>${esc(a.email)}</strong>.</p></div>
-<form id="acct" class="card" novalidate>
-  <div class="field"><label for="a-name">Display name</label><input id="a-name" type="text" maxlength="80" value="${esc(a.display_name || '')}"></div>
-  <div class="field"><label for="a-tz">Your timezone</label><input id="a-tz" type="text" list="tz-list" value="${esc(a.timezone || SO.viewerTz())}">
-  <datalist id="tz-list">${zones.map(z => `<option value="${esc(z)}">`).join('')}</datalist>
-  <p class="help">Call times show in your device’s timezone, with cohort time alongside.</p></div>
-  <fieldset style="border:0;padding:0;margin:0 0 1rem"><legend class="label">Optional reminder emails</legend>
-  <p class="help" style="margin-top:0">Choose what you’d like to hear about. Reminder emails aren’t being sent yet; these choices apply once they start. Enrollment and account emails are always sent.</p>
-  ${[['intros_open', 'When introductions open'], ['cohort_begins', 'When the cohort begins'], ['daily_content', 'When each day unlocks'], ['upcoming_calls', 'Before each Solutions Seat']].map(([k, l]) =>
+    const since = a.member_since ? new Date(a.member_since).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : '';
+    const status = !a.enrolled ? 'Not enrolled' : a.review_state === 'approved' ? 'Approved · your seat is confirmed'
+      : a.review_state === 'rejected' ? 'Not approved' : 'Under review';
+    const pay = a.payment;
+    main.innerHTML = `<div class="account-hero">
+  <div class="account-photo" data-avatar="lg">${avatarHtml('lg')}</div>
+  <div class="account-id">
+    <p class="eyebrow" style="margin:0 0 .3rem">My Account</p>
+    <h1 id="acct-name">${esc(a.display_name || 'Welcome')}</h1>
+    <p class="muted" style="margin:0">${esc(a.email)}${since ? ` · Member since ${esc(since)}` : ''}</p>
+    <div class="row" style="margin-top:.9rem">
+      <label class="btn btn-secondary btn-sm file-btn">${a.avatar_url ? 'Change photo' : 'Add a profile photo'}<input type="file" id="avatar-file" accept="image/jpeg,image/png,image/webp" class="sr-only"></label>
+      ${a.avatar_url ? '<button class="btn btn-ghost btn-sm" type="button" id="avatar-rm">Remove photo</button>' : ''}
+    </div>
+    <p class="small muted" id="avatar-msg" role="status" style="margin:.5rem 0 0"></p>
+  </div>
+</div>
+
+<div class="account-grid">
+<section class="card account-card" aria-labelledby="h-profile">
+  <h2 id="h-profile">Profile</h2>
+  <form id="acct" novalidate>
+    <div class="field"><label for="a-name">Name</label><input id="a-name" type="text" maxlength="80" autocomplete="name" value="${esc(a.display_name || '')}"></div>
+    <div class="field"><label for="a-tz">Time zone</label><input id="a-tz" type="text" list="tz-list" value="${esc(a.timezone || SO.viewerTz())}">
+    <datalist id="tz-list">${zones.map(z => `<option value="${esc(z)}">`).join('')}</datalist>
+    <p class="help">Call times show in your device’s time zone, with cohort time alongside.</p></div>
+    <fieldset class="prefs"><legend class="label">Reminder emails</legend>
+    <p class="help" style="margin-top:0">Choose what you’d like to hear about. Enrollment and account emails always arrive.</p>
+    ${[['intros_open', 'When introductions open'], ['cohort_begins', 'When the cohort begins'], ['daily_content', 'When each day unlocks'], ['upcoming_calls', 'Before each Solutions Seat']].map(([k, l]) =>
       `<label class="check"><input type="checkbox" data-pref="${k}" ${prefs[k] ? 'checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>
-  <p id="acct-msg" role="status"></p>
-  <button class="btn btn-primary" type="submit">Save</button>
-</form>
-<section class="card" style="margin-top:1rem"><h2 style="font-size:1.4rem">Your journal</h2><p>Download every reflection you’ve written as a text file.</p>
-<button class="btn btn-secondary btn-sm" id="export">Download my journal</button></section>
-<p style="margin-top:1.5rem"><button class="btn btn-ghost" data-signout>Sign out</button></p>`;
+    <p id="acct-msg" role="status"></p>
+    <button class="btn btn-primary" type="submit">Save changes</button>
+  </form>
+</section>
+
+<section class="card account-card" aria-labelledby="h-member">
+  <h2 id="h-member">Membership</h2>
+  <dl class="kv">
+    <dt>Program</dt><dd>${esc((a.cohort && a.cohort.name) || 'Smooth Operators')}</dd>
+    ${a.cohort ? `<dt>Begins</dt><dd>${esc(SO.fmtCohortDate(a.cohort.start_date))}</dd>` : ''}
+    <dt>Status</dt><dd>${esc(status)}</dd>
+    ${pay ? `<dt>Payment</dt><dd>${SO.money(pay.amount_cents || 0)} · ${esc(new Date(pay.paid_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }))}${pay.receipt_url ? ` · <a href="${esc(pay.receipt_url)}" target="_blank" rel="noopener">Receipt</a>` : ''}</dd>` : ''}
+  </dl>
+  ${pay ? `<h3 class="account-sub">Refunds</h3><div id="refund-area">${refundHtml(a)}</div>` : ''}
+</section>
+
+<section class="card account-card" aria-labelledby="h-data">
+  <h2 id="h-data">Your writing</h2>
+  <p>Download everything you’ve written in My Journal as a text file. It’s yours to keep.</p>
+  <button class="btn btn-secondary btn-sm" id="export" type="button">Download my journal</button>
+</section>
+
+<section class="card account-card" aria-labelledby="h-help">
+  <h2 id="h-help">Help</h2>
+  <ul class="quick-links">
+    <li><a href="${B}/app/help">Ask a question</a></li>
+    <li><a href="${B}/app/calls-help?tab=support">FAQ</a></li>
+    <li><a href="${B}/app/calls-help?tab=bug">Report a bug</a></li>
+    <li><a href="${B}/terms" data-external>Terms</a></li>
+    <li><a href="${B}/privacy" data-external>Privacy Policy</a></li>
+  </ul>
+</section>
+</div>
+
+<div class="account-foot">
+  <button class="btn btn-primary" type="button" data-signout>Log out</button>
+  <details class="danger-zone" id="danger">
+    <summary>Delete my account</summary>
+    <div class="danger-body">
+      ${pay ? `<p>Deleting your account erases your journal, introduction, progress and photo, and ends your access to Smooth Operators. We keep your payment record because the law requires it.</p>
+      <p><strong>Deleting your account doesn’t refund your payment.</strong>${a.refund && a.refund.can_request ? ' If you want a refund, request it above first.' : ''}</p>`
+      : '<p>Deleting your account permanently removes your sign-in and everything you’ve saved.</p>'}
+      <div class="field"><label for="del-confirm">Type DELETE to confirm</label><input id="del-confirm" type="text" autocomplete="off" style="max-width:16rem"></div>
+      <p class="form-error" id="del-err" role="alert"></p>
+      <button class="btn btn-danger" type="button" id="del-go">Permanently delete my account</button>
+    </div>
+  </details>
+</div>`;
     wireSignout(main);
+    refreshAvatars();
+
+    // Profile photo
+    const amsg = q('#avatar-msg', main);
+    q('#avatar-file', main).addEventListener('change', async e => {
+      const f = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!f) return;
+      if (!/^image\//.test(f.type) || f.size > 20 * 1024 * 1024) { amsg.textContent = 'Choose a JPEG, PNG or WebP photo.'; return; }
+      amsg.textContent = 'Uploading…';
+      try {
+        const blob = await squarePhoto(f);
+        const u = await SO.api('POST', 'account/avatar-upload', { mime_type: 'image/jpeg', size: blob.size });
+        const put = await fetch(u.upload_url, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg', 'x-upsert': 'false' }, body: blob });
+        if (!put.ok) throw new Error('Upload failed. Please try again.');
+        const r = await SO.api('PUT', 'account/avatar', { avatar_path: u.avatar_path });
+        if (state.me) state.me.avatar_url = r.avatar_url || URL.createObjectURL(blob);
+        render();
+      } catch (ex) { amsg.textContent = ex.message; }
+    });
+    const arm = q('#avatar-rm', main);
+    if (arm) arm.addEventListener('click', async () => {
+      try { await SO.api('DELETE', 'account/avatar'); if (state.me) state.me.avatar_url = null; render(); } catch (ex) { amsg.textContent = ex.message; }
+    });
+
     q('#export', main).addEventListener('click', () => downloadBlob('journal/export', 'smooth-operators-journal.md').catch(e => alert(e.message)));
     q('#acct', main).addEventListener('submit', async e => {
       e.preventDefault();
@@ -1680,12 +1824,57 @@ ${r.threads.length ? `<div class="card" style="padding:.4rem 1.25rem">${r.thread
       const email_prefs = {};
       qa('[data-pref]', main).forEach(c => { email_prefs[c.dataset.pref] = c.checked; });
       try {
-        await SO.api('PUT', 'account', { display_name: q('#a-name', main).value, timezone: q('#a-tz', main).value.trim() || null, email_prefs });
+        const name = q('#a-name', main).value;
+        await SO.api('PUT', 'account', { display_name: name, timezone: q('#a-tz', main).value.trim() || null, email_prefs });
         out.className = 'notice notice-success'; out.textContent = 'Saved.';
-        if (state.me) state.me.display_name = q('#a-name', main).value;
+        if (state.me) state.me.display_name = name.trim() || null;
+        q('#acct-name', main).textContent = name.trim() || 'Welcome';
+        refreshAvatars();
       } catch (ex) { out.className = 'notice notice-error'; out.textContent = ex.message; }
     });
-    return 'Account';
+
+    // Refunds
+    const wireRefund = () => {
+      const area = q('#refund-area', main);
+      if (!area) return;
+      const open = q('#refund-open', area);
+      if (open) open.addEventListener('click', () => {
+        q('#refund-box', area).innerHTML = `<form id="refund-form" class="refund-form" novalidate>
+  <div class="field"><label for="rf-why">Anything you’d like us to know? <span class="muted">(optional)</span></label><textarea id="rf-why" maxlength="2000" style="min-height:5rem"></textarea></div>
+  <p class="form-error" id="rf-err" role="alert"></p>
+  <div class="row"><button class="btn btn-primary btn-sm" type="submit">Send refund request</button><button class="btn btn-ghost btn-sm" type="button" id="rf-cancel">Never mind</button></div></form>`;
+        q('#rf-why', area).focus();
+        q('#rf-cancel', area).addEventListener('click', () => { area.innerHTML = refundHtml(a); wireRefund(); });
+        q('#refund-form', area).addEventListener('submit', async ev => {
+          ev.preventDefault();
+          try {
+            const r = await SO.api('POST', 'account/refund-request', { reason: q('#rf-why', area).value.trim() });
+            a.refund = r.refund; area.innerHTML = refundHtml(a); wireRefund();
+          } catch (ex) { q('#rf-err', area).textContent = ex.message; }
+        });
+      });
+      const wd = q('#refund-withdraw', area);
+      if (wd) wd.addEventListener('click', async () => {
+        try { const r = await SO.api('DELETE', 'account/refund-request'); a.refund = r.refund; area.innerHTML = refundHtml(a); wireRefund(); } catch (ex) { alert(ex.message); }
+      });
+    };
+    wireRefund();
+
+    // Delete account
+    q('#del-go', main).addEventListener('click', async () => {
+      const err = q('#del-err', main);
+      const v = q('#del-confirm', main).value.trim();
+      if (v.toUpperCase() !== 'DELETE') { err.textContent = 'Type DELETE in the box to confirm.'; return; }
+      const btn = q('#del-go', main);
+      btn.disabled = true; err.textContent = '';
+      try {
+        await SO.api('POST', 'account/delete', { confirm: v });
+        await SO.signOut().catch(() => {});
+        state.me = null;
+        window.location.href = B;
+      } catch (ex) { err.textContent = ex.message; btn.disabled = false; }
+    });
+    return 'My Account';
   }
 
   // ------------------------------------------------------------- start

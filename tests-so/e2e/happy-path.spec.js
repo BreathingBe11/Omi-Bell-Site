@@ -99,6 +99,19 @@ test('founder pays, gets verified access and saves a private reflection', async 
   await expect(page.locator('[data-countdown]')).toBeVisible();
   expect(await axe(page)).toEqual([]);
 
+  // My Account (the avatar link beside "My Account"): refunds open until the night before the cohort.
+  await page.locator('a[href$="/app/account"]:visible').first().click();
+  await expect(page.getByRole('heading', { name: 'Membership' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Request a refund' })).toBeVisible();
+  await expect(page.getByText(/Jan 3, 2027 · 11:59 PM/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible();
+  await page.getByLabel('Name', { exact: true }).fill('Test Founder');
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page.getByText('Saved.')).toBeVisible();
+  await expect(page.locator('.account-photo .avatar')).toHaveText('TF');
+  expect(await axe(page)).toEqual([]);
+  await page.goto(`${base()}/smoothoperators/app`);
+
   // The cohort goes live and Day 1 is published.
   await setLiveDay1AndPublish();
   await page.reload();

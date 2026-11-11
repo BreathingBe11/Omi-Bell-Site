@@ -572,6 +572,23 @@ alter table so_support_threads drop constraint if exists so_support_threads_cate
 alter table so_support_threads add constraint so_support_threads_category_check
   check (category in ('program', 'account_access', 'billing_refund', 'resources', 'application', 'other', 'bug'));
 
+-- My Account: profile picture, self-service deletion, refund requests.
+alter table so_profiles add column if not exists avatar_path text;
+alter table so_profiles add column if not exists deleted_at timestamptz;  -- member deleted their account; payment records kept
+
+create table if not exists so_refund_requests (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null references auth.users(id) on delete cascade,
+  cohort_id    uuid not null references so_cohorts(id) on delete cascade,
+  purchase_id  uuid not null references so_purchases(id) on delete cascade,
+  reason       text,
+  status       text not null default 'open' check (status in ('open', 'withdrawn')),
+  thread_id    uuid references so_support_threads(id) on delete set null,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+create unique index if not exists so_refund_requests_one_open on so_refund_requests (purchase_id) where status = 'open';
+
 -- --------------------------------------------------------------- security
 do $$
 declare t text;
@@ -583,7 +600,7 @@ begin
     'so_webhook_events','so_admin_audit_log','so_events','so_email_log','so_rate_limits','so_intakes',
     'so_intake_versions','so_review_decisions','so_refund_attempts','so_email_templates','so_email_template_versions',
     'so_email_outbox','so_support_threads','so_support_messages','so_admin_notes',
-    'so_journal_notes','so_announcements']
+    'so_journal_notes','so_announcements','so_refund_requests']
   loop
     execute format('alter table %I enable row level security', t);
     if exists (select 1 from pg_roles where rolname = 'anon') then

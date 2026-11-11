@@ -348,6 +348,10 @@ routes['GET admin/home'] = can(async ({ sql, query, now, admin: who }) => {
     const fr = (await sql`select count(*)::int as n from so_refund_attempts ra join so_purchases p on p.id = ra.purchase_id
                           where p.cohort_id = ${cohort.id} and (ra.status = 'failed' or ra.needs_attention)`)[0].n;
     if (fr) add('refund', `${fr} refund${fr === 1 ? '' : 's'} failed or need attention.`, '#sales/refunds', 'high');
+    const rq = (await sql`select count(*)::int as n from so_refund_requests r join so_purchases p on p.id = r.purchase_id
+                          where r.cohort_id = ${cohort.id} and r.status = 'open' and p.status = 'paid'
+                          and not exists (select 1 from so_refund_attempts ra where ra.purchase_id = p.id and ra.status <> 'failed')`)[0].n;
+    if (rq) add('refund_request', `${rq} member${rq === 1 ? ' has' : 's have'} requested a refund from My Account.`, '#settings/questions', 'high');
     const rv = (await sql`select count(*)::int as n from so_purchases where cohort_id = ${cohort.id} and needs_review is not null`)[0].n;
     if (rv) add('payment', `${rv} payment${rv === 1 ? '' : 's'} flagged for review (dispute, capacity or amount).`, '#sales/flagged');
     const wh = (await sql`select count(*)::int as n from so_webhook_events where status = 'failed'`)[0].n;

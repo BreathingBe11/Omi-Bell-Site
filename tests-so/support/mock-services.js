@@ -144,6 +144,15 @@ function startMocks({ sql, webhookUrl, webhookSecret, port = 0 } = {}) {
       }
       if (p === '/auth/v1/token') return json(400, { error: 'refresh not supported in mock' });
       if (p === '/auth/v1/logout') return json(204, {});
+      let du;
+      if ((du = /^\/auth\/v1\/admin\/users\/([0-9a-f-]{36})$/.exec(p)) && req.method === 'DELETE') {
+        if (!String(req.headers.authorization || '').includes('service')) return json(403, { msg: 'service role required' });
+        state.deletedUsers = (state.deletedUsers || []).concat(du[1]);
+        for (const [email, u] of state.users) if (u.id === du[1]) state.users.delete(email);
+        for (const [t, u] of state.tokens) if (u.id === du[1]) state.tokens.delete(t);
+        if (sql) await sql`delete from auth.users where id = ${du[1]}`;
+        return json(200, {});
+      }
 
       // ---------------- Supabase Storage
       let m;

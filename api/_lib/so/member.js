@@ -8,7 +8,7 @@ const C = require('./core');
 const H = require('./http');
 const { requireUser, ensureProfile, getAuthUser } = require('./identity');
 const storage = require('./storage');
-const { isValidTimeZone } = require('./time');
+const { isValidTimeZone, zonedToUtc } = require('./time');
 const env = require('./env');
 
 const { HttpError } = H;
@@ -183,6 +183,7 @@ routes['GET me'] = async ({ sql, req, now }) => {
     email: user.email,
     display_name: profile.display_name,
     timezone: profile.timezone,
+    avatar_url: await avatarUrl(profile.avatar_path),
     is_admin: profile.role === 'admin',
     enrolled: !!enrollment,
     access: { active: access.active, reason: access.reason },
@@ -618,10 +619,47 @@ routes['POST introductions/photo-upload'] = async ({ sql, req, now }) => {
 };
 
 // -------------------------------------------------------------- account
+async function avatarUrl(path) {
+  if (!path) return null;
+  try { return await storage.signedDownloadUrl(path, 3600); } catch { return null; }
+}
+
+// Refund requests are open until the moment the cohort's first day begins
+// (Jan 4 at 12:00 AM cohort time = through Jan 3 at 11:59 PM).
+function refundDeadline(cohort) {
+  return zonedToUtc(S.schedule(cohort).start_date, '00:00', cohort.timezone);
+}
+
+async function accountBilling(sql, user, cohort, now) {
+  const e = await C.loadEnrollment(sql, user.id, cohort.id);
+  const p = e && e.purchase_id ? (await sql`select * from so_purchases where id = ${e.purchase_id}`)[0] : null;
+  const deadline = refundDeadline(cohort);
+  const out = {
+    enrolled: !!e, review_state: e ? e.review_state : null,
+    cohort: { name: cohort.name, start_date: S.schedule(cohort).start_date, timezone: cohort.timezone },
+    payment: p && p.paid_at ? { amount_cents: p.amount_paid_cents || p.amount_cents, paid_at: p.paid_at, receipt_url: p.receipt_url || null, status: p.status } : null,
+    refund: { deadline: deadline.toISOString(), state: 'none', can_request: false, requested_at: null },
+  };
+  if (!p || !p.paid_at) return out;
+  const attempt = (await sql`select status, updated_at from so_refund_attempts where purchase_id = ${p.id} order by created_at desc limit 1`)[0];
+  const req = (await sql`select * from so_refund_requests where purchase_id = ${p.id} and status = 'open' order by created_at desc limit 1`)[0];
+  if (['refunded', 'partially_refunded'].includes(p.status)) out.refund.state = 'refunded';
+  else if (attempt && attempt.status !== 'failed') out.refund.state = 'processing';
+  else if (req) { out.refund.state = 'requested'; out.refund.requested_at = req.created_at; }
+  else if (now < deadline && p.status === 'paid') { out.refund.state = 'available'; out.refund.can_request = true; }
+  else out.refund.state = 'closed';
+  return out;
+}
+
 routes['GET account'] = async ({ sql, req, now }) => {
   const user = await requireUser(req);
   const p = await ensureProfile(sql, user);
-  return { email: user.email, display_name: p.display_name, timezone: p.timezone, email_prefs: p.email_prefs || {} };
+  const cohort = await C.loadCohort(sql);
+  return {
+    email: user.email, display_name: p.display_name, timezone: p.timezone, email_prefs: p.email_prefs || {},
+    avatar_url: await avatarUrl(p.avatar_path), member_since: p.created_at,
+    ...(await accountBilling(sql, user, cohort, now)),
+  };
 };
 
 const PREF_KEYS = ['intros_open', 'cohort_begins', 'daily_content', 'upcoming_calls'];
@@ -637,6 +675,124 @@ routes['PUT account'] = async ({ sql, req }) => {
   const rows = await sql`update so_profiles set display_name = ${name}, timezone = ${tz}, email_prefs = ${sql.json(prefs)}, updated_at = now()
                          where user_id = ${user.id} returning display_name, timezone, email_prefs`;
   return rows[0];
+};
+
+routes['POST account/avatar-upload'] = async ({ sql, req }) => {
+  const user = await requireUser(req);
+  await ensureProfile(sql, user);
+  const b = H.body(req);
+  storage.checkUpload('photo', b.mime_type, b.size);
+  await H.rateLimit(sql, `avatar:${user.id}`, 20, 3600);
+  const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[b.mime_type];
+  const path = `avatars/${user.id}/${crypto.randomUUID()}.${ext}`;
+  return { upload_url: await storage.signedUploadUrl(path), avatar_path: path };
+};
+
+routes['PUT account/avatar'] = async ({ sql, req }) => {
+  const user = await requireUser(req);
+  const prof = await ensureProfile(sql, user);
+  const path = H.body(req).avatar_path;
+  if (typeof path !== 'string' || !path.startsWith(`avatars/${user.id}/`) || path.includes('..') || path.length > 200) {
+    throw new HttpError(400, 'invalid_input', 'Invalid photo.');
+  }
+  await sql`update so_profiles set avatar_path = ${path}, updated_at = now() where user_id = ${user.id}`;
+  if (prof.avatar_path && prof.avatar_path !== path) await storage.removeObjects([prof.avatar_path]);
+  return { avatar_url: await avatarUrl(path) };
+};
+
+routes['DELETE account/avatar'] = async ({ sql, req }) => {
+  const user = await requireUser(req);
+  const prof = await ensureProfile(sql, user);
+  await sql`update so_profiles set avatar_path = null, updated_at = now() where user_id = ${user.id}`;
+  if (prof.avatar_path) await storage.removeObjects([prof.avatar_path]);
+  return { avatar_url: null };
+};
+
+routes['POST account/refund-request'] = async ({ sql, req, now }) => {
+  const user = await requireUser(req);
+  await ensureProfile(sql, user);
+  const cohort = await C.loadCohort(sql);
+  const reason = H.text(H.body(req).reason, { max: 2000, field: 'Reason', multiline: true }) || null;
+  const billing = await accountBilling(sql, user, cohort, now);
+  if (billing.refund.state === 'requested') return { refund: billing.refund };
+  if (!billing.refund.can_request) {
+    throw new HttpError(409, 'refund_unavailable', billing.refund.state === 'closed'
+      ? 'Refund requests closed when the cohort began.' : 'There’s no payment on this account to refund.');
+  }
+  await H.rateLimit(sql, `refundreq:${user.id}`, 5, 3600);
+  const e = await C.loadEnrollment(sql, user.id, cohort.id);
+  await sql.begin(async tx => {
+    const th = (await tx`insert into so_support_threads (user_id, cohort_id, category, subject)
+                         values (${user.id}, ${cohort.id}, 'billing_refund', 'Refund request') returning id`)[0];
+    await tx`insert into so_support_messages (thread_id, author_type, author, body)
+             values (${th.id}, 'member', ${user.email}, ${`I’d like to request a refund.${reason ? `\n\n${reason}` : ''}`})`;
+    await tx`insert into so_refund_requests (user_id, cohort_id, purchase_id, reason, thread_id)
+             values (${user.id}, ${cohort.id}, ${e.purchase_id}, ${reason}, ${th.id})`;
+  });
+  return { refund: (await accountBilling(sql, user, cohort, now)).refund };
+};
+
+routes['DELETE account/refund-request'] = async ({ sql, req, now }) => {
+  const user = await requireUser(req);
+  const cohort = await C.loadCohort(sql);
+  const rows = await sql`update so_refund_requests set status = 'withdrawn', updated_at = now()
+                         where user_id = ${user.id} and cohort_id = ${cohort.id} and status = 'open' returning thread_id`;
+  for (const r of rows) {
+    if (!r.thread_id) continue;
+    await sql`insert into so_support_messages (thread_id, author_type, author, body) values (${r.thread_id}, 'member', ${user.email}, 'I’ve withdrawn my refund request.')`;
+    await sql`update so_support_threads set status = 'resolved', last_message_at = now(), updated_at = now() where id = ${r.thread_id}`;
+  }
+  return { refund: (await accountBilling(sql, user, cohort, now)).refund };
+};
+
+async function deleteAuthUser(id) {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new HttpError(503, 'auth_not_configured', 'Account deletion isn’t available right now.');
+  let res;
+  try {
+    res = await fetch(`${url.replace(/\/+$/, '')}/auth/v1/admin/users/${id}`, {
+      method: 'DELETE', headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(10000),
+    });
+  } catch { res = null; }
+  if (!res || (!res.ok && res.status !== 404)) throw new HttpError(503, 'auth_unreachable', 'We couldn’t delete your account just now. Please try again.');
+}
+
+// Members with no payment are removed completely. Members who paid keep their
+// payment and enrollment records (needed for tax and refunds); everything
+// personal is erased now, access ends, and the team is told in the inbox.
+routes['POST account/delete'] = async ({ sql, req }) => {
+  const user = await requireUser(req);
+  const prof = await ensureProfile(sql, user);
+  if (String(H.body(req).confirm || '').trim().toUpperCase() !== 'DELETE') {
+    throw new HttpError(400, 'invalid_input', 'Type DELETE to confirm.');
+  }
+  await H.rateLimit(sql, `delete:${user.id}`, 5, 3600);
+  const files = (await sql`select photo_path from so_introductions where user_id = ${user.id} and photo_path is not null`).map(r => r.photo_path);
+  if (prof.avatar_path) files.push(prof.avatar_path);
+  const paid = (await sql`select 1 from so_purchases where user_id = ${user.id} limit 1`).length > 0;
+  if (!paid) {
+    await deleteAuthUser(user.id);
+  } else {
+    await sql.begin(async tx => {
+      await tx`delete from so_journal_entries where user_id = ${user.id}`;
+      await tx`delete from so_journal_notes where user_id = ${user.id}`;
+      await tx`delete from so_introductions where user_id = ${user.id}`;
+      await tx`delete from so_day_progress where user_id = ${user.id}`;
+      await tx`delete from so_playback where user_id = ${user.id}`;
+      await tx`delete from so_call_challenges where user_id = ${user.id}`;
+      await tx`update so_profiles set display_name = null, timezone = null, avatar_path = null, email_prefs = '{}'::jsonb,
+               deleted_at = now(), updated_at = now() where user_id = ${user.id}`;
+      await tx`update so_enrollments set access_state = 'revoked', updated_at = now() where user_id = ${user.id} and access_state = 'active'`;
+      const cohort = await C.loadCohort(tx);
+      const th = (await tx`insert into so_support_threads (user_id, cohort_id, category, subject)
+                           values (${user.id}, ${cohort.id}, 'account_access', 'Account deleted by member') returning id`)[0];
+      await tx`insert into so_support_messages (thread_id, author_type, author, body) values (${th.id}, 'member', ${user.email},
+               'I deleted my account from My Account. My journal, introduction, progress and photo were erased and my access ended. Payment and enrollment records were kept.')`;
+    });
+  }
+  await storage.removeObjects(files);
+  return { deleted: true, mode: paid ? 'erased' : 'removed' };
 };
 
 routes['GET faqs'] = async ({ sql, req, now }) => {

@@ -12,6 +12,8 @@ module.exports = defineConfig({
   globalSetup: require.resolve('./tests-so/e2e/global-setup.js'),
   use: {
     trace: 'off',
+    // Entrance animations are skipped so accessibility checks see final colours.
+    contextOptions: { reducedMotion: 'reduce' },
     screenshot: 'only-on-failure',
     // Point at a specific Chromium when the installed Playwright build doesn't match (e.g. CI images).
     ...(process.env.PW_CHROMIUM_PATH ? { launchOptions: { executablePath: process.env.PW_CHROMIUM_PATH } } : {}),
