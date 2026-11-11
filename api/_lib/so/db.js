@@ -32,24 +32,87 @@ function parseUrl(raw) {
   return { username: decodeLoose(m[1]), password: m[2] ? decodeLoose(m[2]) : undefined, host: m[3], port: Number(m[4] || 5432), database: m[5] };
 }
 
+const OPTIONS = { prepare: false, idle_timeout: 20, connect_timeout: 8, onnotice: () => {} };
+
+// Turn whatever Supabase string was pasted into the addresses worth trying.
+// The "Direct connection" host (db.<ref>.supabase.co) isn't reachable from
+// Vercel, so it's converted to the Transaction pooler, which lives on one of
+// two regional hosts (aws-0 / aws-1) depending on when the project was made.
+function candidates(conn) {
+  const direct = /^db\.([a-z0-9]{10,40})\.supabase\.co$/.exec(conn.host);
+  const pooler = /\.pooler\.supabase\.com$/.test(conn.host);
+  const refFromEnv = (/^https:\/\/([a-z0-9]{10,40})\.supabase\.co/.exec(process.env.SUPABASE_URL || '') || [])[1];
+  const ref = direct ? direct[1] : refFromEnv;
+  const fixUser = u => (ref && u === 'postgres' ? `postgres.${ref}` : u);
+  if (direct) {
+    const region = process.env.SO_DB_REGION || 'us-east-1';
+    return [`aws-0-${region}`, `aws-1-${region}`].map(h => ({
+      ...conn, host: `${h}.pooler.supabase.com`, port: 6543, username: fixUser(conn.username), database: conn.database || 'postgres',
+    }));
+  }
+  if (pooler) {
+    const list = [{ ...conn, username: fixUser(conn.username) }];
+    const other = conn.host.replace(/^aws-0-/, 'aws-1-') === conn.host ? conn.host.replace(/^aws-1-/, 'aws-0-') : conn.host.replace(/^aws-0-/, 'aws-1-');
+    if (other !== conn.host) list.push({ ...list[0], host: other });
+    return list;
+  }
+  return [conn];
+}
+
+// Plain-English reason, safe to show (never contains the password).
+function explain(err) {
+  const msg = String((err && err.message) || '');
+  const code = err && err.code;
+  if (code === 'ENOTFOUND' || /getaddrinfo/.test(msg)) return 'The database address in SO_DATABASE_URL could not be found. In Supabase, click Connect and copy the "Transaction pooler" string.';
+  if (code === '28P01' || /password authentication failed/i.test(msg)) return 'Supabase rejected the database password in SO_DATABASE_URL. Reset the database password in Supabase (letters and numbers only), put the new one in SO_DATABASE_URL, and redeploy.';
+  if (/tenant or user not found/i.test(msg)) return 'Supabase did not recognise the database user in SO_DATABASE_URL. Copy the "Transaction pooler" string from Supabase → Connect.';
+  if (code === 'CONNECT_TIMEOUT' || code === 'ETIMEDOUT' || code === 'ENETUNREACH' || /timeout/i.test(msg)) return 'Connecting to the database timed out. Use the "Transaction pooler" string (port 6543) from Supabase → Connect.';
+  if (code === '42P01') return 'The Smooth Operators tables are missing. Run supabase/smooth_operators.sql in the Supabase SQL editor.';
+  return `The database connection failed (${code || 'unknown error'}).`;
+}
+
+let ready = null;
+
+// Connects (once per server instance), trying each candidate address in turn.
+async function getSqlReady() {
+  if (sql) return sql;
+  if (ready) return ready;
+  const url = process.env.SO_DATABASE_URL;
+  if (!url) throw new HttpError(503, 'not_configured', 'Smooth Operators is not configured yet.');
+  const conn = parseUrl(url);
+  ready = (async () => {
+    let last = null;
+    for (const c of candidates(conn)) {
+      const local = /^(localhost|127\.0\.0\.1)$/.test(c.host);
+      const client = postgres({ ...c, ...OPTIONS, max: Number(process.env.SO_DB_POOL_MAX || 3), ssl: local ? false : 'require' });
+      try {
+        await client`select 1`;
+        sql = client;
+        if (c.host !== conn.host) console.log(`[so] database: connected via ${c.host}:${c.port} (adjusted from the pasted address)`);
+        return client;
+      } catch (e) {
+        last = e;
+        console.error(`[so] database: ${c.host}:${c.port} failed: ${e.code || ''} ${String(e.message || '').slice(0, 160)}`);
+        client.end({ timeout: 1 }).catch(() => {});
+      }
+    }
+    throw new HttpError(503, 'database_unreachable', explain(last));
+  })();
+  try { return await ready; } finally { ready = null; }
+}
+
+// Synchronous accessor for code paths that already ran getSqlReady (and tests).
 function getSql() {
   if (sql) return sql;
   const url = process.env.SO_DATABASE_URL;
   if (!url) throw new HttpError(503, 'not_configured', 'Smooth Operators is not configured yet.');
   const conn = parseUrl(url);
   const local = /^(localhost|127\.0\.0\.1)$/.test(conn.host);
-  sql = postgres({ ...conn,
-    max: Number(process.env.SO_DB_POOL_MAX || 3),
-    prepare: false,
-    idle_timeout: 20,
-    connect_timeout: 10,
-    ssl: local ? false : 'require',
-    onnotice: () => {},
-  });
+  sql = postgres({ ...conn, ...OPTIONS, max: Number(process.env.SO_DB_POOL_MAX || 3), ssl: local ? false : 'require' });
   return sql;
 }
 
 // Test hook.
 function setSql(instance) { sql = instance; }
 
-module.exports = { getSql, setSql, parseUrl };
+module.exports = { getSql, getSqlReady, setSql, parseUrl, candidates, explain };
