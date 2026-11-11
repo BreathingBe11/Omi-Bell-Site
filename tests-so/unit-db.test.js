@@ -1,11 +1,12 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseUrl, candidates, explain } = require('../api/_lib/so/db');
+const { parseUrl, candidates, explain, mostUseful } = require('../api/_lib/so/db');
 
-test('a pasted "Direct connection" string is converted to the Transaction pooler', () => {
-  const c = candidates(parseUrl('postgresql://postgres:Secret123@db.mfevhwdtpftmlsksrgdi.supabase.co:5432/postgres'));
+test('a pasted Supabase db.* address is tried first, then the shared pooler', () => {
+  const c = candidates(parseUrl('postgresql://postgres:Secret123@db.mfevhwdtpftmlsksrgdi.supabase.co:6543/postgres'));
   assert.deepEqual(c.map(x => `${x.username}@${x.host}:${x.port}`), [
+    'postgres@db.mfevhwdtpftmlsksrgdi.supabase.co:6543',
     'postgres.mfevhwdtpftmlsksrgdi@aws-0-us-east-1.pooler.supabase.com:6543',
     'postgres.mfevhwdtpftmlsksrgdi@aws-1-us-east-1.pooler.supabase.com:6543',
   ]);
@@ -28,9 +29,14 @@ test('a pooler string missing the project in the username is fixed from SUPABASE
 });
 
 test('connection failures are explained in plain English without the password', () => {
-  assert.match(explain({ code: 'ENOTFOUND', message: 'getaddrinfo ENOTFOUND db.x.supabase.co' }), /could not be found.*Transaction pooler/);
+  assert.match(explain({ code: 'ENOTFOUND', message: 'getaddrinfo ENOTFOUND db.x.supabase.co' }), /Enable IPv4 add-on/);
   assert.match(explain({ code: '28P01', message: 'password authentication failed for user "postgres"' }), /rejected the database password/);
   assert.match(explain({ code: 'XX000', message: 'Tenant or user not found' }), /did not recognise the database user/);
   assert.match(explain({ code: 'CONNECT_TIMEOUT', message: 'write CONNECT_TIMEOUT' }), /timed out/);
   assert.match(explain({ code: '42P01', message: 'relation "so_cohorts" does not exist' }), /Run supabase\/smooth_operators\.sql/);
+});
+
+test('the most useful failure is reported when several addresses were tried', () => {
+  const e = mostUseful([{ code: 'ENOTFOUND', message: 'getaddrinfo ENOTFOUND a' }, { code: 'XX000', message: 'Tenant or user not found' }, { code: 'ENOTFOUND', message: 'getaddrinfo ENOTFOUND b' }]);
+  assert.equal(e.code, 'XX000');
 });

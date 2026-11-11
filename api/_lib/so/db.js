@@ -45,10 +45,12 @@ function candidates(conn) {
   const ref = direct ? direct[1] : refFromEnv;
   const fixUser = u => (ref && u === 'postgres' ? `postgres.${ref}` : u);
   if (direct) {
+    // Try the pasted address first (works when Supabase's IPv4 add-on is on),
+    // then the shared pooler on both regional hosts.
     const region = process.env.SO_DB_REGION || 'us-east-1';
-    return [`aws-0-${region}`, `aws-1-${region}`].map(h => ({
+    return [conn, ...[`aws-0-${region}`, `aws-1-${region}`].map(h => ({
       ...conn, host: `${h}.pooler.supabase.com`, port: 6543, username: fixUser(conn.username), database: conn.database || 'postgres',
-    }));
+    }))];
   }
   if (pooler) {
     const list = [{ ...conn, username: fixUser(conn.username) }];
@@ -63,12 +65,24 @@ function candidates(conn) {
 function explain(err) {
   const msg = String((err && err.message) || '');
   const code = err && err.code;
-  if (code === 'ENOTFOUND' || /getaddrinfo/.test(msg)) return 'The database address in SO_DATABASE_URL could not be found. In Supabase, click Connect and copy the "Transaction pooler" string.';
+  if (code === 'ENOTFOUND' || /getaddrinfo/.test(msg)) return 'Vercel could not reach the database address in SO_DATABASE_URL. In Supabase → Connect, click "Enable IPv4 add-on" (or use the shared pooler address ending in pooler.supabase.com), then redeploy.';
   if (code === '28P01' || /password authentication failed/i.test(msg)) return 'Supabase rejected the database password in SO_DATABASE_URL. Reset the database password in Supabase (letters and numbers only), put the new one in SO_DATABASE_URL, and redeploy.';
   if (/tenant or user not found/i.test(msg)) return 'Supabase did not recognise the database user in SO_DATABASE_URL. Copy the "Transaction pooler" string from Supabase → Connect.';
   if (code === 'CONNECT_TIMEOUT' || code === 'ETIMEDOUT' || code === 'ENETUNREACH' || /timeout/i.test(msg)) return 'Connecting to the database timed out. Use the "Transaction pooler" string (port 6543) from Supabase → Connect.';
   if (code === '42P01') return 'The Smooth Operators tables are missing. Run supabase/smooth_operators.sql in the Supabase SQL editor.';
   return `The database connection failed (${code || 'unknown error'}).`;
+}
+
+// "Not found" is the least informative failure; prefer a password or user error.
+function mostUseful(errors) {
+  const rank = e => {
+    const m = String((e && e.message) || '');
+    if (e && e.code === '28P01' || /password authentication failed/i.test(m)) return 0;
+    if (/tenant or user not found/i.test(m)) return 1;
+    if (e && (e.code === 'ENOTFOUND' || /getaddrinfo/.test(m))) return 3;
+    return 2;
+  };
+  return errors.slice().sort((a, b) => rank(a) - rank(b))[0];
 }
 
 let ready = null;
@@ -81,7 +95,7 @@ async function getSqlReady() {
   if (!url) throw new HttpError(503, 'not_configured', 'Smooth Operators is not configured yet.');
   const conn = parseUrl(url);
   ready = (async () => {
-    let last = null;
+    const errors = [];
     for (const c of candidates(conn)) {
       const local = /^(localhost|127\.0\.0\.1)$/.test(c.host);
       const client = postgres({ ...c, ...OPTIONS, max: Number(process.env.SO_DB_POOL_MAX || 3), ssl: local ? false : 'require' });
@@ -91,12 +105,12 @@ async function getSqlReady() {
         if (c.host !== conn.host) console.log(`[so] database: connected via ${c.host}:${c.port} (adjusted from the pasted address)`);
         return client;
       } catch (e) {
-        last = e;
+        errors.push(e);
         console.error(`[so] database: ${c.host}:${c.port} failed: ${e.code || ''} ${String(e.message || '').slice(0, 160)}`);
         client.end({ timeout: 1 }).catch(() => {});
       }
     }
-    throw new HttpError(503, 'database_unreachable', explain(last));
+    throw new HttpError(503, 'database_unreachable', explain(mostUseful(errors)));
   })();
   try { return await ready; } finally { ready = null; }
 }
@@ -115,4 +129,4 @@ function getSql() {
 // Test hook.
 function setSql(instance) { sql = instance; }
 
-module.exports = { getSql, getSqlReady, setSql, parseUrl, candidates, explain };
+module.exports = { getSql, getSqlReady, setSql, parseUrl, candidates, explain, mostUseful };
