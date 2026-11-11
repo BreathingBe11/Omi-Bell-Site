@@ -9,8 +9,15 @@ const { HttpError } = require('./http');
 
 let sql = null;
 
-// Reads postgresql://user:password@host:port/db without URL-decoding, so a
-// password containing symbols such as % @ # / ? still works.
+// Reads postgresql://user:password@host:port/db tolerantly, so a password with
+// symbols works whether or not it was percent-encoded.
+// Supabase asks for special characters to be percent-encoded (e.g. @ -> %40).
+// Decode valid encodings; keep the text as-is if it isn't valid encoding
+// (e.g. a password that simply contains a % sign).
+function decodeLoose(v) {
+  try { return decodeURIComponent(v); } catch { return v; }
+}
+
 function parseUrl(raw) {
   const url = String(raw).trim().replace(/^["']|["']$/g, '');
   const m = /^postgres(?:ql)?:\/\/([^:/@]+)(?::(.*))?@([^@/:]+)(?::(\d+))?\/([^?\s]+)(\?.*)?$/.exec(url);
@@ -22,7 +29,7 @@ function parseUrl(raw) {
     console.error('[so] SO_DATABASE_URL still contains the [YOUR-PASSWORD] placeholder');
     throw new HttpError(503, 'not_configured', 'The database password in SO_DATABASE_URL still needs to be filled in.');
   }
-  return { username: m[1], password: m[2] || undefined, host: m[3], port: Number(m[4] || 5432), database: m[5] };
+  return { username: decodeLoose(m[1]), password: m[2] ? decodeLoose(m[2]) : undefined, host: m[3], port: Number(m[4] || 5432), database: m[5] };
 }
 
 function getSql() {
