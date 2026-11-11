@@ -538,6 +538,40 @@ alter table so_call_challenges add constraint so_call_challenges_status_check ch
 -- Scheduled publication: a published day with publish_at in the future stays hidden until then.
 alter table so_days add column if not exists publish_at timestamptz;
 
+-- ------------------------------------------- v4: free journal entries, announcements
+-- Journal entries a member writes on their own, not tied to a daily prompt.
+-- Private to the member, exactly like daily reflections.
+create table if not exists so_journal_notes (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  cohort_id   uuid not null references so_cohorts(id) on delete cascade,
+  title       text,
+  body        text not null default '',
+  revision    int  not null default 1,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+create index if not exists so_journal_notes_user_idx on so_journal_notes (user_id, cohort_id, updated_at desc);
+
+-- Announcements shown at the top of Today for approved members.
+create table if not exists so_announcements (
+  id          uuid primary key default gen_random_uuid(),
+  cohort_id   uuid not null references so_cohorts(id) on delete cascade,
+  title       text not null,
+  body        text not null default '',
+  status      text not null default 'draft' check (status in ('draft', 'published')),
+  pinned      boolean not null default false,
+  publish_at  timestamptz,          -- optional: hidden until this time
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  updated_by  text
+);
+
+-- Bug reports share the questions inbox.
+alter table so_support_threads drop constraint if exists so_support_threads_category_check;
+alter table so_support_threads add constraint so_support_threads_category_check
+  check (category in ('program', 'account_access', 'billing_refund', 'resources', 'application', 'other', 'bug'));
+
 -- --------------------------------------------------------------- security
 do $$
 declare t text;
@@ -548,7 +582,8 @@ begin
     'so_introductions','so_calls','so_call_challenges','so_faqs','so_site_content',
     'so_webhook_events','so_admin_audit_log','so_events','so_email_log','so_rate_limits','so_intakes',
     'so_intake_versions','so_review_decisions','so_refund_attempts','so_email_templates','so_email_template_versions',
-    'so_email_outbox','so_support_threads','so_support_messages','so_admin_notes']
+    'so_email_outbox','so_support_threads','so_support_messages','so_admin_notes',
+    'so_journal_notes','so_announcements']
   loop
     execute format('alter table %I enable row level security', t);
     if exists (select 1 from pg_roles where rolname = 'anon') then

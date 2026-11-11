@@ -45,6 +45,16 @@ on conflict (cohort_id, day_number) do nothing;`);
 });
 out.push('');
 
+// Solutions Seat on Zoom: Wednesdays Jan 6, 13, 20, 2027 at 1:00 pm PST / 4:00 pm EST (21:00 UTC).
+// Meeting links are added in admin -> Solutions Seat. Never duplicated on re-run.
+[['2027-01-06', 1], ['2027-01-13', 2], ['2027-01-20', 3]].forEach(([d, w]) => {
+  out.push(`insert into so_calls (cohort_id, title, description, starts_at, duration_minutes, status)
+select id, ${q(`Solutions Seat · Week ${w}`)}, ${q('Live on Zoom. Bring a challenge you’re working through and we’ll think it through together.')}, '${d}T21:00:00Z', 60, 'scheduled'
+from so_cohorts c where slug = '2027-01'
+  and not exists (select 1 from so_calls x where x.cohort_id = c.id and x.starts_at = '${d}T21:00:00Z');`);
+});
+out.push('');
+
 out.push(`do $$ begin
   if not exists (select 1 from so_faqs) then`);
 FAQ_SEED.forEach(([question, answer], i) => {

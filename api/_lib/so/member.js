@@ -126,6 +126,12 @@ async function calendarDays(sql, cohort, now, userId) {
   });
 }
 
+async function loadAnnouncements(sql, cohort, now) {
+  return sql`select id, title, body, pinned, coalesce(publish_at, created_at) as posted_at from so_announcements
+             where cohort_id = ${cohort.id} and status = 'published' and (publish_at is null or publish_at <= ${now})
+             order by pinned desc, coalesce(publish_at, created_at) desc limit 5`;
+}
+
 async function homePayload(sql, cohort, now, userId, access) {
   const sched = S.schedule(cohort);
   const phase = S.phase(cohort, now);
@@ -157,6 +163,7 @@ async function homePayload(sql, cohort, now, userId, access) {
     next_call: C.nextCall(calls),
     replays_available: calls.some(c => c.replay),
     completed_count: completedCount,
+    announcements: await loadAnnouncements(sql, cohort, now),
     access: access ? { active: access.active, ends_at: access.ends_at ? access.ends_at.toISOString() : null } : null,
   };
 }
@@ -260,13 +267,69 @@ routes['GET journal'] = async ({ sql, req, now }) => {
     from so_journal_entries j join so_days d on d.id = j.day_id
     where j.user_id = ${ctx.user.id} and j.cohort_id = ${ctx.cohort.id} and length(trim(j.body)) > 0
     order by d.day_number`;
+  const notes = await sql`select id, title, body, revision, created_at, updated_at from so_journal_notes
+                          where user_id = ${ctx.user.id} and cohort_id = ${ctx.cohort.id} order by updated_at desc`;
+  const excerpt = b => (b.length > 220 ? `${b.slice(0, 220).trimEnd()}…` : b);
   return {
     entries: rows.map(r => ({
       day_number: r.day_number, title: r.title, question: r.prompt_snapshot,
-      excerpt: r.body.length > 220 ? `${r.body.slice(0, 220).trimEnd()}…` : r.body,
-      updated_at: r.updated_at,
+      excerpt: excerpt(r.body), updated_at: r.updated_at,
     })),
+    notes: notes.map(n => ({ id: n.id, title: n.title, excerpt: excerpt(n.body), created_at: n.created_at, updated_at: n.updated_at })),
   };
+};
+
+// ----------------------------------------------- free journal entries
+// Entries members write on their own, without a daily prompt. Private.
+async function ownNote(sql, ctx, id) {
+  const nid = H.uuid(id, 'entry');
+  const n = (await sql`select * from so_journal_notes where id = ${nid} and user_id = ${ctx.user.id} and cohort_id = ${ctx.cohort.id}`)[0];
+  if (!n) throw new HttpError(404, 'not_found', 'That journal entry was not found.');
+  return n;
+}
+const noteOut = n => ({ id: n.id, title: n.title, body: n.body, revision: n.revision, created_at: n.created_at, updated_at: n.updated_at });
+
+routes['POST journal/notes'] = async ({ sql, req, now }) => {
+  const ctx = await ctxFor(sql, req, now);
+  const b = H.body(req);
+  const title = H.text(b.title, { max: 140, field: 'Title' }) || null;
+  if (b.body !== undefined && typeof b.body !== 'string') throw new HttpError(400, 'invalid_input', 'Entry text must be text.');
+  const body = String(b.body || '').replace(/\u0000/g, '');
+  if (body.length > 20000) throw new HttpError(400, 'too_long', 'Entries can be up to 20,000 characters.');
+  await H.rateLimit(sql, `notes:${ctx.user.id}`, 60, 3600);
+  const n = (await sql`insert into so_journal_notes (user_id, cohort_id, title, body) values (${ctx.user.id}, ${ctx.cohort.id}, ${title}, ${body}) returning *`)[0];
+  return { note: noteOut(n) };
+};
+
+routes['GET journal/notes/:id'] = async ({ sql, req, now, params }) => {
+  const ctx = await ctxFor(sql, req, now);
+  return { note: noteOut(await ownNote(sql, ctx, params.id)) };
+};
+
+// Same conflict protection as daily reflections: a stale tab can't overwrite newer text.
+routes['PUT journal/notes/:id'] = async ({ sql, req, now, params }) => {
+  const ctx = await ctxFor(sql, req, now);
+  const cur = await ownNote(sql, ctx, params.id);
+  const b = H.body(req);
+  if (typeof b.body !== 'string') throw new HttpError(400, 'invalid_input', 'Entry text is required.');
+  if (b.body.length > 20000) throw new HttpError(400, 'too_long', 'Entries can be up to 20,000 characters.');
+  const title = b.title === undefined ? cur.title : (H.text(b.title, { max: 140, field: 'Title' }) || null);
+  const base = H.int(b.base_revision, { min: 0, field: 'revision' });
+  await H.rateLimit(sql, `journal:${ctx.user.id}`, 240, 600);
+  const rows = await sql`update so_journal_notes set body = ${b.body.replace(/\u0000/g, '')}, title = ${title}, revision = revision + 1, updated_at = now()
+                         where id = ${cur.id} and revision = ${base} returning *`;
+  if (!rows[0]) {
+    const latest = await ownNote(sql, ctx, params.id);
+    throw new HttpError(409, 'journal_conflict', 'This entry was changed somewhere else.', { server: { body: latest.body, revision: latest.revision, updated_at: latest.updated_at } });
+  }
+  return { revision: rows[0].revision, updated_at: rows[0].updated_at };
+};
+
+routes['DELETE journal/notes/:id'] = async ({ sql, req, now, params }) => {
+  const ctx = await ctxFor(sql, req, now);
+  const n = await ownNote(sql, ctx, params.id);
+  await sql`delete from so_journal_notes where id = ${n.id}`;
+  return { ok: true };
 };
 
 routes['GET journal/export'] = async ({ sql, req, now, res }) => {
@@ -280,6 +343,10 @@ routes['GET journal/export'] = async ({ sql, req, now, res }) => {
   for (const r of rows) {
     out.push(`## Day ${r.day_number}: ${r.title}`, '', `> ${r.prompt_snapshot || ''}`, '', r.body, '');
   }
+  const notes = await sql`select title, body, created_at from so_journal_notes
+                          where user_id = ${ctx.user.id} and cohort_id = ${ctx.cohort.id} and length(trim(body)) > 0 order by created_at`;
+  if (notes.length) out.push('# My own entries', '');
+  for (const n of notes) out.push(`## ${n.title || 'Untitled entry'} (${new Date(n.created_at).toISOString().slice(0, 10)})`, '', n.body, '');
   res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="smooth-operators-journal.md"');
   res.setHeader('Cache-Control', 'no-store');

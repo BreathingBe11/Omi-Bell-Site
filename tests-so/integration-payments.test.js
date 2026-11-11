@@ -12,6 +12,11 @@ test.after(async () => { await h.close(); });
 const enrollments = async userId => (await h.sql`select * from so_enrollments where user_id = ${userId}`);
 const stripeCreates = () => h.mocks.state.stripeCalls.filter(c => c.path === '/v1/checkout/sessions').length;
 
+test('seed adds the three Wednesday Zoom calls at 1pm Pacific / 4pm Eastern', async () => {
+  const calls = await h.sql`select title, starts_at from so_calls order by starts_at`;
+  assert.deepEqual(calls.map(c => c.starts_at.toISOString()), ['2027-01-06T21:00:00.000Z', '2027-01-13T21:00:00.000Z', '2027-01-20T21:00:00.000Z']);
+});
+
 test('landing page shows dates, host, server price and test-mode label', async () => {
   const res = await fetch(`${h.appBase}/smoothoperators`);
   const html = await res.text();
@@ -247,9 +252,10 @@ test('live-mode checkout stays disabled until every launch requirement is met', 
     assert.doesNotMatch(html, /href="\/smoothoperators\/checkout"/);
     const ov = await h.api('GET', 'admin/overview', { token: h.adminToken });
     const keys = ov.body.sales.blockers.map(b => b.key);
-    for (const k of ['settings_confirmed', 'access_policy', 'content:purchase.refund_policy', 'content:legal.terms', 'content:legal.privacy', 'content:support.email', 'calls', 'email', 'sales_enabled']) {
+    for (const k of ['settings_confirmed', 'access_policy', 'content:purchase.refund_policy', 'content:legal.terms', 'content:legal.privacy', 'content:support.email', 'email', 'sales_enabled']) {
       assert.ok(keys.includes(k), `missing blocker ${k}`);
     }
+    assert.ok(!keys.includes('calls'), 'the seeded Wednesday Zoom calls satisfy the call requirement');
   } finally {
     process.env.STRIPE_SECRET_KEY = 'sk_test_local';
   }

@@ -248,6 +248,8 @@ test('guided practice: transcript required to publish; playback position saved; 
 });
 
 test('calls: banner, join window, calendar file, replay and challenges come from one record', async () => {
+  // Start from no calls (the seed adds the three January Zoom sessions).
+  await h.sql`delete from so_calls`;
   const none = await h.api('GET', 'calls', { token: A.token });
   assert.equal(none.body.calls.length, 0);
   assert.equal((await h.api('GET', 'home', { token: A.token })).body.next_call, null);
@@ -355,4 +357,47 @@ test('rate limiting and input validation on member writes', async () => {
   assert.equal(bad.status, 400);
   const weird = await h.api('GET', 'resource/not-a-uuid/access', { token: A.token });
   assert.equal(weird.status, 404);
+});
+
+test('free journal entries: private, autosave-safe, and included in export', async () => {
+  await h.setCohort({ access_policy: 'unset', access_ends_at: null });
+  await h.setLiveDay(2);
+  const created = await h.api('POST', 'journal/notes', { token: A.token, body: { title: 'My own thoughts', body: 'PRIVATE-NOTE-TEXT' } });
+  assert.equal(created.status, 200);
+  const id = created.body.note.id;
+  const up = await h.api('PUT', `journal/notes/${id}`, { token: A.token, body: { body: 'PRIVATE-NOTE-TEXT v2', base_revision: 1 } });
+  assert.equal(up.body.revision, 2);
+  const stale = await h.api('PUT', `journal/notes/${id}`, { token: A.token, body: { body: 'stale', base_revision: 1 } });
+  assert.equal(stale.status, 409);
+  assert.equal(stale.body.server.body, 'PRIVATE-NOTE-TEXT v2');
+  const list = await h.api('GET', 'journal', { token: A.token });
+  assert.ok(list.body.notes.some(n => n.id === id && n.title === 'My own thoughts'));
+  assert.equal((await h.api('GET', `journal/notes/${id}`, { token: B.token })).status, 404, 'other members cannot read it');
+  assert.equal((await h.api('DELETE', `journal/notes/${id}`, { token: B.token })).status, 404);
+  assert.match((await h.api('GET', 'journal/export', { token: A.token })).text, /PRIVATE-NOTE-TEXT v2/);
+  for (const p of ['admin/members', 'admin/overview', 'admin/home', 'admin/progress']) {
+    assert.doesNotMatch((await admin('GET', p)).text, /PRIVATE-NOTE-TEXT/, p);
+  }
+  assert.equal((await h.api('DELETE', `journal/notes/${id}`, { token: A.token })).status, 200);
+});
+
+test('announcements: drafts and scheduled ones stay hidden; published ones show on Today', async () => {
+  const draft = await admin('POST', 'admin/announcements', { title: 'Draft note', body: 'not yet', status: 'draft' });
+  assert.equal(draft.status, 200);
+  await admin('POST', 'admin/announcements', { title: 'Welcome!', body: 'Calls are on Wednesdays.', status: 'published', pinned: true });
+  await admin('POST', 'admin/announcements', { title: 'Future news', body: 'later', status: 'published', publish_local: '2099-01-01T00:00' });
+  const home = await h.api('GET', 'home', { token: A.token });
+  const titles = home.body.announcements.map(a => a.title);
+  assert.ok(titles.includes('Welcome!'));
+  assert.ok(!titles.includes('Draft note'));
+  assert.ok(!titles.includes('Future news'));
+  assert.equal((await h.api('GET', 'admin/announcements', { token: A.token })).status, 403);
+});
+
+test('bug reports go to the questions inbox, from any signed-in member', async () => {
+  const r = await h.api('POST', 'help/threads', { token: B.token, body: { category: 'bug', subject: 'Audio will not play', body: 'Day 1 audio is silent.' } });
+  assert.equal(r.status, 200);
+  const inbox = await admin('GET', 'admin/questions');
+  const t = inbox.body.questions.find(x => x.subject === 'Audio will not play');
+  assert.equal(t.category_label, 'Bug report');
 });

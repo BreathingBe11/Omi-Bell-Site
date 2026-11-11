@@ -94,6 +94,7 @@
     [/^\/app\/calendar$/, viewCalendar, { shell: true, nav: '/app/calendar' }],
     [/^\/app\/library$/, viewLibrary, { shell: true, nav: '/app/library' }],
     [/^\/app\/journal$/, viewJournal, { shell: true, nav: '/app/journal' }],
+    [/^\/app\/journal\/(new|[0-9a-f-]{36})$/, viewNote, { shell: true, nav: '/app/journal' }],
     [/^\/app\/calls-help$/, viewCalls, { shell: true, nav: '/app/calls-help' }],
     [/^\/app\/day\/(\d{1,2})$/, viewDay, { shell: true, nav: '/app/calendar' }],
     [/^\/app\/resource\/([0-9a-f-]{36})$/, viewResource, { shell: true, nav: '/app/library' }],
@@ -607,13 +608,13 @@ ${fit.intake.early_stage ? '<div class="notice notice-warn"><p>Smooth Operators 
   // Fit check: mostly buttons, one open question. Required before payment.
   function fitCheckForm(step, fit, me) {
     const v = fit.intake || {};
-    const radios = (name, legend, opts, cur) => `<fieldset class="field fit-group"><legend class="label">${legend}</legend>
-<div class="choice-grid">${opts.map(([val, lab]) => `<label class="choice"><input type="radio" name="${name}" value="${esc(String(val))}"${String(cur) === String(val) ? ' checked' : ''} required><span>${esc(lab)}</span></label>`).join('')}</div></fieldset>`;
+    const radios = (name, legend, opts, cur) => `<div class="field"><label for="${name}">${legend}</label>
+<select id="${name}" name="${name}" required><option value="">Choose one…</option>${opts.map(([val, lab]) => `<option value="${esc(String(val))}"${String(cur) === String(val) ? ' selected' : ''}>${esc(lab)}</option>`).join('')}</select></div>`;
     const yn = (name, legend, cur) => radios(name, legend, [['yes', 'Yes'], ['no', 'No']], cur === true ? 'yes' : cur === false ? 'no' : '');
     const input = (id, label, val, attrs = '') => `<div class="field"><label for="${id}">${label}</label><input id="${id}" name="${id}" value="${esc(val || '')}" ${attrs}></div>`;
     const isOutside = v.state === fit.outside_us;
     step.innerHTML = `<h2 style="font-size:1.6rem">Fit check</h2>
-<p>Smooth Operators is a cohort, so we want everyone in the room at a similar stage. These answers are private: only Omi and the admin team see them. Most questions are a single tap.</p>
+<p>Smooth Operators is a cohort, so we want everyone in the room at a similar stage. These answers are private: only Omi and the admin team see them. Most questions are a quick dropdown choice.</p>
 <form id="fit" class="card" novalidate>
   <h3 style="font-size:1.25rem">About you</h3>
   <div class="grid-2">${input('first_name', 'First name', v.first_name, 'autocomplete="given-name" required maxlength="80"')}${input('last_name', 'Last name', v.last_name, 'autocomplete="family-name" required maxlength="80"')}</div>
@@ -660,7 +661,7 @@ ${fit.intake.early_stage ? '<div class="notice notice-warn"><p>Smooth Operators 
     const syncWeb = () => { web.disabled = noWeb.checked; if (noWeb.checked) web.value = ''; };
     noWeb.addEventListener('change', syncWeb); syncWeb();
     const collect = () => {
-      const radio = n => { const r = form.querySelector(`input[name="${n}"]:checked`); return r ? r.value : null; };
+      const radio = n => { const el = form.querySelector(`[name="${n}"]`); return el && el.value ? el.value : null; };
       let site = web.value.trim();
       if (site && !/^https?:\/\//i.test(site)) site = `https://${site}`;
       const payload = {
@@ -802,6 +803,7 @@ ${fit.intake.early_stage ? '<div class="notice notice-warn"><p>Smooth Operators 
   <p class="eyebrow">Welcome to Smooth Operators</p>
   <h1>You’re in. Let’s build what comes next.</h1>
   <p class="promise">You know how to generate business. We’ll help you build the operations to handle what comes next.</p>
+  ${announcementsHtml(home.announcements)}
   ${countdownHtml(c.starts_at)}
   <p class="abs-date">Begins ${esc(startLocal)} <span class="small">(cohort time, ${esc(c.timezone)})</span></p>
   <p class="sr-only">The cohort begins ${esc(startLocal)}.</p>
@@ -821,6 +823,7 @@ ${fit.intake.early_stage ? '<div class="notice notice-warn"><p>Smooth Operators 
   <p class="eyebrow">After the cohort</p>
   <h1>Keep what you’ve built in motion.</h1>
   <p class="promise">The live 21 days are over. Your work, reflections, and tools are still here.</p>
+  ${announcementsHtml(home.announcements)}
   <p>${home.completed_count ? `You marked ${home.completed_count} ${home.completed_count === 1 ? 'day' : 'days'} complete.` : ''} Any day you haven’t finished is still open whenever you’re ready.</p>
   ${home.access && home.access.ends_at ? `<p class="notice">Your access continues through ${esc(SO.fmtDateTime(home.access.ends_at, c.timezone, { weekday: false }))}.</p>` : ''}
   <ul class="link-list">
@@ -841,12 +844,13 @@ ${fit.intake.early_stage ? '<div class="notice notice-warn"><p>Smooth Operators 
     if (!day) { main.innerHTML = '<p class="empty">Today’s day isn’t set up yet.</p>'; return 'Today'; }
     if (day.state !== 'available') {
       const email = await supportEmail();
-      main.innerHTML = `${dayHeadHtml(day)}<div class="notice"><p>Today’s content is being prepared and will appear here shortly.</p><p>${supportLine(email)}</p></div>
+      main.innerHTML = `${announcementsHtml(home.announcements)}${dayHeadHtml(day)}<div class="notice"><p>Today’s content is being prepared and will appear here shortly.</p><p>${supportLine(email)}</p></div>
 ${nextCallBanner(home.next_call)}<p>${link('/app/calendar', 'View all days')}</p>`;
       wireJoin(main);
       return `Today · Day ${day.day_number}`;
     }
     renderDay(main, day, { currentDay: home.current_day, isToday: true, introsOpen: home.intros_open });
+    main.insertAdjacentHTML('afterbegin', announcementsHtml(home.announcements));
     return `Today · Day ${day.day_number}`;
   }
 
@@ -856,11 +860,18 @@ ${nextCallBanner(home.next_call)}<p>${link('/app/calendar', 'View all days')}</p
     return '';
   }
 
+  function announcementsHtml(list) {
+    if (!list || !list.length) return '';
+    return `<section class="announcements" aria-labelledby="ann-h"><h2 id="ann-h">Announcements</h2>
+${list.map(a => `<article class="announcement${a.pinned ? ' pinned' : ''}"><p class="small muted" style="margin:0">${a.pinned ? '<span class="pill pill-live">Pinned</span> ' : ''}${esc(new Date(a.posted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))}</p>
+<h3>${esc(a.title)}</h3>${SO.paras(a.body)}</article>`).join('')}</section>`;
+  }
+
   function nextCallBanner(call) {
     if (!call) return '';
     const tz = SO.viewerTz();
     return `<div class="call-banner"><p><strong>${esc(call.title)}</strong> · ${esc(SO.fmtDateTime(call.starts_at, tz))}</p>
-${call.state === 'joinable' ? `<button class="btn btn-primary btn-sm" data-join="${esc(call.id)}">Join Solutions Seat</button>` : `<a class="btn btn-secondary btn-sm" href="${B}/app/calls-help">Details</a>`}</div>`;
+${call.state === 'joinable' ? `<button class="btn btn-primary btn-sm" data-join="${esc(call.id)}">Join on Zoom</button>` : `<a class="btn btn-secondary btn-sm" href="${B}/app/calls-help">Details</a>`}</div>`;
   }
   function wireJoin(el) {
     qa('[data-join]', el).forEach(b => b.addEventListener('click', async () => {
@@ -911,7 +922,7 @@ ${day.preview_summary ? `<p>${esc(day.preview_summary)}</p>` : ''}
     const tz = SO.viewerTz();
     const back = !isToday && currentDay ? `<a class="back-link" href="${B}/app">Back to Today</a>` : '';
     const callBanner = day.call ? `<div class="call-banner"><p><strong>Solutions Seat today</strong> · ${esc(SO.fmtTime(day.call.starts_at, tz))}</p>
-${day.call.state === 'joinable' ? `<button class="btn btn-primary btn-sm" data-join="${esc(day.call.id)}">Join Solutions Seat</button>` : `<a class="btn btn-secondary btn-sm" href="${B}/app/calls-help">Details</a>`}</div>` : '';
+${day.call.state === 'joinable' ? `<button class="btn btn-primary btn-sm" data-join="${esc(day.call.id)}">Join on Zoom</button>` : `<a class="btn btn-secondary btn-sm" href="${B}/app/calls-help">Details</a>`}</div>` : '';
     const content = day.content
       ? (day.content.length > 600
         ? `<details class="more"><summary>Today’s guidance</summary><div class="content-body">${SO.paras(day.content)}</div></details>`
@@ -1253,15 +1264,25 @@ ${r.related_days.length ? `<p style="margin-top:1.5rem">${r.related_days.map(d =
   // ============================================================ Journal
   async function viewJournal(main) {
     const r = await SO.api('GET', 'journal');
-    main.innerHTML = `<div class="page-head row-between"><div><h1>My Journal</h1><p>Your private reflections, by day. Only you can see them.</p></div>
-${r.entries.length ? '<button class="btn btn-secondary btn-sm" id="export">Download my journal</button>' : ''}</div>
+    const when = d => esc(new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+    const any = r.entries.length || r.notes.length;
+    main.innerHTML = `<div class="page-head row-between"><div><h1>My Journal</h1><p>Private to you. Write freely any time, and answer each day’s prompt as it unlocks.</p></div>
+<div class="row"><a class="btn btn-primary" href="${B}/app/journal/new">New entry</a>${any ? '<button class="btn btn-secondary btn-sm" id="export">Download my journal</button>' : ''}</div></div>
+<section aria-labelledby="mine-h"><h2 id="mine-h" style="font-size:1.5rem">My entries</h2>
+${r.notes.length ? `<div class="card" style="padding:.4rem 1.25rem">${r.notes.map(n => `<article class="entry">
+  <p class="small muted" style="margin:0">Written ${when(n.created_at)}${n.updated_at !== n.created_at ? ` · updated ${when(n.updated_at)}` : ''}</p>
+  <h3 class="entry-q" style="margin:.2rem 0 .4rem"><a href="${B}/app/journal/${esc(n.id)}" style="text-decoration:none">${esc(n.title || 'Untitled entry')}</a></h3>
+  <p class="entry-x">${esc(n.excerpt || '')}</p>
+  <a class="btn btn-secondary btn-sm" href="${B}/app/journal/${esc(n.id)}">Open</a>
+</article>`).join('')}</div>` : '<p class="empty">Nothing here yet. Use “New entry” to write about anything on your mind.</p>'}</section>
+<section aria-labelledby="daily-h" style="margin-top:2rem"><h2 id="daily-h" style="font-size:1.5rem">Daily reflections</h2>
 ${r.entries.length ? `<div class="card" style="padding:.4rem 1.25rem">${r.entries.map(e => `<article class="entry" data-entry="${e.day_number}">
-  <p class="small muted" style="margin:0">Day ${e.day_number} · ${esc(e.title)} · Updated ${esc(new Date(e.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))}</p>
+  <p class="small muted" style="margin:0">Day ${e.day_number} · ${esc(e.title)} · Updated ${when(e.updated_at)}</p>
   <p class="entry-q">${esc(e.question || '')}</p>
   <p class="entry-x">${esc(e.excerpt)}</p>
   <div class="row"><button class="btn btn-secondary btn-sm" data-edit="${e.day_number}" aria-expanded="false">Read & edit</button><a href="${B}/app/day/${e.day_number}">Go to Day ${e.day_number}</a></div>
   <div data-editor="${e.day_number}" hidden></div>
-</article>`).join('')}</div>` : '<p class="empty">Your reflections will appear here as you move through the cohort.</p>'}`;
+</article>`).join('')}</div>` : '<p class="empty">A new prompt unlocks each day of the cohort. Your reflections will appear here.</p>'}</section>`;
     const ex = q('#export', main);
     if (ex) ex.addEventListener('click', () => downloadBlob('journal/export', 'smooth-operators-journal.md').catch(e => alert(e.message)));
     qa('[data-edit]', main).forEach(b => b.addEventListener('click', async () => {
@@ -1281,19 +1302,85 @@ ${r.entries.length ? `<div class="card" style="padding:.4rem 1.25rem">${r.entrie
     return 'My Journal';
   }
 
+  // A free journal entry: title + text, autosaved, private. Created on first save.
+  async function viewNote(main, [idParam]) {
+    let id = idParam === 'new' ? null : idParam;
+    let note = { title: '', body: '', revision: 0 };
+    if (id) note = (await SO.api('GET', `journal/notes/${id}`)).note;
+    main.innerHTML = `<a class="back-link" href="${B}/app/journal">My Journal</a>
+<div class="page-head"><h1>${id ? 'Journal entry' : 'New journal entry'}</h1><p class="small muted">Private: only you can see this.</p></div>
+<div class="field"><label for="n-title">Title <span class="muted small">(optional)</span></label><input id="n-title" type="text" maxlength="140" value="${esc(note.title || '')}"></div>
+<div class="field"><label for="n-body">Your entry</label><textarea id="n-body" style="min-height:16rem">${esc(note.body || '')}</textarea></div>
+<div class="save-row"><span class="save-state" id="n-state" role="status" aria-live="polite">${id ? 'Saved' : ''}</span><span id="n-actions"></span></div>
+<div id="n-conflict" hidden></div>
+${id ? '<p style="margin-top:2rem"><button class="btn btn-danger btn-sm" id="n-del">Delete this entry</button></p>' : ''}`;
+    const title = q('#n-title', main), body = q('#n-body', main), st = q('#n-state', main), actions = q('#n-actions', main);
+    let saved = { title: title.value, body: body.value }, revision = note.revision, saving = false, timer = null, conflict = false, attempt = 0;
+    const dirty = () => title.value !== saved.title || body.value !== saved.body;
+    const setState = (k, t) => { st.dataset.state = k; st.textContent = t; };
+    unsavedGuards.add(() => dirty() || conflict);
+    onCleanup(() => { clearTimeout(timer); if (dirty() && !conflict && (id || body.value.trim() || title.value.trim())) save(); });
+    async function save() {
+      clearTimeout(timer);
+      if (saving) { timer = setTimeout(save, 500); return; }
+      if (!dirty() || conflict) return;
+      if (!id && !body.value.trim() && !title.value.trim()) return;
+      const snap = { title: title.value, body: body.value };
+      saving = true; setState('saving', 'Saving…');
+      try {
+        if (!id) {
+          const r = await SO.api('POST', 'journal/notes', snap);
+          id = r.note.id; revision = r.note.revision;
+          history.replaceState(history.state, '', `${B}/app/journal/${id}`);
+        } else {
+          const r = await SO.api('PUT', `journal/notes/${id}`, { ...snap, base_revision: revision });
+          revision = r.revision;
+        }
+        saved = snap; attempt = 0; actions.innerHTML = '';
+        if (dirty()) timer = setTimeout(save, 800); else setState('saved', 'Saved');
+      } catch (e) {
+        if (e.status === 409) {
+          conflict = true;
+          setState('error', 'This entry was changed in another tab or device.');
+          const box = q('#n-conflict', main); box.hidden = false;
+          box.innerHTML = `<div class="notice notice-warn"><p><strong>Two versions exist.</strong> Nothing has been overwritten.</p>
+<p class="small">Saved version:</p><pre>${esc(e.data.server.body)}</pre><div class="row"><button class="btn btn-primary btn-sm" data-keep>Keep my version</button><button class="btn btn-secondary btn-sm" data-use>Use saved version</button></div></div>`;
+          q('[data-keep]', box).onclick = () => { revision = e.data.server.revision; conflict = false; box.hidden = true; save(); };
+          q('[data-use]', box).onclick = () => { revision = e.data.server.revision; body.value = e.data.server.body; saved = { title: title.value, body: body.value }; conflict = false; box.hidden = true; setState('saved', 'Saved'); };
+        } else {
+          attempt++;
+          setState('error', e.status === 0 ? 'Unable to save: you’re offline. Keep this page open and we’ll retry.' : 'Unable to save. We’ll retry.');
+          actions.innerHTML = '<button class="linklike" type="button">Retry now</button>';
+          q('button', actions).onclick = () => save();
+          timer = setTimeout(save, [2000, 5000, 10000, 30000][Math.min(attempt - 1, 3)]);
+        }
+      } finally { saving = false; }
+    }
+    const onInput = () => { if (conflict) return; setState('dirty', 'Unsaved changes'); clearTimeout(timer); timer = setTimeout(save, 1200); };
+    title.addEventListener('input', onInput); body.addEventListener('input', onInput);
+    body.addEventListener('blur', () => { if (dirty()) save(); });
+    const del = q('#n-del', main);
+    if (del) del.onclick = async () => {
+      if (!confirm('Delete this journal entry? This can’t be undone.')) return;
+      try { await SO.api('DELETE', `journal/notes/${id}`); saved = { title: title.value, body: body.value }; navigate(`${B}/app/journal`); } catch (e) { alert(e.message); }
+    };
+    (id ? body : title).focus();
+    return id ? (note.title || 'Journal entry') : 'New journal entry';
+  }
+
   // ============================================================ Calls & Help
   async function viewCalls(main, _p, query) {
-    let tab = query.tab === 'support' ? 'support' : 'calls';
+    let tab = ['support', 'bug'].includes(query.tab) ? query.tab : 'calls';
     main.innerHTML = `<div class="page-head"><h1>Calls & Help</h1></div><div id="tabs"></div><div id="panel" role="tabpanel" tabindex="0"></div>`;
     const panel = q('#panel', main);
     const draw = async () => {
       panel.setAttribute('aria-labelledby', `tab-${tab}`);
       panel.innerHTML = '<p class="loading"><span class="spinner" aria-hidden="true"></span> Loading…</p>';
-      try { tab === 'calls' ? await drawCalls(panel) : await drawSupport(panel); } catch (e) { panel.innerHTML = errorBox(e, true); wireRetry(panel); }
+      try { tab === 'calls' ? await drawCalls(panel) : tab === 'bug' ? drawBug(panel) : await drawSupport(panel); } catch (e) { panel.innerHTML = errorBox(e, true); wireRetry(panel); }
     };
-    tabs(q('#tabs', main), [['calls', 'Solutions Seat'], ['support', 'FAQs & Support']], tab, t => {
+    tabs(q('#tabs', main), [['calls', 'Solutions Seat'], ['support', 'FAQ'], ['bug', 'Report a bug']], tab, t => {
       tab = t;
-      history.replaceState(history.state, '', `${B}/app/calls-help${t === 'support' ? '?tab=support' : ''}`);
+      history.replaceState(history.state, '', `${B}/app/calls-help${t === 'calls' ? '' : `?tab=${t}`}`);
       qa('[role=tab]', main).forEach(b => { b.setAttribute('aria-selected', String(b.dataset.tab === t)); b.tabIndex = b.dataset.tab === t ? 0 : -1; });
       draw();
     });
@@ -1311,11 +1398,13 @@ ${r.entries.length ? `<div class="card" style="padding:.4rem 1.25rem">${r.entrie
       else if (c.state === 'ended') actions = c.replay
         ? `<button class="btn btn-secondary btn-sm" data-replay="${esc(c.replay.id)}">Watch the replay</button>`
         : '<p class="muted" style="margin:0">This call has ended.</p>';
-      else if (c.state === 'joinable') actions = `<div class="row"><button class="btn btn-primary" data-join="${esc(c.id)}">Join Solutions Seat</button><button class="btn btn-ghost btn-sm" data-ics="${esc(c.id)}">Add to Calendar</button></div>`;
-      else actions = `<div class="row"><button class="btn btn-secondary btn-sm" data-ics="${esc(c.id)}">Add to Calendar</button><span class="small muted">The join button appears ${Math.round((new Date(c.starts_at) - new Date(c.join_opens_at)) / 60000)} minutes before the call.</span></div>`;
+      else if (c.state === 'joinable') actions = `<div class="row"><button class="btn btn-primary btn-lg" data-join="${esc(c.id)}">Join on Zoom</button><button class="btn btn-ghost btn-sm" data-ics="${esc(c.id)}">Add to Calendar</button></div>`;
+      else actions = `<div class="row"><button class="btn btn-primary" type="button" disabled aria-describedby="jo-${esc(c.id)}">Join on Zoom</button><button class="btn btn-secondary btn-sm" data-ics="${esc(c.id)}">Add to Calendar</button></div>
+<p class="small muted" id="jo-${esc(c.id)}" style="margin:.5rem 0 0">The Join button opens at ${esc(SO.fmtTime(c.join_opens_at, tz))}${differs ? ` (${esc(SO.fmtTime(c.join_opens_at, data.cohort_timezone))})` : ''} on the day of the call.</p>`;
       return `<article class="card call-card"><p class="small muted" style="margin:0">${c.state === 'joinable' ? '<span class="pill pill-live">Open now</span>' : ''}</p>
 <h3 style="margin:.2rem 0">${esc(c.title)}</h3>
-<p class="call-when">${esc(SO.fmtDateTime(c.starts_at, tz))} <span class="small muted">(your time)</span></p>
+<p class="call-date">${esc(new Date(c.starts_at).toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric' }))}</p>
+<p class="call-when">${esc(SO.fmtTime(c.starts_at, tz))} <span class="small muted">(your time) · on Zoom</span></p>
 ${differs ? `<p class="call-cohort-time">Cohort time: ${esc(SO.fmtDateTime(c.starts_at, data.cohort_timezone))}</p>` : ''}
 ${c.description ? `<div class="content-body">${SO.paras(c.description)}</div>` : ''}${actions}</article>`;
     };
@@ -1332,9 +1421,8 @@ ${data.recording_policy ? `<p class="small muted">${esc(data.recording_policy)}<
     <div class="field"><label for="ch-work">What are you working on?</label><textarea id="ch-work" maxlength="800" style="min-height:4.5rem"></textarea></div>
     <div class="field"><label for="ch-stuck">Where are you stuck?</label><textarea id="ch-stuck" maxlength="800" style="min-height:4.5rem"></textarea></div>
     <div class="field"><label for="ch-help">What help or decision do you want?</label><textarea id="ch-help" maxlength="800" style="min-height:4.5rem"></textarea></div>
-    <fieldset class="field fit-group"><legend class="label">May Omi discuss this with the cohort on the call?</legend>
-      <div class="choice-grid"><label class="choice"><input type="radio" name="ch-share" value="yes"><span>Yes, it can be discussed with the group</span></label>
-      <label class="choice"><input type="radio" name="ch-share" value="no"><span>No, just for Omi’s context</span></label></div></fieldset>
+    <div class="field"><label for="ch-share">May Omi discuss this with the cohort on the call?</label>
+      <select id="ch-share" name="ch-share"><option value="">Choose one…</option><option value="yes">Yes, it can be discussed with the group</option><option value="no">No, just for Omi’s context</option></select></div>
     <p class="form-error" id="ch-err" role="alert"></p>
     <button class="btn btn-primary" type="submit">Send to Omi</button>
   </form>
@@ -1351,7 +1439,8 @@ ${data.intros_open ? `<p style="margin-top:1.5rem">${link('/app/introductions', 
     q('#ch-form', panel).addEventListener('submit', async e => {
       e.preventDefault();
       const err = q('#ch-err', panel);
-      const share = panel.querySelector('input[name="ch-share"]:checked');
+      const shareEl = q('#ch-share', panel);
+      const share = shareEl && shareEl.value ? shareEl : null;
       const payload = { working_on: q('#ch-work', panel).value.trim(), stuck_on: q('#ch-stuck', panel).value.trim(), help_wanted: q('#ch-help', panel).value.trim(),
         share_permission: share ? share.value === 'yes' : null };
       if (!payload.working_on || !payload.stuck_on || !payload.help_wanted || payload.share_permission === null) { err.textContent = 'Please answer each question.'; return; }
@@ -1361,6 +1450,33 @@ ${data.intros_open ? `<p style="margin-top:1.5rem">${link('/app/introductions', 
         await drawCalls(panel);
         panel.insertAdjacentHTML('afterbegin', '<div class="notice notice-success" role="status"><p>Sent. Thank you.</p></div>');
       } catch (ex) { err.textContent = ex.message; }
+    });
+  }
+
+  function drawBug(panel) {
+    panel.innerHTML = `<p>Something not working the way it should? Tell us what happened and we’ll look into it. You’ll see our reply under <a href="${B}/app/help">Ask for help</a>.</p>
+<form id="bug" class="card" novalidate>
+  <div class="field"><label for="b-sum">What went wrong? (one line)</label><input id="b-sum" type="text" maxlength="140" placeholder="e.g. The audio won’t play on Day 3"></div>
+  <div class="field"><label for="b-what">What happened, and what did you expect?</label><textarea id="b-what" maxlength="4000" style="min-height:6rem"></textarea></div>
+  <div class="field"><label for="b-where">Where were you? <span class="muted small">(optional: page or day)</span></label><input id="b-where" type="text" maxlength="200"></div>
+  <label class="check"><input type="checkbox" id="b-device" checked><span>Include my browser and device type to help us fix it</span></label>
+  <p class="form-error" id="b-err" role="alert"></p>
+  <button class="btn btn-primary" type="submit">Send bug report</button>
+</form>`;
+    q('#bug', panel).addEventListener('submit', async e => {
+      e.preventDefault();
+      const err = q('#b-err', panel);
+      const subject = q('#b-sum', panel).value.trim(), what = q('#b-what', panel).value.trim(), where = q('#b-where', panel).value.trim();
+      if (!subject || !what) { err.textContent = 'Add a one-line summary and what happened.'; return; }
+      const lines = [what];
+      if (where) lines.push(`Where: ${where}`);
+      if (q('#b-device', panel).checked) lines.push(`Browser: ${navigator.userAgent.slice(0, 300)}`, `Screen: ${window.innerWidth}×${window.innerHeight}`);
+      const btn = q('button[type=submit]', panel);
+      btn.disabled = true;
+      try {
+        const t = await SO.api('POST', 'help/threads', { category: 'bug', subject, body: lines.join('\n\n') });
+        panel.innerHTML = `<div class="notice notice-success" role="status"><p><strong>Thanks, we got it.</strong> We’ll reply on <a href="${B}/app/help/${esc(t.thread.id)}">your report</a> and email you when we do.</p></div>`;
+      } catch (ex) { err.textContent = ex.message; btn.disabled = false; }
     });
   }
 

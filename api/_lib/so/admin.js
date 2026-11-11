@@ -704,6 +704,46 @@ routes['GET admin/preview'] = admin(async ({ sql, query }) => {
   return { at: at.toISOString(), view, draft_preview: drafts && d.status !== 'published', day: out };
 });
 
+// ------------------------------------------------------- announcements
+function parseAnnouncement(b, tz) {
+  const v = {
+    title: H.text(b.title, { max: 160, required: true, field: 'Title' }),
+    body: H.text(b.body, { max: 5000, field: 'Message', multiline: true }),
+    status: H.oneOf(b.status || 'draft', ['draft', 'published'], 'Status'),
+    pinned: b.pinned === true,
+    publish_at: b.publish_local ? fromLocal(b.publish_local, tz, 'Publish time') : null,
+  };
+  return v;
+}
+routes['GET admin/announcements'] = admin(async ({ query, sql }) => {
+  const c = await cohortFor(sql, query);
+  const rows = await sql`select * from so_announcements where cohort_id = ${c.id} order by pinned desc, coalesce(publish_at, created_at) desc`;
+  return { announcements: rows.map(r => ({ ...r, publish_local: localStr(r.publish_at, c.timezone) })), timezone: c.timezone };
+}, 'view');
+routes['POST admin/announcements'] = admin(async ({ query, sql, req, admin: who }) => {
+  const c = await cohortFor(sql, query);
+  const v = parseAnnouncement(H.body(req), c.timezone);
+  const rows = await sql`insert into so_announcements ${sql({ ...v, cohort_id: c.id, updated_by: who.actor })} returning *`;
+  await C.audit(sql, who.actor, 'announcement_created', 'announcement', rows[0].id, null, { title: v.title, status: v.status });
+  return { announcement: rows[0] };
+});
+routes['PUT admin/announcements/:id'] = admin(async ({ query, sql, req, params, admin: who }) => {
+  const c = await cohortFor(sql, query);
+  const id = H.uuid(params.id, 'announcement');
+  const v = parseAnnouncement(H.body(req), c.timezone);
+  const rows = await sql`update so_announcements set ${sql({ ...v, updated_at: new Date(), updated_by: who.actor })} where id = ${id} and cohort_id = ${c.id} returning *`;
+  if (!rows[0]) throw new HttpError(404, 'not_found', 'Unknown announcement.');
+  await C.audit(sql, who.actor, 'announcement_updated', 'announcement', id, null, { status: v.status });
+  return { announcement: rows[0] };
+});
+routes['DELETE admin/announcements/:id'] = admin(async ({ query, sql, params, admin: who }) => {
+  const c = await cohortFor(sql, query);
+  const id = H.uuid(params.id, 'announcement');
+  await sql`delete from so_announcements where id = ${id} and cohort_id = ${c.id}`;
+  await C.audit(sql, who.actor, 'announcement_deleted', 'announcement', id, null, null);
+  return { ok: true };
+});
+
 routes['GET admin/audit'] = admin(async ({ query, sql }) => ({
   entries: await sql`select id, actor, action, entity, entity_id, before, after, created_at from so_admin_audit_log order by id desc limit 300`,
 }));

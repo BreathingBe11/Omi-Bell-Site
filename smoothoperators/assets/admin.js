@@ -15,7 +15,7 @@
   const SUBS = {
     members: [['all', 'All'], ['incomplete', 'Info incomplete'], ['awaiting', 'Awaiting review'], ['approved', 'Approved'], ['rejected', 'Rejected'], ['intros', 'Introductions']],
     sales: [['summary', 'Sales'], ['access', 'Payments & access tools']],
-    program: [['days', '21 days'], ['resources', 'Resources'], ['preview', 'Preview']],
+    program: [['days', '21 days'], ['announcements', 'Announcements'], ['resources', 'Resources'], ['preview', 'Preview']],
     seat: [['sessions', 'Sessions'], ['challenges', 'Challenges'], ['prep', 'Session prep']],
     settings: [['questions', 'Questions'], ['emails', 'Email log'], ['templates', 'Templates & reminders'], ['cohort', 'Cohort settings'],
       ['content', 'Site content & FAQs'], ['readiness', 'Launch readiness'], ['staff', 'Staff'], ['log', 'Audit log']],
@@ -959,6 +959,35 @@ ${key === 'call_reminder' ? `<div class="field"><label for="b-call">Session</lab
         q('#b-out').textContent = `Queued ${s2.queued}. ${Object.entries(s2.results).map(([k, n]) => `${n} ${emailStatus(k).toLowerCase()}`).join(', ')}.`;
       } catch (x) { q('#b-out').textContent = x.message; }
     };
+  };
+
+  // =========================================================== Announcements
+  VIEWS.announcements = async main => {
+    const d = await api('GET', 'admin/announcements');
+    const form = (a = {}) => `<form class="card" data-ann="${a.id || ''}">
+<div class="field"><label>Title</label><input name="title" type="text" maxlength="160" value="${esc(a.title || '')}" required></div>
+<div class="field"><label>Message</label><textarea name="body" style="min-height:6rem">${esc(a.body || '')}</textarea><p class="help">Blank lines start a new paragraph; lines starting with “- ” become a list.</p></div>
+<div class="grid-3">
+<div class="field"><label>Status</label><select name="status"><option value="draft"${a.status !== 'published' ? ' selected' : ''}>Draft (hidden)</option><option value="published"${a.status === 'published' ? ' selected' : ''}>Published</option></select></div>
+<div class="field"><label>Show from (optional, ${esc(d.timezone)})</label><input name="publish_local" type="datetime-local" value="${esc(a.publish_local || '')}"></div>
+<label class="check" style="align-self:end"><input type="checkbox" name="pinned"${a.pinned ? ' checked' : ''}><span>Pin to the top</span></label></div>
+<div class="row"><button class="btn btn-primary btn-sm">${a.id ? 'Save' : 'Add announcement'}</button>${a.id ? '<button type="button" class="btn btn-danger btn-sm" data-del>Delete</button>' : ''}<span data-msg class="small"></span></div></form>`;
+    main.innerHTML = `<h1>Announcements</h1>
+<p class="muted">Shown at the top of members’ Today page (approved members only), newest first, up to five at a time. Pinned ones stay on top. Use “Show from” to schedule one ahead of time.</p>
+<h2>New announcement</h2>${form()}
+<h2>All announcements</h2><div class="stack">${d.announcements.length ? d.announcements.map(form).join('') : '<p class="empty">No announcements yet.</p>'}</div>`;
+    qa('[data-ann]', main).forEach(f => {
+      f.addEventListener('submit', async e => {
+        e.preventDefault();
+        const body = { title: f.title.value, body: f.body.value, status: f.status.value, pinned: f.pinned.checked, publish_local: f.publish_local.value };
+        try {
+          if (f.dataset.ann) await api('PUT', `admin/announcements/${f.dataset.ann}`, body); else await api('POST', 'admin/announcements', body);
+          VIEWS.announcements(main);
+        } catch (ex) { q('[data-msg]', f).textContent = ex.message; }
+      });
+      const del = q('[data-del]', f);
+      if (del) del.addEventListener('click', async () => { if (confirm('Delete this announcement?')) { await api('DELETE', `admin/announcements/${f.dataset.ann}`); VIEWS.announcements(main); } });
+    });
   };
 
   // =================================================================== Staff

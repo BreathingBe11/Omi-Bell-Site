@@ -424,3 +424,11 @@ dialog.slide-over .dialog-inner { max-height: none; min-height: 100%; padding-bo
 .legal h2 { font-size: 1.5rem; margin: 2rem 0 .6rem; }
 .legal ul { padding-left: 1.2rem; max-width: 70ch; }
 .legal li { margin: .35rem 0; }
+
+.announcements { margin: 1.25rem 0 1.75rem; }
+.announcements h2 { font-size: 1.45rem; margin-bottom: .6rem; }
+.announcement { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--rose-600); border-radius: var(--radius-sm); padding: .9rem 1.1rem; }
+.announcement + .announcement { margin-top: .6rem; }
+.announcement h3 { font-size: 1.2rem; margin: .2rem 0 .4rem; }
+.announcement p:last-child { margin-bottom: 0; }
+.call-date { font-family: var(--serif); font-size: 1.35rem; color: var(--plum-900); margin: .1rem 0 0; }

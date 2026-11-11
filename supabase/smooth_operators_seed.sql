@@ -87,6 +87,19 @@ insert into so_days (cohort_id, day_number, title, preview_summary, purpose, ref
 select id, 21, 'Keep it operating', 'Finalize the 90-day operating rhythm and next review date.', null, 'What will keep these practices alive after the cohort ends?', 'Today’s action', 'Finalize the 90-day operating rhythm and next review date.', 'draft', true from so_cohorts where slug = '2027-01'
 on conflict (cohort_id, day_number) do nothing;
 
+insert into so_calls (cohort_id, title, description, starts_at, duration_minutes, status)
+select id, 'Solutions Seat · Week 1', 'Live on Zoom. Bring a challenge you’re working through and we’ll think it through together.', '2027-01-06T21:00:00Z', 60, 'scheduled'
+from so_cohorts c where slug = '2027-01'
+  and not exists (select 1 from so_calls x where x.cohort_id = c.id and x.starts_at = '2027-01-06T21:00:00Z');
+insert into so_calls (cohort_id, title, description, starts_at, duration_minutes, status)
+select id, 'Solutions Seat · Week 2', 'Live on Zoom. Bring a challenge you’re working through and we’ll think it through together.', '2027-01-13T21:00:00Z', 60, 'scheduled'
+from so_cohorts c where slug = '2027-01'
+  and not exists (select 1 from so_calls x where x.cohort_id = c.id and x.starts_at = '2027-01-13T21:00:00Z');
+insert into so_calls (cohort_id, title, description, starts_at, duration_minutes, status)
+select id, 'Solutions Seat · Week 3', 'Live on Zoom. Bring a challenge you’re working through and we’ll think it through together.', '2027-01-20T21:00:00Z', 60, 'scheduled'
+from so_cohorts c where slug = '2027-01'
+  and not exists (select 1 from so_calls x where x.cohort_id = c.id and x.starts_at = '2027-01-20T21:00:00Z');
+
 do $$ begin
   if not exists (select 1 from so_faqs) then
     insert into so_faqs (cohort_id, question, answer, sort, audience, status)
