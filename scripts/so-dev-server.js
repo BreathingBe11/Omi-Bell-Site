@@ -111,7 +111,8 @@ async function handle(req, res) {
       for (const [k, v] of dest.searchParams) query[k] = v;
       break;
     }
-    file = pathname.startsWith('/api/') ? null : staticFile(pathname);
+    // Like Vercel with cleanUrls: a rewrite to "x.html" does not resolve; use "x".
+    file = pathname.startsWith('/api/') || (vercel.cleanUrls && pathname.endsWith('.html')) ? null : staticFile(pathname);
   }
 
   const fnMatch = /^\/api\/([\w-]+)$/.exec(pathname);
