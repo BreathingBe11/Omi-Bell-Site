@@ -111,4 +111,35 @@
   SO.track = function (name) {
     SO.api('POST', 'events', { name }).catch(() => {});
   };
+
+  // FAQ accordion, shared by the landing page and the member platform.
+  // Same markup as the server renderer: answers start open (works without JS)
+  // and are collapsed here. Plus when collapsed, minus when open.
+  SO.faqHtml = function (list, prefix) {
+    prefix = prefix || 'faq';
+    const paras = t => String(t || '').split(/\n\s*\n/).map(p => p.trim()).filter(Boolean).map(p => `<p>${SO.esc(p).replace(/\n/g, '<br>')}</p>`).join('');
+    return `<div class="faq-list" data-faq>${list.map((f, i) => `<div class="faq-item"><h3 class="faq-q"><button type="button" id="${prefix}-q-${i}" aria-expanded="true" aria-controls="${prefix}-a-${i}"><span>${SO.esc(f.question)}</span><span class="faq-icon" aria-hidden="true"></span></button></h3><div class="faq-a" id="${prefix}-a-${i}" role="region" aria-labelledby="${prefix}-q-${i}">${paras(f.answer)}</div></div>`).join('')}</div>`;
+  };
+  SO.initFaq = function (root) {
+    (root || document).querySelectorAll('[data-faq]').forEach(list => {
+      if (list.dataset.ready) return;
+      list.dataset.ready = '1';
+      const buttons = Array.from(list.querySelectorAll('.faq-q button'));
+      const set = (b, open) => {
+        b.setAttribute('aria-expanded', String(open));
+        const panel = document.getElementById(b.getAttribute('aria-controls'));
+        if (panel) panel.hidden = !open;
+      };
+      buttons.forEach((b, i) => {
+        set(b, false);
+        b.addEventListener('click', () => set(b, b.getAttribute('aria-expanded') !== 'true'));
+        b.addEventListener('keydown', e => {
+          const to = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: buttons.length - 1 }[e.key];
+          if (to === undefined) return;
+          e.preventDefault();
+          buttons[(to + buttons.length) % buttons.length].focus();
+        });
+      });
+    });
+  };
 })();

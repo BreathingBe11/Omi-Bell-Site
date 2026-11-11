@@ -19,7 +19,6 @@ const H = require('./http');
 const stripe = require('./stripe');
 const env = require('./env');
 const { requireUser, ensureProfile, getAuthUser } = require('./identity');
-const { loadIntake } = require('./intake');
 const email = require('./email');
 const refunds = require('./refunds');
 
@@ -145,8 +144,8 @@ async function checkoutSession({ sql, req, now }) {
   if (!readiness.can_checkout) {
     return { state: readiness.reason === 'enrollment_closed' ? 'enrollment_closed' : 'unavailable', reason: readiness.reason };
   }
-  const intake = await loadIntake(sql, user.id, cohort.id);
-  if (!intake || intake.status !== 'submitted' || !intake.policy_ack_at) return { state: 'intake_required' };
+  const prof = (await sql`select eligibility_confirmed_at, terms_accepted_at from so_profiles where user_id = ${user.id}`)[0];
+  if (!prof || !prof.eligibility_confirmed_at || !prof.terms_accepted_at) return { state: 'eligibility_required' };
   await H.rateLimit(sql, `checkout:${user.id}`, 12, 600);
   if (await seatsFull(sql, cohort, now, user.id)) return { state: 'full' };
 
@@ -264,10 +263,11 @@ async function activatePurchase(sql, purchase, { paymentIntent, amountTotal, amo
     if (otherPaid.length) await tx`update so_purchases set needs_review = 'duplicate_payment' where id = ${p.id}`;
 
     const en = await tx`
-      insert into so_enrollments (user_id, cohort_id, purchase_id, source, access_state, is_test)
-      values (${p.user_id}, ${p.cohort_id}, ${p.id}, 'stripe', 'active', ${!livemode})
+      insert into so_enrollments (user_id, cohort_id, purchase_id, source, access_state, is_test, review_state, reviewed_at, reviewed_by)
+      values (${p.user_id}, ${p.cohort_id}, ${p.id}, 'stripe', 'active', ${!livemode}, 'approved', now(), 'automatic')
       on conflict (user_id, cohort_id) do update set
         access_state = case when so_enrollments.access_state = 'refunded' then 'active' else so_enrollments.access_state end,
+        review_state = case when so_enrollments.review_state = 'pending' then 'approved' else so_enrollments.review_state end,
         purchase_id  = case when so_enrollments.access_state = 'refunded' or so_enrollments.purchase_id is null
                             then excluded.purchase_id else so_enrollments.purchase_id end,
         updated_at = now()
@@ -301,7 +301,7 @@ async function enrichPurchase(sql, purchase) {
             where id = ${purchase.id}`;
 }
 
-// "Payment received: next steps" (the review is still to come).
+// "You’re enrolled" confirmation with what happens next.
 async function sendConfirmation(sql, enrollment) {
   const cohort = (await sql`select * from so_cohorts where id = ${enrollment.cohort_id}`)[0];
   const profile = (await sql`select email from so_profiles where user_id = ${enrollment.user_id}`)[0];

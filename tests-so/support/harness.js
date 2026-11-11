@@ -106,11 +106,11 @@ async function boot(extraEnv = {}) {
     address_line1: '1 Main St', city: 'Oakland', state: 'CA', postal_code: '94612', business_stage: 'growing', revenue_to_date: '100k_250k',
     years_in_business: '3_5', prior_ops_work: 'no', has_full_time_staff: 'yes', team_size: '3_5', ops_questions: 'How do I delegate?', policy_ack: true, submit: true,
   };
-  // Signed-in buyer who has completed the required fit check.
-  async function buyer(email, overrides = {}) {
+  // Signed-in buyer who has confirmed eligibility and accepted the terms.
+  async function buyer(email) {
     const s = await mocks.signIn(email);
-    const r = await api('PUT', 'intake', { token: s.token, body: { ...FIT, ...overrides } });
-    if (r.status !== 200) throw new Error(`fit check failed: ${JSON.stringify(r.body)}`);
+    const r = await api('PUT', 'eligibility', { token: s.token, body: { name: 'Test Owner', eligible: true, terms: true } });
+    if (r.status !== 200) throw new Error(`eligibility failed: ${JSON.stringify(r.body)}`);
     return s;
   }
 

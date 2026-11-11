@@ -371,7 +371,7 @@ function parseResource(b, current = {}) {
     pillar: pick('pillar') ? H.oneOf(pick('pillar'), ['standards', 'systems', 'scorecards'], 'Pillar') : null,
     source_type: H.oneOf(pick('source_type') || 'file', ['file', 'link'], 'Source'),
     external_url: H.optionalUrl(pick('external_url'), { field: 'Link' }),
-    practice_type: pick('practice_type') ? H.oneOf(pick('practice_type'), ['breathwork', 'meditation'], 'Practice type') : null,
+    practice_type: pick('practice_type') ? H.oneOf(pick('practice_type'), ['breathwork', 'meditation', 'sound_healing'], 'Practice type') : null,
     duration_seconds: H.int(pick('duration_seconds'), { min: 0, max: 6 * 3600, field: 'Duration', nullable: true }),
     transcript: H.text(pick('transcript'), { max: 100000, field: 'Transcript', multiline: true }) || null,
     release_mode: H.oneOf(pick('release_mode') || 'with_day', ['with_day', 'at_time', 'immediately'], 'Release'),

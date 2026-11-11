@@ -19,17 +19,23 @@ const COMMON = ['first_name', 'cohort_name', 'cohort_dates', 'app_link', 'suppor
 
 // key: [label, category, subject, body, extra merge fields]
 const DEFAULTS = {
-  purchase_next_steps: ['Payment received: next steps', 'transactional',
-    'We received your payment for {{cohort_name}}',
+  purchase_next_steps: ['Enrollment confirmed', 'transactional',
+    'You’re enrolled in {{cohort_name}}',
     `Hi {{first_name}},
 
-Thank you for enrolling in {{cohort_name}} ({{cohort_dates}}). Your payment has been received, and your receipt comes separately from our payment provider.
+You’re in. Your payment for {{cohort_name}} ({{cohort_dates}}) is confirmed and your seat is yours. Your receipt comes separately from our payment provider.
 
-What happens next: our team reviews every fit check to make sure the cohort is the right match for where your business is. We review {{review_turnaround}}. If we decide it isn't the right fit, we'll refund your payment in full. Once you're approved, your enrollment is non-refundable.
+Your platform is open now: {{app_link}}
 
-You can check your status any time: {{app_link}}
+What to expect:
+- Every day, January 4–24, 2027, including weekends: a new Guided Audio, Leadership Journal Prompt, and Business Action Toolkit resource. Plan for 5–10 minutes of audio and about 20–40 minutes to apply the day’s work.
+- Three live Solutions Seat group coaching calls with Omi: Wednesdays, January 6, 13 and 20, 1–2 p.m. PST. Recordings are available in the platform.
+- Questions: ask Omi in the platform. During the cohort, Omi responds within 24 hours, Monday through Friday.
+- Access: 12 months of program materials and call recordings, January 4, 2027 through January 3, 2028.
 
-{{support_line}}`, ['review_turnaround', 'support_line']],
+Refunds: you may request a full refund before the cohort begins on January 4, 2027. Once the cohort begins, all sales are final. To request a refund before the start date, email hello@omisworld.com.
+
+{{support_line}}`, ['support_line']],
   submission_received: ['Fit check received', 'transactional',
     'We received your fit check',
     `Hi {{first_name}},
@@ -94,7 +100,7 @@ Replies to this email aren’t monitored; please respond in the app.`, ['thread_
     'Meet your {{cohort_name}} cohort',
     `Hi {{first_name}},
 
-Introductions are open. Share a little about your business and meet the founders you’ll be building alongside.
+Introductions are open. Share a little about your business and meet the business owners you’ll be building alongside.
 
 Introduce yourself: {{app_link}}
 
@@ -118,6 +124,9 @@ The join button appears in your cohort space shortly before the call: {{app_link
 
 You’re receiving this because you opted in to call reminders. You can change that in your account.`, ['call_title', 'call_time']],
 };
+
+// Templates from the retired fit-check review (kept so old log entries still render).
+const RETIRED = new Set(['submission_received', 'approval', 'rejection']);
 
 function allowedFields(key) { return new Set([...COMMON, ...(DEFAULTS[key] ? DEFAULTS[key][4] : [])]); }
 
@@ -161,7 +170,7 @@ async function baseVars(sql, cohort, userId) {
   const prof = userId ? (await sql`select display_name from so_profiles where user_id = ${userId}`)[0] : null;
   const support = (await sql`select value from so_site_content where key = 'support.email' and status = 'published'`)[0];
   return {
-    first_name: (intake && intake.first_name) || (prof && prof.display_name) || 'there',
+    first_name: (intake && intake.first_name) || (prof && prof.display_name ? prof.display_name.trim().split(/\s+/)[0] : '') || 'there',
     cohort_name: cohort.name,
     cohort_dates: fmtDates(sched.start_date, sched.end_date),
     start_date: new Date(`${sched.start_date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' }),
@@ -280,6 +289,6 @@ async function processResendEvent(sql, raw, headers) {
 }
 
 module.exports = {
-  DEFAULTS, templateMeta, validateTemplate, render, loadTemplate, baseVars, enqueue, processOutbox, toHtml, fmtDates,
+  DEFAULTS, RETIRED, templateMeta, validateTemplate, render, loadTemplate, baseVars, enqueue, processOutbox, toHtml, fmtDates,
   verifySvix, processResendEvent, allowedFields,
 };

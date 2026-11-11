@@ -717,7 +717,7 @@ routes['POST account/refund-request'] = async ({ sql, req, now }) => {
   if (billing.refund.state === 'requested') return { refund: billing.refund };
   if (!billing.refund.can_request) {
     throw new HttpError(409, 'refund_unavailable', billing.refund.state === 'closed'
-      ? 'Refund requests closed when the cohort began.' : 'There’s no payment on this account to refund.');
+      ? 'The cohort has begun, so all sales are final and refunds are no longer available.' : 'There’s no payment on this account to refund.');
   }
   await H.rateLimit(sql, `refundreq:${user.id}`, 5, 3600);
   const e = await C.loadEnrollment(sql, user.id, cohort.id);

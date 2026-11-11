@@ -582,12 +582,24 @@ create table if not exists so_refund_requests (
   cohort_id    uuid not null references so_cohorts(id) on delete cascade,
   purchase_id  uuid not null references so_purchases(id) on delete cascade,
   reason       text,
-  status       text not null default 'open' check (status in ('open', 'withdrawn')),
+  status       text not null default 'open' check (status in ('open', 'withdrawn', 'refunded')),
   thread_id    uuid references so_support_threads(id) on delete set null,
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
 create unique index if not exists so_refund_requests_one_open on so_refund_requests (purchase_id) where status = 'open';
+
+-- v3 (Nov 2026): no fit check or manual review. A successful payment enrolls
+-- the member right away; buyers confirm eligibility and accept the terms first.
+alter table so_enrollments alter column review_state set default 'approved';
+update so_enrollments set review_state = 'approved', reviewed_at = coalesce(reviewed_at, now()), reviewed_by = coalesce(reviewed_by, 'automatic')
+  where review_state = 'pending';
+alter table so_profiles add column if not exists eligibility_confirmed_at timestamptz;
+alter table so_profiles add column if not exists terms_accepted_at timestamptz;
+-- Guided Audio can be breathwork, meditation or sound healing.
+alter table so_resources drop constraint if exists so_resources_practice_type_check;
+alter table so_resources add constraint so_resources_practice_type_check
+  check (practice_type in ('breathwork', 'meditation', 'sound_healing'));
 
 -- --------------------------------------------------------------- security
 do $$

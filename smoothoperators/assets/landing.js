@@ -3,6 +3,7 @@
 (function () {
   'use strict';
   const SO = window.SO;
+  SO.initFaq(document);
   document.addEventListener('click', e => {
     const a = e.target.closest('[data-so-cta]');
     if (a) SO.track('landing_cta_clicked');

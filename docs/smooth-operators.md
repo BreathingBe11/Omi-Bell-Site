@@ -47,20 +47,18 @@ BLYMI is untouched.
 | `/api/so/*` | JSON API |
 | `/api/smoothoperators-webhook` | Stripe webhook endpoint |
 
-## Enrollment flow: fit check, pay, review
+## Enrollment flow: confirm, pay, you're in
 
-1. **Sign in** with an email code.
-2. **Fit check**, before payment, as Omi asked. It's private to Omi and authorized staff.
-   - Members can save a draft. Only an explicit, fully validated submission counts.
-   - Each submission is versioned, and the refund-policy version the buyer accepted is recorded.
-   - Questions: name, phone, business, website, full address, stage, revenue so far, years in business, prior ops work, full-time staff, team size, and one open question.
-3. **Payment** through Stripe Checkout. The buyer gets a "payment received: next steps" email.
-4. **Under review.** Paid members get *application-only* access: an enrollment status page, their receipt, their own answers, account settings, and Ask for Help. Cohort lessons, introductions, files, calls and replays all stay closed until approval. This is enforced on the server.
-5. **Decision** in the member card (admin → Members). One of:
-   - **Approve & Send Email:** cohort access matching the current date (countdown, introductions, the current day, or post-cohort), plus one approval email.
-   - **Reject, Refund & Send Email:** needs a short explanation for the member. It refunds the full remaining amount (tax included, no fees deducted), ends cohort access, and sends a rejection email that states the *actual* refund outcome. If Stripe couldn't start the refund, the email says it's being processed instead, and the failure is flagged for a safe retry.
+As of November 2026 there is no fit check and no manual approval.
 
-   Rejected members keep their status page, receipt and support. Nothing is deleted.
+1. **Sign in** with an email code or Google.
+2. **Eligibility confirmation** before payment: the buyer's name, a checkbox confirming they own a business with customers and revenue, and agreement to the Terms, Privacy Policy and refund policy (timestamps recorded on the profile).
+3. **Payment** through Stripe Checkout. A verified payment enrolls the member immediately and sends a "You're enrolled" email with the schedule, support hours, access period and refund policy.
+4. **Refunds:** members may request a full refund before the cohort begins (Jan 4, 2027, 12:00 a.m. Pacific), from My Account or by emailing hello@omisworld.com. Requests land in the admin Questions inbox and the Overview. An admin issues the refund from the member card (**Refund in full…**). After the start, all sales are final; the button then requires an explicit policy exception.
+
+Key dates: daily programming Jan 4–24, 2027 (every day, including weekends); Solutions Seat group coaching Wednesdays Jan 6, 13, 20, 1–2 p.m. PST; direct Q&A with Omi during the cohort, replies within 24 hours Monday–Friday; 12 months of access to materials and recordings (through Jan 3, 2028).
+
+The landing copy, FAQ (one shared source, shown on the landing page and in the platform), policy text and access period are applied by a one-time migration in `supabase/smooth_operators_seed.sql` (marked `migration:v3-direct-enrollment` in the audit log), so later admin edits are never overwritten. Opening photo, intro video, testimonials and the participant session discount are admin site-content fields that stay hidden until published.
 
 ## Admin workspace (`/smoothoperators/admin`)
 

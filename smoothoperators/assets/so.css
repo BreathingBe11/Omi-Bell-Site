@@ -598,3 +598,69 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); outline: 
 .admin-nav a[aria-current="page"] { background: var(--teal); }
 .admin-top { background: var(--card); }
 @media (min-width: 960px) { .app-shell { background: linear-gradient(to right, var(--card) 260px, var(--cream) 260px); } }
+
+/* ---------------------------------------------------------- v3 landing & platform pieces */
+/* FAQ accordion: plus when collapsed, minus when expanded */
+.faq-list { border-top: 1px solid var(--line); }
+.faq-item { border-bottom: 1px solid var(--line); }
+.faq-q { margin: 0; font-family: var(--sans); font-size: 1.05rem; font-weight: 500; letter-spacing: 0; }
+.faq-q button {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 1rem; text-align: left;
+  min-height: 56px; padding: 1rem .25rem; background: none; border: 0; cursor: pointer; color: var(--ink); font: inherit;
+  transition: color .2s var(--ease);
+}
+.faq-q button:hover { color: var(--teal-deep); }
+.faq-icon { position: relative; flex: none; width: 28px; height: 28px; border: 1px solid var(--line-strong); border-radius: 50%; transition: background .25s var(--ease), border-color .25s var(--ease); }
+.faq-icon::before, .faq-icon::after { content: ""; position: absolute; left: 50%; top: 50%; width: 12px; height: 1.5px; background: var(--teal-deep); transform: translate(-50%, -50%); transition: transform .3s var(--ease); }
+.faq-icon::after { transform: translate(-50%, -50%) rotate(90deg); }
+.faq-q button[aria-expanded="true"] .faq-icon { background: var(--teal); border-color: var(--teal); }
+.faq-q button[aria-expanded="true"] .faq-icon::before { background: #fff; }
+.faq-q button[aria-expanded="true"] .faq-icon::after { background: #fff; transform: translate(-50%, -50%) rotate(0deg); }
+.faq-a { padding: 0 3rem 1.1rem .25rem; color: var(--text); animation: so-fade .3s var(--ease) both; }
+.faq-a p:last-child { margin-bottom: 0; }
+.faq-a[hidden] { display: none; }
+
+/* Hero photo slot (shown only when a photo is published) */
+.hero-side { display: grid; gap: 1.25rem; }
+.hero-photo { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 6px; box-shadow: var(--shadow); }
+@media (min-width: 960px) { .hero-side:has(.hero-photo) .hero-card { margin: -5rem 1.5rem 0 -2rem; position: relative; } }
+
+/* Intro video */
+.video-frame { position: relative; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; background: var(--ink); box-shadow: var(--shadow); margin: 1.25rem 0; }
+.video-frame iframe, .video-frame video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+/* How it works: the three daily components */
+.daily-parts { list-style: none; padding: 0; margin: 1.5rem 0; display: grid; gap: .75rem; }
+.daily-parts li { display: flex; gap: 1rem; align-items: flex-start; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 1rem 1.1rem; }
+.daily-parts h3 { font-size: 1.3rem; margin: 0 0 .15rem; }
+.daily-parts p { margin: 0; color: var(--muted); font-size: .96rem; }
+.part-n { font-family: var(--serif); font-size: 1.5rem; color: var(--gold-ink); line-height: 1; padding-top: .2rem; min-width: 2rem; }
+
+/* Calls & support */
+.support-grid { display: grid; gap: 2.5rem; }
+@media (min-width: 900px) { .support-grid { grid-template-columns: 1fr 1fr; gap: 4rem; } }
+.access-list { display: grid; gap: .75rem; margin: 2.5rem 0 0; }
+@media (min-width: 760px) { .access-list { grid-template-columns: repeat(3, 1fr); } }
+.access-list div { border-top: 2px solid var(--gold); padding-top: .8rem; }
+.access-list dt { font-size: .7rem; letter-spacing: .2em; text-transform: uppercase; color: var(--teal-deep); font-weight: 500; }
+.access-list dd { margin: .3rem 0 0; font-family: var(--serif); font-size: 1.25rem; color: var(--ink); line-height: 1.3; }
+
+/* Testimonials (shown only when published) */
+.testimonials { display: grid; gap: 1rem; margin-top: 2rem; }
+@media (min-width: 900px) { .testimonials { grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); } }
+.testimonial { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between; gap: 1rem; }
+.testimonial blockquote { margin: 0; font-family: var(--serif); font-style: italic; font-size: 1.25rem; line-height: 1.45; color: var(--ink); }
+.testimonial blockquote::before { content: "“"; display: block; font-size: 2.6rem; line-height: .6; color: var(--gold); margin-bottom: .4rem; font-style: normal; }
+.testimonial figcaption strong { display: block; color: var(--ink); }
+.testimonial figcaption span { font-size: .85rem; color: var(--muted); }
+
+/* Checkout and onboarding */
+.offer-points { margin: 0; padding-left: 1.1rem; font-size: .95rem; }
+.offer-points li { margin: .25rem 0; }
+.getting-ready { margin: 1.5rem 0; }
+.getting-ready h2 { font-size: 1.55rem; margin-top: 0; }
+.ready-list { padding-left: 1.2rem; margin: 0 0 1rem; }
+.ready-list li { margin: .55rem 0; padding-left: .2rem; }
+.ready-list li::marker { color: var(--gold-ink); font-family: var(--serif); font-weight: 600; }
+.access-kv { border-top: 1px solid var(--line); padding-top: .8rem; margin-bottom: 0; }
+.step-hint { margin: -.25rem 0 .8rem; font-size: .92rem; color: var(--muted); }

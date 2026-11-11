@@ -4,13 +4,13 @@
 -- Cohort values are the build brief's RECOMMENDED DEFAULTS, not owner-confirmed:
 --   start 2027-01-04 (Jan 4–24), 21 days, America/Los_Angeles, days unlock 00:00 cohort time,
 --   introductions open and intro price ends 2026-12-01 00:00 America/Los_Angeles (08:00 UTC),
---   $999 intro / $1,497 regular, sales disabled, access policy unset.
+--   $999 intro / $1,497 regular, sales disabled, 12 months of access (Jan 4, 2027 – Jan 3, 2028 Pacific).
 -- The 21 days below are PROVISIONAL draft curriculum (is_sample = true, status = draft).
 
 insert into so_cohorts (slug, name, start_date, days_count, timezone, unlock_time, intro_opens_at,
-  regular_price_cents, intro_price_cents, price_cutoff_at, checkout_ttl_minutes, is_default)
+  regular_price_cents, intro_price_cents, price_cutoff_at, checkout_ttl_minutes, access_policy, access_ends_at, is_default)
 values ('2027-01', 'Smooth Operators', '2027-01-04', 21, 'America/Los_Angeles', '00:00',
-  '2026-12-01T08:00:00Z', 149700, 99900, '2026-12-01T08:00:00Z', 60, true)
+  '2026-12-01T08:00:00Z', 149700, 99900, '2026-12-01T08:00:00Z', 60, 'until_date', '2028-01-04T08:00:00Z', true)
 on conflict (slug) do nothing;
 
 insert into so_weeks (cohort_id, week_number, pillar, title, assignment)
@@ -24,7 +24,7 @@ select id, 3, 'scorecards', 'Scorecards: Give growth direction', 'Run your first
 on conflict do nothing;
 
 insert into so_days (cohort_id, day_number, title, preview_summary, purpose, reflection_prompt, action_title, action_body, status, is_sample)
-select id, 1, 'Where the business depends on you', 'Identify one founder-dependent operational bottleneck.', null, 'What stops moving when you step away?', 'Today’s action', 'Identify one founder-dependent operational bottleneck.', 'draft', true from so_cohorts where slug = '2027-01'
+select id, 1, 'Where the business depends on you', 'Identify one owner-dependent operational bottleneck.', null, 'What stops moving when you step away?', 'Today’s action', 'Identify one owner-dependent operational bottleneck.', 'draft', true from so_cohorts where slug = '2027-01'
 on conflict (cohort_id, day_number) do nothing;
 insert into so_days (cohort_id, day_number, title, preview_summary, purpose, reflection_prompt, action_title, action_body, status, is_sample)
 select id, 2, 'Values as behavior', 'Translate three core values into observable behaviors.', null, 'What should people consistently experience when working with your company?', 'Today’s action', 'Translate three core values into observable behaviors.', 'draft', true from so_cohorts where slug = '2027-01'
@@ -88,38 +88,236 @@ select id, 21, 'Keep it operating', 'Finalize the 90-day operating rhythm and ne
 on conflict (cohort_id, day_number) do nothing;
 
 insert into so_calls (cohort_id, title, description, starts_at, duration_minutes, status)
-select id, 'Solutions Seat · Week 1', 'Live on Zoom. Bring a challenge you’re working through and we’ll think it through together.', '2027-01-06T21:00:00Z', 60, 'scheduled'
+select id, 'Solutions Seat · Week 1', 'Group coaching on Zoom, led by Omi Bell. A participant brings a business challenge they’re working through that week, the group contributes ideas and experience, and Omi guides the conversation toward practical next steps. The recording is available in the platform afterward.', '2027-01-06T21:00:00Z', 60, 'scheduled'
 from so_cohorts c where slug = '2027-01'
   and not exists (select 1 from so_calls x where x.cohort_id = c.id and x.starts_at = '2027-01-06T21:00:00Z');
 insert into so_calls (cohort_id, title, description, starts_at, duration_minutes, status)
-select id, 'Solutions Seat · Week 2', 'Live on Zoom. Bring a challenge you’re working through and we’ll think it through together.', '2027-01-13T21:00:00Z', 60, 'scheduled'
+select id, 'Solutions Seat · Week 2', 'Group coaching on Zoom, led by Omi Bell. A participant brings a business challenge they’re working through that week, the group contributes ideas and experience, and Omi guides the conversation toward practical next steps. The recording is available in the platform afterward.', '2027-01-13T21:00:00Z', 60, 'scheduled'
 from so_cohorts c where slug = '2027-01'
   and not exists (select 1 from so_calls x where x.cohort_id = c.id and x.starts_at = '2027-01-13T21:00:00Z');
 insert into so_calls (cohort_id, title, description, starts_at, duration_minutes, status)
-select id, 'Solutions Seat · Week 3', 'Live on Zoom. Bring a challenge you’re working through and we’ll think it through together.', '2027-01-20T21:00:00Z', 60, 'scheduled'
+select id, 'Solutions Seat · Week 3', 'Group coaching on Zoom, led by Omi Bell. A participant brings a business challenge they’re working through that week, the group contributes ideas and experience, and Omi guides the conversation toward practical next steps. The recording is available in the platform afterward.', '2027-01-20T21:00:00Z', 60, 'scheduled'
 from so_cohorts c where slug = '2027-01'
   and not exists (select 1 from so_calls x where x.cohort_id = c.id and x.starts_at = '2027-01-20T21:00:00Z');
 
 do $$ begin
-  if not exists (select 1 from so_faqs) then
+  if not exists (select 1 from so_admin_audit_log where action = 'migration:v3-direct-enrollment') then
+    delete from so_faqs where question in ('Is this for solo founders?', 'Do I need employees?', 'What happens each day?', 'What if I miss a day?', 'How do Solutions Seat calls work?', 'Are calls recorded?', 'How long do I retain access?', 'What is the refund policy?', 'Are contracts legally reviewed?');
     insert into so_faqs (cohort_id, question, answer, sort, audience, status)
-    select id, 'Is this for solo founders?', 'Yes. Solo founders preparing for a first hire and founders already leading a small team can both participate.', 10, 'both', 'draft' from so_cohorts where slug = '2027-01';
+    select null, 'Who is Smooth Operators for?', 'Smooth Operators is for business owners with customers and revenue who want clearer leadership, stronger systems, and a practical foundation for delegation and growth. It’s designed for people ready to work on both how their business operates and how they lead it.', 10, 'both', 'published'
+    where not exists (select 1 from so_faqs where question = 'Who is Smooth Operators for?');
     insert into so_faqs (cohort_id, question, answer, sort, audience, status)
-    select id, 'Do I need employees?', 'No. If you work alone today, you’ll build the expectations, workflow, and handoffs you need before you bring someone in.', 20, 'both', 'draft' from so_cohorts where slug = '2027-01';
+    select null, 'Can I participate if I don’t have employees yet?', 'Yes. You can participate as a solo business owner. The program is especially useful if you’re considering hiring contractors or employees within the next 12–24 months and want to prepare your business to share the work.', 20, 'both', 'published'
+    where not exists (select 1 from so_faqs where question = 'Can I participate if I don’t have employees yet?');
     insert into so_faqs (cohort_id, question, answer, sort, audience, status)
-    select id, 'What happens each day?', 'Each day opens with a short guided practice, one focused business question, and one practical action, with a related template when one applies. Days unlock on the shared cohort calendar.', 30, 'both', 'draft' from so_cohorts where slug = '2027-01';
+    select null, 'What happens each day? Does content unlock on weekends?', 'Each day, you receive a new guided breathwork, meditation, or sound healing audio; a leadership journal prompt; and a Business Action Toolkit resource with a practical template or tool to apply to your business. Content unlocks every day for 21 days, including weekends.', 30, 'both', 'published'
+    where not exists (select 1 from so_faqs where question = 'What happens each day? Does content unlock on weekends?');
     insert into so_faqs (cohort_id, question, answer, sort, audience, status)
-    select id, 'What if I miss a day?', 'Earlier days stay available. There is no forced order and you won’t lose progress; pick up where it makes sense for your business.', 40, 'both', 'draft' from so_cohorts where slug = '2027-01';
+    select null, 'How much time should I set aside?', 'Plan for 5–10 minutes of guided audio and approximately 20–40 minutes to apply the day’s work. Some implementation activities may take up to an hour. Lighter activities may take about 20 minutes to reflect, test what you’ve built, or catch up. The three live coaching calls are one hour each and are additional to the daily work.', 40, 'both', 'published'
+    where not exists (select 1 from so_faqs where question = 'How much time should I set aside?');
     insert into so_faqs (cohort_id, question, answer, sort, audience, status)
-    select id, 'How do Solutions Seat calls work?', 'Bring an operational challenge you’re working through and the group thinks it through together. Individual time depends on attendance, so not every person is guaranteed a personal hot seat on every call.', 50, 'both', 'draft' from so_cohorts where slug = '2027-01';
+    select null, 'When are the live calls?', 'Live calls take place on Wednesdays, January 6, 13, and 20, 2027, from 1–2 p.m. PST. Omi Bell leads all three calls. Recordings are available inside the platform.', 50, 'both', 'published'
+    where not exists (select 1 from so_faqs where question = 'When are the live calls?');
     insert into so_faqs (cohort_id, question, answer, sort, audience, status)
-    select id, 'Are calls recorded?', '', 60, 'both', 'draft' from so_cohorts where slug = '2027-01';
+    select null, 'What is a Solutions Seat?', 'Solutions Seat is group coaching led by Omi Bell. A participant brings a business challenge they’re working through that week, the group contributes ideas and experience, and Omi guides the conversation toward practical next steps. You can learn by bringing your own challenge, contributing to someone else’s, and applying the discussion to your business.', 60, 'both', 'published'
+    where not exists (select 1 from so_faqs where question = 'What is a Solutions Seat?');
     insert into so_faqs (cohort_id, question, answer, sort, audience, status)
-    select id, 'How long do I retain access?', '', 70, 'both', 'draft' from so_cohorts where slug = '2027-01';
+    select null, 'What if I cannot attend live?', 'You can watch the call recordings inside the platform. You can also submit your questions through the support area during the 21-day cohort.', 70, 'both', 'published'
+    where not exists (select 1 from so_faqs where question = 'What if I cannot attend live?');
     insert into so_faqs (cohort_id, question, answer, sort, audience, status)
-    select id, 'What is the refund policy?', '', 80, 'both', 'draft' from so_cohorts where slug = '2027-01';
+    select null, 'How do I ask Omi questions?', 'Inside the Smooth Operators platform, there is a support area where you can submit questions and chat back and forth with Omi. During the 21-day cohort, Omi responds within 24 hours, Monday through Friday. Weekend questions receive a response by the end of Monday.', 80, 'both', 'published'
+    where not exists (select 1 from so_faqs where question = 'How do I ask Omi questions?');
     insert into so_faqs (cohort_id, question, answer, sort, audience, status)
-    select id, 'Are contracts legally reviewed?', '', 90, 'both', 'draft' from so_cohorts where slug = '2027-01';
+    select null, 'How long do I keep access?', 'You receive 12 months of access to program materials and call recordings beginning January 4, 2027. Direct Q&A support from Omi is available during the 21-day cohort.', 90, 'both', 'published'
+    where not exists (select 1 from so_faqs where question = 'How long do I keep access?');
+    insert into so_faqs (cohort_id, question, answer, sort, audience, status)
+    select null, 'Do I need meditation or breathwork experience?', 'No previous experience is required. Follow the guided audios at your own pace and adapt your participation to your comfort.', 100, 'both', 'published'
+    where not exists (select 1 from so_faqs where question = 'Do I need meditation or breathwork experience?');
+    insert into so_faqs (cohort_id, question, answer, sort, audience, status)
+    select null, 'Is any particular spiritual belief required?', 'No. You do not need to follow any particular spiritual belief. The guided practices give you space to pause, reflect, and engage with the work.', 110, 'both', 'published'
+    where not exists (select 1 from so_faqs where question = 'Is any particular spiritual belief required?');
+    insert into so_faqs (cohort_id, question, answer, sort, audience, status)
+    select null, 'What is the refund policy?', 'You may request a full refund before the cohort begins on January 4, 2027. Once the cohort begins on January 4, all sales are final and no refunds are available. To request a refund before the start date, email hello@omisworld.com.', 120, 'both', 'published'
+    where not exists (select 1 from so_faqs where question = 'What is the refund policy?');
+    insert into so_site_content (key, value, status, updated_by) values ('hero.headline', 'Your business is growing. Your room to breathe keeps shrinking.', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    insert into so_site_content (key, value, status, updated_by) values ('hero.body', 'You built a business to create freedom. So why does everything still depend on you? Smooth Operators is a 21-day live cohort for business owners in the in-between: build the systems your company needs, and do the inner work that lets you finally let go.', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    insert into so_site_content (key, value, status, updated_by) values ('days.headline', 'How it works', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    insert into so_site_content (key, value, status, updated_by) values ('days.body', 'Each day, a new guided audio, leadership journal prompt, and Business Action Toolkit resource unlock inside your platform. Take time to arrive, reflect on how you lead, and apply one practical change to your business. New content unlocks every day, including weekends.
+
+Every day builds on the Standards, Systems, and Scorecards framework. Some activities introduce new work; others help you test, refine, or continue what you’ve already built.', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    insert into so_site_content (key, value, status, updated_by) values ('days.calls', 'Solutions Seat is group coaching led by Omi Bell. A participant brings a business challenge they’re working through that week, the group contributes ideas and experience, and Omi guides the conversation toward practical next steps. You can learn by bringing your own challenge, contributing to someone else’s, and applying the discussion to your business.', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    insert into so_site_content (key, value, status, updated_by) values ('days.time', 'Plan for 5–10 minutes of guided audio and approximately 20–40 minutes to apply the day’s work to your business. Some implementation activities may take up to an hour. Lighter activities may take about 20 minutes to reflect, test what you’ve built, or catch up. Live calls are additional to the daily work.', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    insert into so_site_content (key, value, status, updated_by) values ('days.calls_schedule', 'Three live calls with Omi Bell on Wednesdays, January 6, 13, and 20, 2027, from 1–2 p.m. PST. Each call is one hour. Recordings are available inside the platform.', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    insert into so_site_content (key, value, status, updated_by) values ('days.support', 'Inside the platform, you can submit questions and chat back and forth with Omi in the support area. During the 21-day cohort, Omi responds within 24 hours, Monday through Friday. Questions sent over the weekend receive a response by the end of Monday.', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    insert into so_site_content (key, value, status, updated_by) values ('access.summary', 'Daily guided programming: January 4–24, 2027
+Direct Q&A support from Omi: during the 21-day cohort, Monday through Friday
+Program materials and call recordings: 12 months, January 4, 2027 through January 3, 2028', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    insert into so_site_content (key, value, status, updated_by) values ('fit.body', 'Smooth Operators is for business owners with customers and revenue who want clearer leadership, stronger systems, and a practical foundation for delegation and growth. It’s designed for people ready to work on both how their business operates and how they lead it.
+
+You can participate as a solo business owner. The program is especially useful if you’re considering hiring contractors or employees within the next 12–24 months and want to prepare your business to share the work.', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    insert into so_site_content (key, value, status, updated_by) values ('fit.time_commitment', 'Plan for 5–10 minutes of guided audio and approximately 20–40 minutes to apply the day’s work to your business. Some implementation activities may take up to an hour. Lighter activities may take about 20 minutes to reflect, test what you’ve built, or catch up.', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    insert into so_site_content (key, value, status, updated_by) values ('enroll.includes', 'A new guided audio every day: breathwork, meditation, or sound healing
+A daily Leadership Journal Prompt
+A daily Business Action Toolkit resource: a practical template or tool, with instructions
+Three live Solutions Seat group coaching calls with Omi Bell
+Direct Q&A with Omi in the platform during the 21-day cohort
+12 months of access to program materials and call recordings', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    insert into so_site_content (key, value, status, updated_by) values ('purchase.refund_policy', 'You may request a full refund before the cohort begins on January 4, 2027. Once the cohort begins on January 4, all sales are final and no refunds are available. To request a refund before the start date, email hello@omisworld.com.', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    insert into so_site_content (key, value, status, updated_by) values ('purchase.access_terms', 'You receive 12 months of access to program materials and call recordings, from January 4, 2027 through January 3, 2028. Daily guided programming runs January 4–24, 2027. Direct Q&A support from Omi is available during the 21-day cohort, Monday through Friday.', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    insert into so_site_content (key, value, status, updated_by) values ('calls.recording_policy', 'Live calls are recorded. Recordings are available inside the platform for your 12-month access period.', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    insert into so_site_content (key, value, status, updated_by) values ('support.note', 'Inside the platform, you can submit questions and chat back and forth with Omi in the support area. During the 21-day cohort, Omi responds within 24 hours, Monday through Friday. Questions sent over the weekend receive a response by the end of Monday.', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    insert into so_site_content (key, value, status, updated_by) values ('legal.terms', 'Last updated: November 11, 2026
+
+These Terms of Purchase and Use ("Terms") apply to Smooth Operators, a live, guided 21-day business operations cohort hosted by Omi Bell ("we," "us," "our"), and to the Smooth Operators website and member area at omibell.com/smoothoperators (together, the "Program"). By creating an account or paying for the Program, you agree to these Terms. If you don''t agree, please don''t enroll.
+
+## 1. Who can enroll
+- You must be at least 18 years old and able to enter into a binding agreement.
+- The Program is designed for business owners with customers and revenue. Before you pay, you confirm that this describes you and that you''re enrolling for business purposes.
+- Your account is for you alone. Don''t share your sign-in or give anyone else access to the member area.
+
+## 2. What the Program is
+Smooth Operators is a live cohort: everyone follows the same 21-day calendar, January 4–24, 2027 (Pacific time). Every day, including weekends, a new Guided Audio (breathwork, meditation, or sound healing), Leadership Journal Prompt, and Business Action Toolkit resource unlock in the member platform. The Program also includes three live Solutions Seat group coaching calls led by Omi Bell, a private journal, and a support area where you can submit questions to Omi. We may adjust the schedule, content, or call times when reasonably necessary; if we make a significant change, we''ll tell you.
+
+Solutions Seat calls are group coaching sessions. A participant brings a business challenge, the group contributes ideas and experience, and Omi guides the conversation toward practical next steps. We can''t guarantee that every participant will bring their own challenge to a call or that any particular challenge will be discussed.
+
+During the 21-day cohort, Omi responds to questions submitted in the support area within 24 hours, Monday through Friday. Questions submitted over the weekend receive a response by the end of Monday. The support area isn''t instant messaging or continuous live support.
+
+## 3. Enrollment
+When your payment succeeds, you''re enrolled and your access to the member platform begins. There is no separate application or approval step.
+
+## 4. Price and payment
+The price is shown at checkout in U.S. dollars and is charged as a one-time payment. Introductory pricing, if offered, applies only to checkouts started before the stated deadline. Payments are processed by Stripe; we don''t receive or store your full card details. Any applicable taxes are shown at checkout.
+
+## 5. Refunds
+- You may request a full refund before the cohort begins on January 4, 2027 (12:00 a.m. Pacific time). To request a refund before the start date, email hello@omisworld.com or use the request in your account.
+- Once the cohort begins on January 4, all sales are final and no refunds are available. This applies even if you don''t attend live calls, don''t complete the daily work, or stop using the Program.
+- Refunds are made to your original payment method. How quickly they appear depends on your bank.
+- If you have a concern about a charge, please contact us first so we can help.
+
+## 6. Your access
+You receive 12 months of access to program materials and call recordings, from January 4, 2027 through January 3, 2028 (Pacific time). Daily guided programming runs January 4–24, 2027, and direct Q&A support from Omi is available during the 21-day cohort, Monday through Friday. We may suspend or end access, without a refund, if you break these Terms, misuse the Program, or treat other members or our team abusively.
+
+## 7. Live calls and recordings
+Live calls are recorded, and recordings are available inside the member platform to enrolled members for the access period. Please don''t record, screenshot, or share calls or other members'' contributions yourself.
+
+## 8. Community and confidentiality
+- Be respectful. No harassment, discrimination, spam, or selling to other members without their permission.
+- Treat what other members share (in introductions, calls, or challenges) as confidential. Don''t share it outside the Program.
+- Share only what you''re comfortable with. Don''t post confidential documents or other people''s personal information.
+
+## 9. Your content
+You own what you create. Your private journal is yours and is visible only to you. Information you choose to share with the cohort, such as your introduction, is visible to members of your cohort and our team. By sharing it, you give us permission to display it within the Program. Challenges you submit for Solutions Seat are read by Omi and our team, and are discussed with the group only if you give permission.
+
+## 10. Our materials
+The lessons, templates, recordings, practices, and other materials are owned by Omi Bell and are licensed to you for use in your own business. You may complete, adapt, and use the templates for your business. You may not resell, republish, or distribute the materials, or use them to teach or sell a competing program.
+
+## 11. Important disclaimers
+- No guaranteed results. The Program provides education, structure, and guidance. We don''t guarantee revenue, growth, hiring, or any particular business outcome. Your results depend on your business and your work.
+- Not legal, tax, financial, or medical advice. Agreement checklists and contract-related templates are business tools and drafts. Have contracts reviewed by a qualified attorney.
+- Breathwork, meditation, and sound healing. The guided practices are optional and are not medical or mental health treatment. If you''re pregnant or have a heart, respiratory, seizure, or other medical or mental health condition, check with your doctor before trying breathwork. Stop any practice if you feel dizzy, lightheaded, or unwell. Never practice while driving or in water.
+
+## 12. Limitation of liability
+To the fullest extent the law allows, the Program is provided "as is," and our total liability for any claim related to the Program is limited to the amount you paid for it. We aren''t liable for indirect, incidental, or consequential damages, including lost profits.
+
+## 13. Disputes
+If something goes wrong, contact us first at hello@omisworld.com and we''ll try to resolve it informally. These Terms are governed by the laws of the State of California, and any dispute will be handled in the state or federal courts located in Los Angeles County, California.
+
+## 14. Changes to these Terms
+We may update these Terms. If we make a material change, we''ll post the new version here with a new "Last updated" date and, where appropriate, let enrolled members know. The Terms in effect when you paid govern your purchase.
+
+## 15. Contact
+Omi Bell
+3126 S. Sepulveda Blvd., #1226
+Los Angeles, CA 90034
+hello@omisworld.com', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    insert into so_site_content (key, value, status, updated_by) values ('legal.privacy', 'Last updated: November 11, 2026
+
+This Privacy Policy explains how Omi Bell ("we," "us," "our") collects, uses, and protects personal information for Smooth Operators, including the website and member area at omibell.com/smoothoperators (the "Program").
+
+## We don''t sell your data
+We do not sell your personal information, and we do not share it for cross-context behavioral advertising. We don''t use advertising trackers in the Program.
+
+## What we collect
+- Account information: your email address. If you choose "Continue with Google," we receive your name, email address, and profile photo from Google.
+- Enrollment details: your name, your confirmation that you own a business with customers and revenue, and when you accepted these policies. You can also add a profile photo.
+- Payment: Stripe processes your payment. We receive confirmation of the payment, the amount, and a receipt link. We never receive or store your full card number.
+- Program activity: days you complete, practices you play, templates you open, and similar activity, so the Program works and we can see how the cohort is progressing.
+- Your journal: reflections you write are private to you. We store them to show them back to you; our team does not read them through the Program.
+- What you share: your cohort introduction, Solutions Seat challenges, and support messages.
+- Technical information: basic information your browser sends (such as IP address and browser type), which our hosting and security providers process to deliver the site and keep it secure.
+
+## How we use it
+- To create and secure your account and let you sign in.
+- To enroll you, process payment, and send transactional emails such as receipts, confirmations, and replies to your questions.
+- To deliver the Program: your daily content, journal, calls, and resources.
+- To support you and improve the Program.
+- To send optional reminders, only if you opt in. You can change this in your account at any time.
+- To meet legal, tax, and accounting obligations.
+
+## Who can see what
+- Your journal is visible only to you.
+- Your enrollment details, payment status, and support messages are visible only to you and our authorized team.
+- Your introduction is visible to members of your cohort and our team.
+- Solutions Seat challenges are visible to Omi and our team, and are discussed with the group only if you give permission.
+
+## Service providers
+We use trusted providers to run the Program. They process information on our behalf and only as needed to provide their services:
+- Supabase (account sign-in, database, and file storage)
+- Stripe (payments)
+- Vercel (website hosting)
+- Resend (email delivery)
+- Google (optional sign-in with Google, and website fonts)
+
+We may also disclose information if required by law, to protect the rights and safety of our members or others, or as part of a business transfer.
+
+## Google user data
+If you sign in with Google, we use your name, email address, and profile photo only to create and identify your account. We don''t use Google user data for advertising, and we don''t sell it or transfer it to others except as needed to provide the Program. Our use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements.
+
+## Cookies and local storage
+We don''t use advertising or analytics cookies. Your browser stores a small amount of information to keep you signed in and to protect writing you haven''t saved yet. Google (if you use Google sign-in) and Stripe (on its checkout page) may set their own cookies to provide their services.
+
+## How long we keep information
+We keep account and Program information while your account is active. We keep payment and tax records as long as the law requires. You can ask us to delete your account and data at any time, subject to records we''re legally required to keep.
+
+## Security
+We protect your information with encrypted connections, restricted access for our team, and providers with strong security practices. Files are stored privately and shared only through short-lived links. No system is perfectly secure, so please keep your email account secure, since it''s how you sign in.
+
+## Your choices and rights
+You can ask to access, correct, download, or delete your personal information, and you can opt out of optional emails at any time. California residents have rights under the California Consumer Privacy Act, including the right to know what we collect, to delete or correct it, and to opt out of the sale or sharing of personal information (we don''t sell or share it). We won''t treat you differently for using these rights. To make a request, email hello@omisworld.com from the email address on your account. We may need to confirm it''s you, and we''ll respond within 45 days.
+
+## Children
+The Program is for adults. We don''t knowingly collect information from anyone under 18.
+
+## Changes
+If we update this policy, we''ll post the new version here with a new "Last updated" date and, for significant changes, let enrolled members know.
+
+## Contact
+Omi Bell
+3126 S. Sepulveda Blvd., #1226
+Los Angeles, CA 90034
+hello@omisworld.com', 'published', 'migration')
+    on conflict (key) do update set value = excluded.value, status = 'published', updated_at = now(), updated_by = 'migration';
+    update so_cohorts set access_policy = 'until_date', access_ends_at = '2028-01-04T08:00:00Z' where slug = '2027-01';
+    update so_calls set description = 'Group coaching on Zoom, led by Omi Bell. A participant brings a business challenge they’re working through that week, the group contributes ideas and experience, and Omi guides the conversation toward practical next steps. The recording is available in the platform afterward.', duration_minutes = 60
+      where cohort_id = (select id from so_cohorts where slug = '2027-01') and starts_at in ('2027-01-06T21:00:00Z', '2027-01-13T21:00:00Z', '2027-01-20T21:00:00Z');
+    insert into so_admin_audit_log (actor, action, entity) values ('migration', 'migration:v3-direct-enrollment', 'site');
   end if;
 end $$;
 

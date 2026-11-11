@@ -149,12 +149,16 @@ test('verified payment enrolls exactly once, even with duplicate and repeated we
   const again = await h.api('POST', 'checkout/session', { token, body: {} });
   assert.equal(again.body.state, 'already_enrolled');
   assert.equal(stripeCreates(), before);
-  // Paid is not approved: cohort content stays closed until Omi approves.
+  // Payment enrolls directly: no review step, the platform opens right away.
   const home = await h.api('GET', 'home', { token });
-  assert.equal(home.status, 403);
-  assert.equal(home.body.reason, 'under_review');
+  assert.equal(home.status, 200);
   const app = await h.api('GET', 'application', { token });
-  assert.equal(app.body.review_state, 'pending');
+  assert.equal(app.body.review_state, 'approved');
+  const conf = await h.sql`select subject, body_text from so_email_outbox where user_id = ${user.id} and template_key = 'purchase_next_steps'`;
+  assert.equal(conf.length, 1, 'one enrollment confirmation');
+  assert.match(conf[0].subject, /You’re enrolled in Smooth Operators/);
+  assert.match(conf[0].body_text, /all sales are final/);
+  assert.doesNotMatch(conf[0].body_text, /review|approv|fit check/i);
   assert.equal(app.body.payment.amount_cents, 99900);
 });
 
@@ -252,8 +256,12 @@ test('live-mode checkout stays disabled until every launch requirement is met', 
     assert.doesNotMatch(html, /href="\/smoothoperators\/checkout"/);
     const ov = await h.api('GET', 'admin/overview', { token: h.adminToken });
     const keys = ov.body.sales.blockers.map(b => b.key);
-    for (const k of ['settings_confirmed', 'access_policy', 'content:purchase.refund_policy', 'content:legal.terms', 'content:legal.privacy', 'content:support.email', 'email', 'sales_enabled']) {
+    for (const k of ['settings_confirmed', 'content:purchase.tax_treatment', 'content:support.email', 'email', 'sales_enabled']) {
       assert.ok(keys.includes(k), `missing blocker ${k}`);
+    }
+    // Owner-confirmed policy text and the 12-month access period come from the v3 migration.
+    for (const k of ['access_policy', 'content:purchase.refund_policy', 'content:purchase.access_terms', 'content:legal.terms', 'content:legal.privacy']) {
+      assert.ok(!keys.includes(k), `unexpected blocker ${k}`);
     }
     assert.ok(!keys.includes('calls'), 'the seeded Wednesday Zoom calls satisfy the call requirement');
   } finally {
@@ -271,25 +279,22 @@ test('test-mode checkout is refused on the production deployment unless explicit
   }
 });
 
-test('checkout requires the fit check, and the fit check validates answers', async () => {
-  const { token } = await h.mocks.signIn('nofit@example.com');
-  assert.equal((await h.api('POST', 'checkout/session', { token, body: {} })).body.state, 'intake_required');
-  const missingAck = await h.api('PUT', 'intake', { token, body: { ...h.FIT, policy_ack: false } });
-  assert.equal(missingAck.status, 400);
-  assert.match(missingAck.body.message, /refund policy/);
-  assert.equal((await h.api('PUT', 'intake', { token, body: { ...h.FIT, revenue_to_date: 'a lot' } })).status, 400);
-  assert.equal((await h.api('PUT', 'intake', { token, body: { ...h.FIT, postal_code: '9461' } })).status, 400);
-  assert.equal((await h.api('PUT', 'intake', { token, body: { ...h.FIT, website_url: '', no_website: false } })).status, 400);
-  assert.equal((await h.api('PUT', 'intake', { token, body: { ...h.FIT, website_url: '', no_website: true } })).status, 200);
-  const outside = await h.api('PUT', 'intake', { token, body: { ...h.FIT, state: 'OUTSIDE_US', postal_code: 'M5V 2T6', country: 'Canada' } });
-  assert.equal(outside.status, 200);
-  assert.equal(outside.body.intake.country, 'Canada');
-  const early = await h.api('PUT', 'intake', { token, body: { ...h.FIT, business_stage: 'idea', revenue_to_date: 'under_10k' } });
-  assert.equal(early.body.intake.early_stage, true, 'early-stage founders get a gentle note, not a block');
+test('checkout needs a simple eligibility confirmation, not a fit check', async () => {
+  const { token, user } = await h.mocks.signIn('noconfirm@example.com');
+  assert.equal((await h.api('POST', 'checkout/session', { token, body: {} })).body.state, 'eligibility_required');
+  const info = await h.api('GET', 'eligibility', { token });
+  assert.equal(info.body.confirmed, false);
+  assert.match(info.body.refund_policy, /full refund before the cohort begins on January 4, 2027/);
+  assert.equal((await h.api('PUT', 'eligibility', { token, body: { name: 'Ada', eligible: false, terms: true } })).status, 400);
+  assert.equal((await h.api('PUT', 'eligibility', { token, body: { name: 'Ada', eligible: true, terms: false } })).status, 400);
+  assert.equal((await h.api('PUT', 'eligibility', { token, body: { name: '', eligible: true, terms: true } })).status, 400);
+  const ok = await h.api('PUT', 'eligibility', { token, body: { name: 'Ada Lovelace', eligible: true, terms: true } });
+  assert.equal(ok.status, 200);
+  assert.equal((await h.api('GET', 'eligibility', { token })).body.confirmed, true);
+  assert.equal((await h.sql`select display_name from so_profiles where user_id = ${user.id}`)[0].display_name, 'Ada Lovelace');
   assert.equal((await h.api('POST', 'checkout/session', { token, body: {} })).body.state, 'redirect');
-  // Fit-check details never reach the public offer or landing page.
-  const html = await (await fetch(`${h.appBase}/smoothoperators`)).text();
-  assert.doesNotMatch(html, /555-0100|1 Main St/);
+  // The old fit check is gone.
+  assert.equal((await h.api('PUT', 'intake', { token, body: {} })).status, 404);
 });
 
 test('hidden seat limit: site says "All seats are full" without revealing the number', async () => {
@@ -326,7 +331,42 @@ test('terms and privacy pages are public, complete, and linked from the home pag
   assert.match(p, /3126 S\. Sepulveda Blvd\., #1226/);
   assert.match(p, /hello@omisworld\.com/);
   const terms = (await (await fetch(`${h.appBase}/smoothoperators/terms`)).text()).replace(/&#39;/g, "'");
-  assert.match(terms, /before you're approved and before the Program's start date, we'll refund your payment in full/);
-  assert.match(terms, /Once you're approved, or once the Program has started, your payment is non-refundable/);
+  assert.match(terms, /You may request a full refund before the cohort begins on January 4, 2027/);
+  assert.match(terms, /Once the cohort begins on January 4, all sales are final and no refunds are available/);
+  assert.match(terms, /12 months of access to program materials and call recordings/);
+  assert.doesNotMatch(terms, /fit check|approved/i);
   assert.doesNotMatch(terms, /<script>alert/);
+});
+
+test('landing: confirmed copy, accordion FAQ from the shared source, and no empty placeholder sections', async () => {
+  const html = await (await fetch(`${h.appBase}/smoothoperators`)).text();
+  assert.match(html, /Your business is growing\. Your room to breathe keeps shrinking\./);
+  assert.match(html, /21-day live cohort for business owners in the in-between/);
+  assert.doesNotMatch(html, /\bfounders\b|solo founder|for founders/i, 'business owners, not founders (Omi’s own title in her bio stays)');
+  assert.doesNotMatch(html, /fit check|approved|approval/i);
+  for (const t of ['Guided Audio', 'Leadership Journal Prompt', 'Business Action Toolkit', 'including weekends',
+    'Plan for 5–10 minutes of guided audio', 'Solutions Seat is group coaching led by Omi Bell', '1–2 p.m. PST',
+    'Omi responds within 24 hours, Monday through Friday', 'January 4, 2027 through January 3, 2028']) {
+    assert.ok(html.includes(t), `landing includes “${t}”`);
+  }
+  // Accordion: accessible buttons controlling regions.
+  const buttons = html.match(/<button type="button" id="faq-q-\d+" aria-expanded="true" aria-controls="faq-a-\d+">/g) || [];
+  assert.equal(buttons.length, 12);
+  assert.match(html, /Is any particular spiritual belief required\?/);
+  // Same FAQ inside the platform.
+  const m = await h.enroll('faq-reader@example.com');
+  const faqs = await h.api('GET', 'faqs', { token: m.token });
+  assert.equal(faqs.body.faqs.length, 12);
+  assert.equal(faqs.body.faqs[11].question, 'What is the refund policy?');
+  // Photo, video, testimonials and discount stay hidden until published.
+  assert.doesNotMatch(html, /hero-photo|video-frame|In their words|class="testimonial"/);
+  await h.sql`insert into so_site_content (key, value, status) values
+    ('video.url', 'https://www.youtube.com/watch?v=abcdefghijk', 'published'),
+    ('testimonial.1.quote', 'Omi helped me hand off the work.', 'published'), ('testimonial.1.name', 'Sample Person', 'published'),
+    ('testimonial.1.context', 'Advising client', 'published')
+    on conflict (key) do update set value = excluded.value, status = 'published'`;
+  const html2 = await (await fetch(`${h.appBase}/smoothoperators`)).text();
+  assert.match(html2, /youtube-nocookie\.com\/embed\/abcdefghijk/);
+  assert.match(html2, /Omi helped me hand off the work\.[\s\S]*Advising client/);
+  await h.sql`delete from so_site_content where key in ('video.url', 'testimonial.1.quote', 'testimonial.1.name', 'testimonial.1.context')`;
 });

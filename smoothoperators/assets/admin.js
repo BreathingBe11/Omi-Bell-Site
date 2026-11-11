@@ -13,7 +13,7 @@
     ['seat', 'Solutions Seat'], ['progress', 'Progress'], ['settings', 'Emails & Settings'],
   ];
   const SUBS = {
-    members: [['all', 'All'], ['incomplete', 'Info incomplete'], ['awaiting', 'Awaiting review'], ['approved', 'Approved'], ['rejected', 'Rejected'], ['intros', 'Introductions']],
+    members: [['all', 'All members'], ['intros', 'Introductions']],
     sales: [['summary', 'Sales'], ['access', 'Payments & access tools']],
     program: [['days', '21 days'], ['announcements', 'Announcements'], ['resources', 'Resources'], ['preview', 'Preview']],
     seat: [['sessions', 'Sessions'], ['challenges', 'Challenges'], ['prep', 'Session prep']],
@@ -308,7 +308,7 @@ ${resources.length ? resources.map(x => `<tr><td><a href="#program/resources/${x
 <div class="grid-2">
 <div class="field"><label for="pillar">Pillar</label><select id="pillar">${opt('', r.pillar || '', 'None')}${['standards', 'systems', 'scorecards'].map(p => opt(p, r.pillar)).join('')}</select></div>
 <div class="field"><label for="url">External link (https)</label><input id="url" type="url" value="${esc(r.external_url || '')}"></div>
-<div class="field"><label for="ptype">Practice type</label><select id="ptype">${opt('', r.practice_type || '', '—')}${opt('breathwork', r.practice_type)}${opt('meditation', r.practice_type)}</select></div>
+<div class="field"><label for="ptype">Practice type</label><select id="ptype">${opt('', r.practice_type || '', '—')}${opt('breathwork', r.practice_type)}${opt('meditation', r.practice_type)}${opt('sound_healing', r.practice_type, 'sound healing')}</select></div>
 <div class="field"><label for="dur">Duration (seconds)</label><input id="dur" type="number" min="0" value="${r.duration_seconds || ''}"></div>
 <div class="field"><label for="release">Release</label><select id="release">${opt('with_day', r.release_mode, 'With its linked day')}${opt('at_time', r.release_mode, 'At a set time')}${opt('immediately', r.release_mode, 'Immediately to enrolled members')}</select></div>
 <div class="field"><label for="release_at">Release time (for “at a set time”)</label><input id="release_at" type="datetime-local" value="${r.release_at ? esc(new Date(r.release_at).toISOString().slice(0, 16)) : ''}"><p class="help">Entered in your browser’s timezone.</p></div></div>
@@ -540,8 +540,8 @@ ${c.status ? '<button type="button" class="linklike" data-reset>Revert to defaul
         if (!d) return '<p>No day.</p>';
         if (d.state !== 'available') return `<p><strong>Day ${d.day_number}</strong>: members see ${d.state === 'locked' ? `a locked preview (“${esc(d.title || 'Preview coming soon')}”), unlocking ${esc(dt(d.unlock_at))}` : '“This day’s content is being prepared.”'}.</p>`;
         return `<p class="eyebrow">Day ${d.day_number} · ${esc(d.date)}${d.pillar_label ? ` · ${esc(d.pillar_label)}` : ''}</p><h2 style="margin-top:0">${esc(d.title)}</h2>${d.purpose ? `<p class="muted">${esc(d.purpose)}</p>` : ''}
-${d.content ? SO.paras(d.content) : ''}<h3>Arrive</h3><p>${d.practice ? esc(d.practice.title) : '<em>No published practice</em>'}</p>
-<h3>Reflect</h3><p class="question">${esc(d.reflection_prompt || '')}</p><h3>Apply</h3>${SO.paras(d.action_body || '')}
+${d.content ? SO.paras(d.content) : ''}<h3>Guided Audio</h3><p>${d.practice ? esc(d.practice.title) : '<em>No published audio</em>'}</p>
+<h3>Leadership Journal Prompt</h3><p class="question">${esc(d.reflection_prompt || '')}</p><h3>Business Action Toolkit</h3>${SO.paras(d.action_body || '')}
 ${d.templates.length ? `<p>Templates: ${d.templates.map(t => esc(t.title)).join(', ')}</p>` : ''}${d.call ? `<p>Call banner: ${esc(dt(d.call.starts_at))}</p>` : ''}`;
       };
       if (r.view === 'day') return `<div class="card">${head}${r.draft_preview ? '<p class="notice notice-warn">Showing draft content. Members can’t see this yet.</p>' : ''}${dayHtml(r.day)}</div>`;
@@ -574,8 +574,7 @@ ${events.map(e => `<tr><td class="small">${esc(dt(e.received_at))}</td><td>${esc
 <p class="muted">${esc(o.cohort.name)} · ${esc(o.cohort.phase.replace('_', ' '))} · ${esc(dt(o.now))}${o.seats.limit ? ` · Seats ${o.seats.taken} of ${o.seats.limit} (private)` : ''}</p>
 <div class="grid-4">
   ${c.sales ? card('Sales collected', money(c.sales.gross_cents), `${esc(c.sales.scope)}${c.sales.data === 'test' ? ' · test-mode data' : ''}`, '#sales') : card('Sales collected', '—', 'Your role doesn’t include finance', '#overview')}
-  ${card('Paid members', c.paid_members.total, `${c.paid_members.awaiting} awaiting review · ${c.paid_members.approved} approved. Rejected purchasers are in Sales only.`, '#members/all')}
-  ${card('Profiles awaiting review', c.awaiting_review, c.awaiting_review ? 'Oldest first' : 'All caught up', '#members/awaiting')}
+  ${card('Enrolled members', c.paid_members.total, 'Enrolled automatically when payment succeeds.', '#members/all')}
   ${c.next_call ? card('Next Solutions Seat', esc(new Date(c.next_call.starts_at).toLocaleDateString('en-US', { timeZone: cohortTz, month: 'short', day: 'numeric' })), `${esc(SO.fmtTime(c.next_call.starts_at, cohortTz))} · ${c.next_call.challenges} challenge${c.next_call.challenges === 1 ? '' : 's'} submitted${c.next_call.unassigned_challenges ? ` (+${c.next_call.unassigned_challenges} for any call)` : ''}`, '#seat/prep/' + c.next_call.id)
         : card('Next Solutions Seat', '—', 'No call scheduled yet', '#seat/sessions')}
 </div>
@@ -600,26 +599,26 @@ ${o.attention.length ? `<ul class="attention">${o.attention.map(a => `<li class=
       return api('GET', `admin/members?${qs}`);
     };
     const d = await load();
-    const titles = { all: 'All members', incomplete: 'Info incomplete', awaiting: 'Awaiting review', approved: 'Approved', rejected: 'Rejected' };
+    const titles = { all: 'All members' };
     main.innerHTML = `<div class="row-between"><h1>${titles[filter] || 'Members'} <span class="muted" style="font-size:1.2rem">(${d.counts[filter] ?? d.total})</span></h1>
 ${canDo('finance') ? '<button class="btn btn-secondary btn-sm" id="export">Download CSV</button>' : ''}</div>
-<p class="muted small">${filter === 'awaiting' ? 'Oldest submission first. ' : ''}Counts: ${Object.entries(titles).map(([k, l]) => `${l} ${d.counts[k]}`).join(' · ')}. Journals are private and never shown here.</p>
+<p class="muted small">Everyone who has paid is enrolled automatically. Journals are private and never shown here.</p>
 <form id="mfilter" class="row" style="margin:1rem 0" role="search">
   <label class="sr-only" for="m-q">Search by name, business or email</label><input id="m-q" type="search" placeholder="Search name, business or email" value="${esc(st.q)}" style="max-width:20rem">
   <label class="sr-only" for="m-pay">Payment</label><select id="m-pay" style="width:auto">${[['', 'Any payment'], ['paid', 'Paid'], ['not_paid', 'Not paid'], ['manual', 'Manual grant'], ['refunded', 'Refunded'], ['partially_refunded', 'Partly refunded'], ['disputed', 'Disputed'], ['refund', 'Has a refund']].map(([v, l]) => `<option value="${v}"${st.pay === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
-  <label class="sr-only" for="m-sort">Sort</label><select id="m-sort" style="width:auto">${[['', filter === 'awaiting' ? 'Oldest submitted first' : 'Newest submitted first'], ['submitted_asc', 'Oldest submitted first'], ['submitted_desc', 'Newest submitted first']].map(([v, l]) => `<option value="${v}"${st.sort === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
+  <input type="hidden" id="m-sort" value="">
   <button class="btn btn-secondary btn-sm">Apply</button>
 </form>
-${d.members.length ? `<div class="table-wrap member-table"><table class="data"><thead><tr><th>Name</th><th>Business</th><th>Information</th><th>Review</th><th>Payment</th><th>Submitted</th><th>Last active</th></tr></thead><tbody>
+${d.members.length ? `<div class="table-wrap member-table"><table class="data"><thead><tr><th>Name</th><th>Business</th><th>Payment</th><th>Last active</th></tr></thead><tbody>
 ${d.members.map(m => `<tr><td><button class="linklike" data-open="${m.user_id}">${esc(m.name)}</button><br><span class="small muted">${esc(m.email)}</span>${m.is_test ? ' <span class="pill pill-draft">test</span>' : ''}</td>
-<td>${esc(m.business || '—')}</td><td>${infoPill(m.info_status)}</td><td>${reviewPill(m.review_status)}</td>
+<td>${esc(m.business || '—')}</td>
 <td class="small">${payLabel(m.payment_status)}${m.refund_status ? `<br>refund ${esc(m.refund_status)}` : ''}${m.needs_review ? `<br><strong style="color:var(--danger)">${esc(m.needs_review)}</strong>` : ''}</td>
-<td class="small">${shortDate(m.submitted_at)}</td><td class="small">${shortDate(m.last_active)}</td></tr>`).join('')}</tbody></table></div>
+<td class="small">${shortDate(m.last_active)}</td></tr>`).join('')}</tbody></table></div>
 <ul class="member-cards">${d.members.map(m => `<li class="card"><button class="linklike" data-open="${m.user_id}" style="font-size:1.1rem">${esc(m.name)}</button>
-<p class="small muted" style="margin:.2rem 0">${esc(m.business || '')}</p><div class="row">${infoPill(m.info_status)}${reviewPill(m.review_status)}<span class="pill">${payLabel(m.payment_status)}</span></div>
-<p class="small muted" style="margin:.4rem 0 0">Submitted ${shortDate(m.submitted_at)} · active ${shortDate(m.last_active)}</p></li>`).join('')}</ul>
+<p class="small muted" style="margin:.2rem 0">${esc(m.business || '')}</p><div class="row"><span class="pill">${payLabel(m.payment_status)}</span></div>
+<p class="small muted" style="margin:.4rem 0 0">Last active ${shortDate(m.last_active)}</p></li>`).join('')}</ul>
 ${d.pages > 1 ? `<nav class="row" aria-label="Pages" style="margin-top:1rem"><button class="btn btn-ghost btn-sm" data-page="${d.page - 1}"${d.page <= 1 ? ' disabled' : ''}>Previous</button><span class="small">Page ${d.page} of ${d.pages}</span><button class="btn btn-ghost btn-sm" data-page="${d.page + 1}"${d.page >= d.pages ? ' disabled' : ''}>Next</button></nav>` : ''}`
-      : `<p class="empty">${filter === 'awaiting' ? 'No one is waiting for review.' : 'No members match.'}</p>`}`;
+      : '<p class="empty">No members match.</p>'}`;
     q('#mfilter').addEventListener('submit', e => { e.preventDefault(); st.q = q('#m-q').value.trim(); st.pay = q('#m-pay').value; st.sort = q('#m-sort').value; st.page = 1; VIEWS.members(main); });
     qa('[data-page]', main).forEach(b => b.addEventListener('click', () => { st.page = Number(b.dataset.page); VIEWS.members(main); }));
     qa('[data-open]', main).forEach(b => b.addEventListener('click', () => openMember(b.dataset.open, b, () => VIEWS.members(main))));
@@ -658,12 +657,12 @@ ${x.error ? `<br><span class="small" style="color:var(--danger)">${esc(x.error)}
       dlg.innerHTML = `<div class="dialog-inner member-card">
 <div class="mc-head"><div class="row" style="gap:1rem">${m.photo_url ? `<img src="${esc(m.photo_url)}" alt="" width="56" height="56" style="border-radius:50%;object-fit:cover">` : ''}
 <div><h2 id="mc-title" style="margin:0">${esc(m.name)}</h2><p class="small muted" style="margin:.1rem 0">${esc(m.business || '')} · <a href="mailto:${esc(m.email)}">${esc(m.email)}</a> · ${esc(m.cohort.name)}</p>
-<div class="row">${reviewPill(rv)}${m.info ? infoPill(m.info.status === 'submitted' ? 'submitted' : 'incomplete') : infoPill('none')}${e ? `<span class="pill">Access: ${esc(e.access.replace(/_/g, ' '))}</span>` : ''}${m.info && m.info.early_stage ? '<span class="pill pill-draft">Early stage</span>' : ''}${e && e.is_test ? '<span class="pill pill-draft">test</span>' : ''}</div></div></div>
+<div class="row">${e ? '<span class="pill pill-complete">Enrolled</span>' : '<span class="pill">Not enrolled</span>'}${e ? `<span class="pill">Access: ${esc(e.access.replace(/_/g, ' '))}</span>` : ''}${e && e.is_test ? '<span class="pill pill-draft">test</span>' : ''}</div></div></div>
 <button class="close-btn" type="button" data-close>Close</button></div>
 ${msg ? `<div class="notice ${msg.ok ? 'notice-success' : 'notice-error'}" role="status">${msg.html}</div>` : ''}
-<section><h3>Fit check ${m.info ? `<span class="small muted" style="font-family:var(--sans)">version ${m.info.version}${m.info.submitted_at ? ` · submitted ${esc(dt(m.info.submitted_at))}` : ' · draft'}${m.info.policy_version ? ` · policy ${esc(m.info.policy_version)}` : ''}</span>` : ''}</h3>
+${m.info ? `<section><h3>Earlier fit check ${m.info ? `<span class="small muted" style="font-family:var(--sans)">version ${m.info.version}${m.info.submitted_at ? ` · submitted ${esc(dt(m.info.submitted_at))}` : ' · draft'}${m.info.policy_version ? ` · policy ${esc(m.info.policy_version)}` : ''}</span>` : ''}</h3>
 ${m.info ? `${m.info.missing.length ? `<p class="notice notice-warn small">Missing: ${esc(m.info.missing.join(', '))}</p>` : ''}<dl class="kv">${m.info.answers.map(a => `<dt>${esc(a.question)}</dt><dd style="white-space:pre-wrap">${a.answer ? esc(a.answer) : '<span class="muted">—</span>'}</dd>`).join('')}</dl>
-${m.info.versions.length > 1 ? `<p class="small muted">Earlier versions: ${m.info.versions.slice(1).map(v => `v${v.version} (${shortDate(v.submitted_at)})`).join(', ')}</p>` : ''}` : '<p class="muted">No fit check on file.</p>'}</section>
+${m.info.versions.length > 1 ? `<p class="small muted">Earlier versions: ${m.info.versions.slice(1).map(v => `v${v.version} (${shortDate(v.submitted_at)})`).join(', ')}</p>` : ''}` : ''}</section>` : ''}
 <section><h3>Private admin notes <span class="small muted" style="font-family:var(--sans)">never sent to the member</span></h3>
 ${m.notes.map(n => `<p class="small" style="margin:.3rem 0"><strong>${esc(n.author)}</strong> · ${esc(dt(n.created_at))}<br>${esc(n.body)}</p>`).join('') || '<p class="small muted">No notes yet.</p>'}
 <form id="note-f" class="row"><label class="sr-only" for="note-b">Add a private note</label><input id="note-b" type="text" maxlength="4000" placeholder="Add a private note" style="flex:1;min-width:12rem"><button class="btn btn-secondary btn-sm">Add note</button></form></section>
@@ -672,24 +671,37 @@ ${pay.tax_cents ? `<p class="small" style="margin:.2rem 0">Includes tax ${money(
 ${pay.provider_ref ? `<p class="small" style="margin:.2rem 0">Stripe: <a href="${esc(pay.provider_link)}" target="_blank" rel="noopener">${esc(pay.provider_ref)}</a>${pay.receipt_url ? ` · <a href="${esc(pay.receipt_url)}" target="_blank" rel="noopener">Receipt</a>` : ''}${pay.fee_cents != null ? ` · fee ${money(pay.fee_cents)}` : ''}</p>` : ''}
 ${m.refunds.map(r => `<p class="small" style="margin:.3rem 0">Refund ${money(r.amount_cents)} · <strong>${esc(r.status)}</strong>${r.source === 'external' ? ' (made in Stripe)' : ''} · ${esc(dt(r.updated_at))}${r.failure_reason ? `<br><span style="color:var(--danger)">${esc(r.failure_reason)}</span>` : ''}
 ${r.status === 'failed' && canDo('finance') ? ` <button class="btn btn-secondary btn-sm" data-retry-refund="${r.id}">Retry refund</button>` : ''}</p>`).join('')}`
-        : '<p class="muted">No payment yet.</p>'}</section>
+        : '<p class="muted">No payment yet.</p>'}
+${pay && ['paid', 'partially_refunded'].includes(pay.status) && canDo('finance') && !m.refunds.some(r => ['queued', 'pending', 'succeeded', 'requires_action'].includes(r.status)) ? '<p style="margin-top:.6rem"><button class="btn btn-danger btn-sm" id="refund-full">Refund in full…</button></p><div id="refund-panel"></div>' : ''}</section>
 <section><h3>Activity</h3><p class="small" style="margin:0">Days completed ${m.activity.days_completed} · days started ${m.activity.days_started} · introduced ${m.activity.has_intro ? 'yes' : 'no'} · challenges ${m.activity.challenges} · questions ${m.activity.questions}</p>
 ${m.activity.events.length ? `<details class="more"><summary>Activity timeline</summary><ul class="small timeline">${m.activity.events.map(ev => `<li>${esc(dt(ev.created_at))} · ${esc(ev.name.replace(/_/g, ' '))}${ev.day_number ? ` (day ${ev.day_number})` : ''}</li>`).join('')}</ul>
 <p class="small muted">A click or download isn’t completed work; a call-link click isn’t attendance.</p></details>` : ''}</section>
-<section><h3>Review & communication history</h3>${hist ? `<ul class="history">${hist}</ul>` : '<p class="small muted">Nothing yet.</p>'}</section>
-${e && e.review_state === 'approved' && canDo('decide') ? '<p><button class="linklike small" id="reopen">Reopen this review…</button></p>' : ''}
-<div id="decide-panel"></div>
-${e && e.review_state === 'pending' ? `<div class="mc-footer">${m.decision.allowed ? '' : `<p class="small muted" style="margin:0 0 .5rem">${esc(m.decision.blockers.join(' · '))}</p>`}
-<div class="row"><button class="btn btn-primary" data-decide="approve"${m.decision.allowed ? '' : ' disabled'}>Approve</button>
-<button class="btn btn-danger" data-decide="reject"${m.decision.allowed ? '' : ' disabled'}>Reject</button></div></div>` : ''}
+<section><h3>Communication history</h3>${hist ? `<ul class="history">${hist}</ul>` : '<p class="small muted">Nothing yet.</p>'}</section>
 </div>`;
       q('[data-close]', dlg).onclick = () => dlg.close();
       q('#note-f', dlg).onsubmit = async ev => { ev.preventDefault(); const b = q('#note-b', dlg).value.trim(); if (!b) return; await api('POST', `admin/members/${userId}/notes`, { body: b }); draw(); };
       qa('[data-resend]', dlg).forEach(b => b.onclick = async () => { b.disabled = true; try { const r = await api('POST', `admin/emails/${b.dataset.resend}/resend`); changed = true; draw({ ok: r.status === 'submitted', html: `<p>Resend ${esc(emailStatus(r.status).toLowerCase())}.</p>` }); } catch (x) { draw({ ok: false, html: `<p>${esc(x.message)}</p>` }); } });
       qa('[data-retry-refund]', dlg).forEach(b => b.onclick = async () => { b.disabled = true; try { const r = await api('POST', `admin/refunds/${b.dataset.retryRefund}/retry`); changed = true; draw({ ok: r.refund.status !== 'failed', html: `<p>Refund ${esc(r.refund.status)}.${r.refund.failure_reason ? ` ${esc(r.refund.failure_reason)}` : ''}</p>` }); } catch (x) { draw({ ok: false, html: `<p>${esc(x.message)}</p>` }); } });
-      const ro = q('#reopen', dlg);
-      if (ro) ro.onclick = async () => { const reason = prompt('Why reopen this approval? (Recorded in the audit log. No email is sent.)'); if (!reason) return; try { await api('POST', `admin/members/${userId}/reopen`, { reason }); changed = true; draw(); } catch (x) { alert(x.message); } };
-      qa('[data-decide]', dlg).forEach(b => b.onclick = () => decisionPanel(m, b.dataset.decide));
+      const rf = q('#refund-full', dlg);
+      if (rf) rf.onclick = () => {
+        const started = Date.now() >= new Date(m.cohort.starts_at || 0).getTime();
+        q('#refund-panel', dlg).innerHTML = `<section class="card confirm-panel"><h3 style="margin-top:0">Refund ${money(pay.amount_cents)} in full</h3>
+<p class="small">The refund goes back to the original payment method through Stripe. Access follows your refund setting in Cohort settings.</p>
+${started ? '<div class="notice notice-warn"><p>The cohort has begun, so the policy says all sales are final. Refunding now is an exception.</p></div><label class="check"><input type="checkbox" id="rf-exc"><span>Refund anyway as a policy exception</span></label>' : ''}
+<div class="field"><label for="rf-note">Internal note (optional)</label><input id="rf-note" type="text" maxlength="1000"></div>
+<p class="form-error" id="rf-err" role="alert"></p>
+<div class="row"><button class="btn btn-danger" id="rf-go">Refund in full</button><button class="btn btn-ghost" id="rf-x">Cancel</button></div></section>`;
+        q('#rf-x', dlg).onclick = () => { q('#refund-panel', dlg).innerHTML = ''; };
+        q('#rf-go', dlg).onclick = async () => {
+          const go = q('#rf-go', dlg); go.disabled = true;
+          const exc = q('#rf-exc', dlg);
+          try {
+            const r = await api('POST', `admin/members/${userId}/refund`, { note: q('#rf-note', dlg).value, exception: !!(exc && exc.checked) });
+            changed = true;
+            draw({ ok: r.refund.status !== 'failed', html: `<p>Refund ${esc(r.refund.status)}.${r.refund.failure_reason ? ` ${esc(r.refund.failure_reason)}` : ''}</p>` });
+          } catch (x) { q('#rf-err', dlg).textContent = x.message; go.disabled = false; }
+        };
+      };
     }
     async function decisionPanel(m, decision) {
       const panel = q('#decide-panel', dlg);
@@ -763,7 +775,7 @@ ${d.series.map((x, i) => `<g><rect x="${i * 24 + 4}" y="${110 - (x.cents / max) 
 <div class="field" style="margin:0"><label for="s-from" class="small">From</label><input id="s-from" type="date" value="${esc(st.from)}"></div>
 <div class="field" style="margin:0"><label for="s-to" class="small">To</label><input id="s-to" type="date" value="${esc(st.to)}"></div>
 ${sel('s-state', 'Payment', [['', 'Any'], ['paid', 'Paid'], ['pending', 'Pending'], ['failed', 'Failed'], ['refunded', 'Refunded'], ['partially_refunded', 'Partly refunded'], ['disputed', 'Disputed']], st.state)}
-${sel('s-review', 'Review', [['', 'Any'], ['pending', 'Awaiting review'], ['approved', 'Approved'], ['rejected', 'Rejected']], st.review)}
+<input type="hidden" id="s-review" value="">
 ${sel('s-refund', 'Refund', [['', 'Any'], ['any', 'Has a refund'], ['succeeded', 'Completed'], ['pending', 'Pending'], ['failed', 'Failed']], st.refund)}
 ${sel('s-tier', 'Price', [['', 'Any'], ['intro', '$999 introductory'], ['regular', '$1,497 regular']], st.tier)}
 </div><label class="check"><input type="checkbox" id="s-flag"${st.flagged ? ' checked' : ''}><span>Only payments flagged for review</span></label>
@@ -774,15 +786,15 @@ ${sel('s-tier', 'Price', [['', 'Any'], ['intro', '$999 introductory'], ['regular
   <div class="card"><p class="small muted" style="margin:0">Net collected</p><p class="stat">${money(t.net_cents)}</p><p class="small muted" style="margin:0">after completed refunds</p></div>
   <div class="card"><p class="small muted" style="margin:0">After Stripe fees</p><p class="stat">${t.net_after_fees_cents != null ? money(t.net_after_fees_cents) : '—'}</p><p class="small muted" style="margin:0">${t.fee_cents != null ? `fees ${money(t.fee_cents)} (known for ${t.fees_known_for} of ${t.purchases})` : 'fees not reported yet'}. Not profit.</p></div>
 </div>
-<p class="small muted">Review status of paid enrollments: ${d.review.awaiting} awaiting · ${d.review.approved} approved · ${d.review.rejected} rejected.</p>
+
 <section class="card">${bars}</section>
 <details class="more"><summary>Definitions</summary><ul class="small">${Object.values(d.definitions).map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>
 <h2>Transactions</h2>
-${d.transactions.length ? `<div class="table-wrap"><table class="data"><thead><tr><th>Buyer</th><th>Date</th><th>Paid</th><th>Tax</th><th>Payment</th><th>Review</th><th>Refund</th><th>Stripe</th></tr></thead><tbody>
+${d.transactions.length ? `<div class="table-wrap"><table class="data"><thead><tr><th>Buyer</th><th>Date</th><th>Paid</th><th>Tax</th><th>Payment</th><th>Refund</th><th>Stripe</th></tr></thead><tbody>
 ${d.transactions.map(x => `<tr><td><button class="linklike" data-open="${x.user_id}">${esc(x.name)}</button><br><span class="small muted">${esc(x.email)}</span></td>
 <td class="small">${esc(dt(x.paid_at || x.created_at))}</td><td>${money(x.amount_paid_cents ?? x.amount_cents)} <span class="small muted">${esc(x.price_tier)}</span></td><td class="small">${x.tax_cents ? money(x.tax_cents) : '—'}</td>
 <td>${esc(payLabel(x.status))}${x.livemode === false ? ' <span class="pill pill-draft">test</span>' : ''}${x.needs_review ? `<br><strong class="small" style="color:var(--danger)">${esc(x.needs_review)}</strong>` : ''}</td>
-<td>${x.review_state ? reviewPill(x.review_state) : '—'}</td><td class="small">${esc(x.refund_status || '—')}</td>
+<td class="small">${esc(x.refund_status || '—')}</td>
 <td class="small">${x.provider_link ? `<a href="${esc(x.provider_link)}" target="_blank" rel="noopener">Open</a>` : ''}${x.receipt_url ? ` · <a href="${esc(x.receipt_url)}" target="_blank" rel="noopener">Receipt</a>` : ''}</td></tr>`).join('')}</tbody></table></div>`
       : '<p class="empty">No transactions match.</p>'}`;
     q('#sf').addEventListener('submit', e => {
