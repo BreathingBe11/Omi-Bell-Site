@@ -13,7 +13,7 @@ const { requireUser, ensureProfile, requireAdmin } = require('./identity');
 const { HttpError } = H;
 const ALL = ['program', 'account_access', 'billing_refund', 'resources', 'other'];
 const RESTRICTED = ['application', 'account_access', 'billing_refund', 'other'];
-const LABELS = { program: 'Program', account_access: 'Account or access', billing_refund: 'Billing or refund', resources: 'Resources', application: 'My application', other: 'Something else' };
+const LABELS = { program: 'Program', account_access: 'Account or access', billing_refund: 'Billing or refund', resources: 'Resources', application: 'My application', other: 'Something else', bug: 'Bug report' };
 
 async function memberScope(sql, req) {
   const user = await requireUser(req);
@@ -48,7 +48,8 @@ routes['GET help/threads/:id'] = async ({ sql, req, params }) => {
 routes['POST help/threads'] = async ({ sql, req }) => {
   const { user, cohort, categories } = await memberScope(sql, req);
   const b = H.body(req);
-  const category = H.oneOf(b.category, categories, 'Topic');
+  // Anyone signed in can report a bug, whatever their enrollment state.
+  const category = H.oneOf(b.category, [...categories, 'bug'], 'Topic');
   const subject = H.text(b.subject, { max: 140, required: true, field: 'Subject' });
   const body = H.text(b.body, { max: 5000, required: true, field: 'Your question', multiline: true });
   await H.rateLimit(sql, `help:${user.id}`, 10, 3600);

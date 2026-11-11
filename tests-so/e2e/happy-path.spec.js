@@ -52,12 +52,12 @@ test('founder pays, gets verified access and saves a private reflection', async 
   await page.getByLabel('City').fill('Oakland');
   await page.getByLabel('State').selectOption('CA');
   await page.getByLabel('ZIP code').fill('94612');
-  await page.getByText('Growing: steady, repeat revenue').click();
-  await page.getByText('$100K–$250K').click();
-  await page.getByText('3–5 years').click();
-  await page.getByRole('group', { name: /operations work before/ }).getByText('No').click();
-  await page.getByRole('group', { name: /full-time staff/ }).getByText('Yes').click();
-  await page.getByText('3–5 people').click();
+  await page.getByLabel('Stage of business').selectOption({ label: 'Growing: steady, repeat revenue' });
+  await page.getByLabel(/Revenue generated so far/).selectOption({ label: '$100K–$250K' });
+  await page.getByLabel('How long have you been in business?').selectOption({ label: '3–5 years' });
+  await page.getByLabel(/operations work before/).selectOption({ label: 'No' });
+  await page.getByLabel('Do you have full-time staff?').selectOption({ label: 'Yes' });
+  await page.getByLabel(/How many people are on your team/).selectOption({ label: '3–5 people' });
   await page.getByLabel('What are your most pressing questions about operations?').fill('How do I hand off client onboarding?');
   await page.getByRole('button', { name: 'Save and continue to payment' }).click();
   await expect(page.getByRole('alert')).toContainText(/refund policy/);
@@ -121,6 +121,14 @@ test('founder pays, gets verified access and saves a private reflection', async 
   expect(await axe(page)).toEqual([]);
   await page.goto(`${base()}/smoothoperators/app/journal`);
   await expect(page.getByText('Invoices stop when I travel.')).toBeVisible();
+  // A free entry, without a prompt.
+  await page.getByRole('link', { name: 'New entry' }).click();
+  await page.getByLabel(/Title/).fill('Ideas for my first hire');
+  await page.getByLabel('Your entry').fill('Write down every task I did this week.');
+  await expect(page.locator('#n-state')).toHaveText('Saved', { timeout: 10000 });
+  await page.goto(`${base()}/smoothoperators/app/journal`);
+  await expect(page.getByRole('heading', { name: 'Ideas for my first hire' })).toBeVisible();
+  expect(await axe(page)).toEqual([]);
   await page.goto(`${base()}/smoothoperators/app/day/1`);
   await expect(page.getByLabel(/Your reflection/)).toHaveValue(/Invoices stop/);
   await expect(page.getByText('Day 1 complete.')).toBeVisible();
@@ -163,10 +171,20 @@ test('menu: five destinations, keyboard accessible drawer on mobile', async ({ p
   expect(await axe(page)).toEqual([]);
 
   await page.goto(`${base()}/smoothoperators/app/calls-help`);
-  await expect(page.getByText('Solutions Seat dates will appear here once they’re scheduled.')).toBeVisible();
+  // The seeded Wednesday Zoom sessions show their date and a Join on Zoom button.
+  const firstCall = page.locator('.call-card').first();
+  await expect(firstCall).toContainText('Wednesday, January 6');
+  await expect(firstCall.getByRole('button', { name: 'Join on Zoom' })).toBeDisabled();
+  await expect(firstCall).toContainText('The Join button opens at');
   expect(await axe(page)).toEqual([]);
-  await page.getByRole('tab', { name: 'FAQs & Support' }).click();
+  await expect(page.getByRole('tab')).toHaveText(['Solutions Seat', 'FAQ', 'Report a bug']);
+  await page.getByRole('tab', { name: 'FAQ', exact: true }).click();
   await expect(page.getByText('Support contact details will be posted here before the cohort begins.')).toBeVisible();
+  await page.getByRole('tab', { name: 'Report a bug' }).click();
+  await page.getByLabel('What went wrong? (one line)').fill('Test bug');
+  await page.getByLabel('What happened, and what did you expect?').fill('Just checking the form.');
+  await page.getByRole('button', { name: 'Send bug report' }).click();
+  await expect(page.getByText('Thanks, we got it.')).toBeVisible();
 });
 
 test('signed-out visitors are sent to sign in; non-members cannot open the cohort', async ({ page }, info) => {
