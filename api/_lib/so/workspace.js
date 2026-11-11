@@ -128,23 +128,13 @@ async function cardFor(sql, cohort, userId, who) {
   const counts = (await sql`select (select count(*)::int from so_call_challenges where user_id = ${userId} and cohort_id = ${cohort.id}) as challenges,
                                    (select count(*)::int from so_support_threads where user_id = ${userId}) as questions`)[0];
 
-  const paidPurchase = purchases.find(x => ['paid', 'partially_refunded', 'disputed', 'refunded'].includes(x.status));
-  const infoOk = !!(i && i.status === 'submitted');
-  const paymentOk = !!(e && (e.source === 'manual' || (paidPurchase && ['paid', 'partially_refunded'].includes(paidPurchase.status))));
-  const blockers = [];
-  if (!e) blockers.push('Has not paid');
-  else if (!paymentOk) blockers.push(paidPurchase && paidPurchase.status === 'disputed' ? 'Payment is disputed; resolve it in Stripe first' : 'Payment not confirmed');
-  if (!infoOk) blockers.push('Fit check not submitted');
-  if (e && e.review_state !== 'pending') blockers.push(`Already ${e.review_state}`);
-  if (!who.perms.includes('decide')) blockers.push('Your role can’t make decisions');
-  const refundable = paidPurchase && paidPurchase.status !== 'refunded' ? (paidPurchase.amount_paid_cents || 0) - (paidPurchase.refunded_cents || 0) : 0;
   const accessLabel = !e ? 'none' : e.access_state !== 'active' ? (e.access_state === 'refunded' ? 'suspended (refunded)' : e.access_state)
     : e.review_state === 'approved' ? (S.accessStatus(cohort, e, new Date()).active ? 'cohort_active' : 'expired') : 'application_only';
   const dash = x => `https://dashboard.stripe.com/${x.livemode === false ? 'test/' : ''}payments/${x.stripe_payment_intent_id}`;
 
   return {
     user_id: userId, email: p.email, name: i && i.first_name ? `${i.first_name} ${i.last_name || ''}`.trim() : (p.display_name || p.email),
-    business: i ? i.business_name : null, photo_url: photo, cohort: { id: cohort.id, name: cohort.name },
+    business: i ? i.business_name : null, photo_url: photo, cohort: { id: cohort.id, name: cohort.name, starts_at: T.zonedToUtc(S.schedule(cohort).start_date, '00:00', cohort.timezone).toISOString() },
     info: i ? { status: i.status, version: i.version, submitted_at: i.submitted_at, missing: i.status === 'submitted' ? [] : intakeMod.missingFields(i),
       policy_version: i.policy_version, early_stage: intakeMod.earlyStage(i), answers: intakeMod.answersOut(i), versions } : null,
     enrollment: e ? { id: e.id, review_state: e.review_state, review_version: e.review_version, access_state: e.access_state, access: accessLabel,
@@ -165,11 +155,6 @@ async function cardFor(sql, cohort, userId, who) {
     ].sort((a, b) => new Date(b.at) - new Date(a.at)),
     activity: { days_started: prog.started, days_completed: prog.completed, last_progress: prog.last, has_intro: !!intro,
       challenges: counts.challenges, questions: counts.questions, events },
-    decision: {
-      allowed: blockers.length === 0, blockers, review_version: e ? e.review_version : null, intake_version: i ? i.version : null,
-      refund_cents: refundable, currency: paidPurchase ? paidPurchase.currency : 'usd', will_refund: !!(paidPurchase && refundable > 0),
-      recipient: p.email,
-    },
   };
 }
 
@@ -186,115 +171,36 @@ routes['POST admin/members/:id/notes'] = can(async ({ sql, req, query, params, a
   return { note: rows[0] };
 }, 'view');
 
-// Rendered decision email, for the confirmation panel.
-async function decisionVars(sql, cohort, userId, memberMessage, refundCents, refundMsg) {
-  const timing = (await C.loadContent(sql)).get('purchase.refund_timing');
-  return { ...(await email.baseVars(sql, cohort, userId)), member_message: memberMessage || '',
-    refund_amount: refunds.money(refundCents), refund_message: refundMsg !== undefined ? refundMsg : refunds.refundMessage(refundCents ? { status: 'pending', amount_cents: refundCents } : null, refundCents, timing) };
-}
-
-routes['POST admin/members/:id/decision-preview'] = can(async ({ sql, req, query, params, admin: who }) => {
-  const cohort = await cohortFor(sql, query);
-  const id = H.uuid(params.id, 'member');
-  const b = H.body(req);
-  const decision = H.oneOf(b.decision, ['approve', 'reject'], 'Decision');
-  const card = await cardFor(sql, cohort, id, who);
-  const key = decision === 'approve' ? 'approval' : 'rejection';
-  const t = await email.loadTemplate(sql, key);
-  const vars = await decisionVars(sql, cohort, id, H.text(b.member_message, { max: 3000, multiline: true, field: 'Message' }), card.decision.refund_cents);
-  return { to: card.decision.recipient, template_body: t.body, subject: email.render(t.subject, vars), body: email.render(b.body || t.body, vars),
-    refund_cents: card.decision.refund_cents, will_refund: card.decision.will_refund };
-}, 'decide');
-
-routes['POST admin/members/:id/decision'] = can(async ({ sql, req, query, params, admin: who }) => {
+// Full refund (pre-start refund requests). Payment enrolls members directly, so
+// this replaces the old "reject and refund". After the cohort begins all sales
+// are final; refunding then needs an explicit policy exception.
+routes['POST admin/members/:id/refund'] = can(async ({ sql, req, query, params, now, admin: who }) => {
   const cohort = await cohortFor(sql, query);
   const userId = H.uuid(params.id, 'member');
   const b = H.body(req);
-  const decision = H.oneOf(b.decision, ['approve', 'reject'], 'Decision');
-  const memberMessage = H.text(b.member_message, { max: 3000, multiline: true, field: 'Message to the member' }) || '';
-  const internal = H.text(b.internal_note, { max: 3000, multiline: true, field: 'Internal note' }) || null;
-  const key = decision === 'approve' ? 'approval' : 'rejection';
-  let bodyOverride = null;
-  if (b.body) {
-    bodyOverride = H.text(b.body, { max: 8000, multiline: true, field: 'Email' });
-    email.validateTemplate(key, 'x', bodyOverride);
-    if (decision === 'reject' && !/{{\s*refund_message\s*}}/.test(bodyOverride)) {
-      throw new HttpError(400, 'invalid_template', 'Keep {{refund_message}} in the rejection email so it states the real refund status.');
-    }
+  const startsAt = T.zonedToUtc(S.schedule(cohort).start_date, '00:00', cohort.timezone);
+  if (now >= startsAt && b.exception !== true) {
+    throw new HttpError(409, 'cohort_started', 'The cohort has begun, so all sales are final. Confirm a policy exception to refund anyway.');
   }
-  if (decision === 'reject' && !memberMessage) throw new HttpError(400, 'invalid_input', 'Write a short explanation for the member.');
-  const reviewVersion = H.int(b.review_version, { min: 0, field: 'review version' });
-  const intakeVersion = H.int(b.intake_version, { min: 0, field: 'submission version' });
-
-  const result = await sql.begin(async tx => {
+  const note = H.text(b.note, { max: 1000, multiline: true, field: 'Note' }) || null;
+  const attempt = await sql.begin(async tx => {
     const e = (await tx`select * from so_enrollments where user_id = ${userId} and cohort_id = ${cohort.id} for update`)[0];
-    if (!e) throw new HttpError(409, 'not_paid', 'This person hasn’t paid, so there’s nothing to decide yet.');
-    if (e.review_state !== 'pending') throw new HttpError(409, 'already_decided', `This enrollment was already ${e.review_state}.`, { review_state: e.review_state });
-    if (e.review_version !== reviewVersion) throw new HttpError(409, 'stale', 'Someone else changed this review. Reload the card.');
-    const i = (await tx`select * from so_intakes where user_id = ${userId} and cohort_id = ${cohort.id}`)[0];
-    if (!i || i.status !== 'submitted') throw new HttpError(409, 'not_submitted', 'The fit check hasn’t been submitted.');
-    if (i.version !== intakeVersion) throw new HttpError(409, 'stale_submission', 'The member updated their fit check. Reload and review the new version.');
-    const p = e.purchase_id ? (await tx`select * from so_purchases where id = ${e.purchase_id} for update`)[0] : null;
-    if (e.source !== 'manual' && !(p && ['paid', 'partially_refunded'].includes(p.status))) {
-      throw new HttpError(409, 'payment_not_confirmed', p && p.status === 'disputed' ? 'This payment is disputed. Resolve it in Stripe first.' : 'Payment isn’t confirmed.');
-    }
-    const state = decision === 'approve' ? 'approved' : 'rejected';
-    await tx`update so_enrollments set review_state = ${state}, review_version = review_version + 1, reviewed_at = now(),
-             reviewed_by = ${who.actor}, review_note = ${internal}, updated_at = now() where id = ${e.id}`;
-    const d = (await tx`insert into so_review_decisions (enrollment_id, decision, intake_version, actor, member_message, internal_note)
-                        values (${e.id}, ${state}, ${i.version}, ${who.actor}, ${memberMessage || null}, ${internal}) returning *`)[0];
-    let attempt = null;
-    if (state === 'rejected' && p) {
-      const amount = (p.amount_paid_cents || 0) - (p.refunded_cents || 0);
-      if (amount > 0) {
-        attempt = (await tx`insert into so_refund_attempts (purchase_id, enrollment_id, amount_cents, currency, status, idempotency_key, actor)
-                            values (${p.id}, ${e.id}, ${amount}, ${p.currency}, 'queued', ${`so-refund-${p.id}-${d.id}`}, ${who.actor}) returning *`)[0];
-      }
-    }
-    await C.audit(tx, who.actor, `enrollment_${state}`, 'enrollment', e.id, { review_state: 'pending', intake_version: i.version },
-      { review_state: state, refund_attempt: attempt ? attempt.id : null });
-    if (state === 'approved') {
-      const vars = await decisionVars(tx, cohort, userId, memberMessage, 0, '');
-      const prof = (await tx`select email from so_profiles where user_id = ${userId}`)[0];
-      await email.enqueue(tx, { key: 'approval', dedupeKey: `decision:${d.id}`, to: prof.email, userId, cohortId: cohort.id, vars, bodyOverride,
-        related: { type: 'decision', id: d.id }, actor: who.actor });
-    }
-    return { enrollment: e, decision: d, attempt };
+    const p = e && e.purchase_id ? (await tx`select * from so_purchases where id = ${e.purchase_id} for update`)[0] : null;
+    if (!p || !['paid', 'partially_refunded'].includes(p.status)) throw new HttpError(409, 'not_refundable', 'There’s no confirmed payment to refund.');
+    const live = (await tx`select 1 from so_refund_attempts where purchase_id = ${p.id} and source = 'review'
+                           and status in ('queued', 'pending', 'succeeded', 'requires_action')`)[0];
+    if (live) throw new HttpError(409, 'already_refunding', 'A refund for this payment is already in progress or complete.');
+    const amount = (p.amount_paid_cents || 0) - (p.refunded_cents || 0);
+    if (amount <= 0) throw new HttpError(409, 'not_refundable', 'Nothing left to refund on this payment.');
+    const a = (await tx`insert into so_refund_attempts (purchase_id, enrollment_id, amount_cents, currency, status, idempotency_key, actor)
+                        values (${p.id}, ${e.id}, ${amount}, ${p.currency}, 'queued', ${`so-refund-${p.id}-${Date.now()}`}, ${who.actor}) returning *`)[0];
+    await tx`update so_refund_requests set status = 'refunded', updated_at = now() where purchase_id = ${p.id} and status = 'open'`;
+    await C.audit(tx, who.actor, 'refund_issued', 'purchase', p.id, null, { amount_cents: amount, exception: now >= startsAt, note });
+    return a;
   });
-
-  // Outside the transaction: provider call, then a status-accurate email.
-  let attempt = result.attempt;
-  if (attempt) attempt = await refunds.executeRefund(sql, attempt.id);
-  if (decision === 'reject') {
-    const prof = (await sql`select email from so_profiles where user_id = ${userId}`)[0];
-    const timing = (await C.loadContent(sql)).get('purchase.refund_timing');
-    const vars = await decisionVars(sql, cohort, userId, memberMessage, attempt ? attempt.amount_cents : 0, refunds.refundMessage(attempt, attempt && attempt.amount_cents, timing));
-    await email.enqueue(sql, { key: 'rejection', dedupeKey: `decision:${result.decision.id}`, to: prof.email, userId, cohortId: cohort.id, vars, bodyOverride,
-      related: { type: 'decision', id: result.decision.id }, actor: who.actor });
-  }
-  const sent = await email.processOutbox(sql, { ids: (await sql`select id from so_email_outbox where dedupe_key = ${`decision:${result.decision.id}`}`).map(r => r.id) });
-  const next = (await memberRows(sql, cohort)).map(rowOut).filter(FILTERS.awaiting).filter(m => m.user_id !== userId)
-    .sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at))[0];
-  return {
-    decision: result.decision.decision,
-    refund: attempt ? { status: attempt.status, amount_cents: attempt.amount_cents, failure_reason: attempt.failure_reason } : null,
-    email: sent[0] ? sent[0].status : 'not_sent',
-    next_user_id: next ? next.user_id : null,
-  };
-}, 'decide');
-
-// Deliberate, audited reopening of an approval (never of a rejection/refund).
-routes['POST admin/members/:id/reopen'] = can(async ({ sql, req, query, params, admin: who }) => {
-  const cohort = await cohortFor(sql, query);
-  const userId = H.uuid(params.id, 'member');
-  const reason = H.text(H.body(req).reason, { max: 1000, required: true, field: 'Reason', multiline: true });
-  const e = (await sql`update so_enrollments set review_state = 'pending', review_version = review_version + 1, updated_at = now()
-                       where user_id = ${userId} and cohort_id = ${cohort.id} and review_state = 'approved' returning *`)[0];
-  if (!e) throw new HttpError(409, 'not_approved', 'Only approved enrollments can be reopened. Rejected, refunded enrollments can’t be reversed here.');
-  await sql`insert into so_review_decisions (enrollment_id, decision, actor, internal_note) values (${e.id}, 'reopened', ${who.actor}, ${reason})`;
-  await C.audit(sql, who.actor, 'enrollment_reopened', 'enrollment', e.id, { review_state: 'approved' }, { review_state: 'pending', reason });
-  return { ok: true };
-}, 'decide');
+  const done = await refunds.executeRefund(sql, attempt.id);
+  return { refund: { status: done.status, amount_cents: done.amount_cents, failure_reason: done.failure_reason } };
+}, 'finance');
 
 routes['POST admin/refunds/:id/retry'] = can(async ({ sql, params, admin: who }) => {
   const id = H.uuid(params.id, 'refund');
@@ -348,6 +254,10 @@ routes['GET admin/home'] = can(async ({ sql, query, now, admin: who }) => {
     const fr = (await sql`select count(*)::int as n from so_refund_attempts ra join so_purchases p on p.id = ra.purchase_id
                           where p.cohort_id = ${cohort.id} and (ra.status = 'failed' or ra.needs_attention)`)[0].n;
     if (fr) add('refund', `${fr} refund${fr === 1 ? '' : 's'} failed or need attention.`, '#sales/refunds', 'high');
+    const rq = (await sql`select count(*)::int as n from so_refund_requests r join so_purchases p on p.id = r.purchase_id
+                          where r.cohort_id = ${cohort.id} and r.status = 'open' and p.status = 'paid'
+                          and not exists (select 1 from so_refund_attempts ra where ra.purchase_id = p.id and ra.status <> 'failed')`)[0].n;
+    if (rq) add('refund_request', `${rq} member${rq === 1 ? ' has' : 's have'} requested a refund from My Account.`, '#settings/questions', 'high');
     const rv = (await sql`select count(*)::int as n from so_purchases where cohort_id = ${cohort.id} and needs_review is not null`)[0].n;
     if (rv) add('payment', `${rv} payment${rv === 1 ? '' : 's'} flagged for review (dispute, capacity or amount).`, '#sales/flagged');
     const wh = (await sql`select count(*)::int as n from so_webhook_events where status = 'failed'`)[0].n;
@@ -595,7 +505,7 @@ routes['POST admin/emails/process'] = can(async ({ sql }) => ({ results: await e
 
 routes['GET admin/email-templates'] = can(async ({ sql }) => {
   const out = [];
-  for (const key of Object.keys(email.DEFAULTS)) {
+  for (const key of Object.keys(email.DEFAULTS).filter(k => !email.RETIRED.has(k))) {
     const t = await email.loadTemplate(sql, key);
     const meta = email.templateMeta(key);
     out.push({ ...meta, subject: t.subject, body: t.body, version: t.version, enabled: t.enabled, customized: t.version > 0 });

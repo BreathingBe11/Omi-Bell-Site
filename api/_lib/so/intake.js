@@ -149,66 +149,32 @@ function intakeOut(i) {
   return { ...rest, early_stage: earlyStage(i), missing: i.status === 'submitted' ? [] : missingFields(i) };
 }
 
+// Simple eligibility confirmation before purchase (replaces the reviewed fit check).
+const ELIGIBILITY_STATEMENT = 'I own a business with customers and revenue, and I’m enrolling for business purposes.';
+
 const routes = {
-  'GET intake': async ({ sql, req }) => {
+  'GET eligibility': async ({ sql, req }) => {
     const user = await requireUser(req);
-    await ensureProfile(sql, user);
-    const cohort = await C.loadCohort(sql);
+    const p = await ensureProfile(sql, user);
     const content = await C.loadContent(sql);
     return {
-      intake: intakeOut(await loadIntake(sql, user.id, cohort.id)),
-      options: OPTIONS, states: US_STATES, outside_us: OUTSIDE_US,
+      confirmed: !!(p.eligibility_confirmed_at && p.terms_accepted_at),
+      name: p.display_name || '',
+      statement: ELIGIBILITY_STATEMENT,
       refund_policy: content.get('purchase.refund_policy'),
-      review_turnaround: cohort.review_turnaround,
     };
   },
-  // body.submit === true submits; otherwise the answers are saved as a draft.
-  'PUT intake': async ({ sql, req }) => {
+  'PUT eligibility': async ({ sql, req }) => {
     const user = await requireUser(req);
     await ensureProfile(sql, user);
-    const cohort = await C.loadCohort(sql);
-    const enrollment = await C.loadEnrollment(sql, user.id, cohort.id);
-    if (enrollment && enrollment.review_state !== 'pending') {
-      throw new HttpError(409, 'locked', 'Your fit check has already been reviewed. Contact support to update it.');
-    }
     const b = H.body(req);
-    const submit = b.submit === true;
-    const v = parseIntake(b, { submit });
-    await H.rateLimit(sql, `intake:${user.id}`, 60, 3600);
-    const content = await C.loadContent(sql);
-    const policy = policyFor(cohort, content);
-
-    const out = await sql.begin(async tx => {
-      const cur = (await tx`select * from so_intakes where user_id = ${user.id} and cohort_id = ${cohort.id} for update`)[0];
-      if (!submit && cur && cur.status === 'submitted') {
-        throw new HttpError(409, 'already_submitted', 'Your fit check is already submitted. Submit again to update it.');
-      }
-      const fields = { ...v, status: submit ? 'submitted' : 'draft', updated_at: new Date() };
-      if (submit) Object.assign(fields, { submitted_at: new Date(), policy_ack_at: new Date(), policy_version: policy.version, policy_text: policy.text });
-      let row;
-      if (!cur) {
-        row = (await tx`insert into so_intakes ${tx({ ...fields, user_id: user.id, cohort_id: cohort.id, version: submit ? 1 : 0 })} returning *`)[0];
-      } else {
-        row = (await tx`update so_intakes set ${tx({ ...fields, version: submit ? cur.version + 1 : cur.version })}
-                        where id = ${cur.id} returning *`)[0];
-      }
-      if (submit) {
-        await tx`insert into so_intake_versions (intake_id, user_id, cohort_id, version, data, policy_version)
-                 values (${row.id}, ${user.id}, ${cohort.id}, ${row.version}, ${tx.json(Object.fromEntries(QUESTIONS.map(([k]) => [k, row[k]]).concat([['no_website', row.no_website]])))}, ${policy.version})
-                 on conflict (intake_id, version) do nothing`;
-      }
-      return row;
-    });
-    if (submit) await sql`update so_profiles set display_name = coalesce(display_name, ${v.first_name}) where user_id = ${user.id}`;
-    // Paid already (e.g. updating while pending): confirm receipt of the new version.
-    if (submit && enrollment) {
-      const email = require('./email');
-      const m = await email.enqueue(sql, { key: 'submission_received', dedupeKey: `submission:${out.id}:v${out.version}`, to: user.email, userId: user.id,
-        cohortId: cohort.id, vars: await email.baseVars(sql, cohort, user.id), related: { type: 'intake', id: out.id }, actor: 'member' });
-      if (m) await email.processOutbox(sql, { ids: [m.id] });
-    }
-    return { intake: intakeOut(out) };
+    const name = H.text(b.name, { max: 80, required: true, field: 'Your name' });
+    if (b.eligible !== true) throw new HttpError(400, 'invalid_input', 'Please confirm you own a business with customers and revenue.');
+    if (b.terms !== true) throw new HttpError(400, 'invalid_input', 'Please agree to the Terms, Privacy Policy and refund policy.');
+    await sql`update so_profiles set display_name = ${name}, eligibility_confirmed_at = coalesce(eligibility_confirmed_at, now()),
+              terms_accepted_at = now(), updated_at = now() where user_id = ${user.id}`;
+    return { confirmed: true, name };
   },
 };
 
-module.exports = { routes, OPTIONS, US_STATES, OUTSIDE_US, QUESTIONS, label, earlyStage, missingFields, answersOut, loadIntake, parseIntake };
+module.exports = { ELIGIBILITY_STATEMENT, routes, OPTIONS, US_STATES, OUTSIDE_US, QUESTIONS, label, earlyStage, missingFields, answersOut, loadIntake, parseIntake };

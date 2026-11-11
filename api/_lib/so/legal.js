@@ -8,7 +8,7 @@
 //
 // Format: "## " starts a heading, "- " starts a bullet, blank lines separate paragraphs.
 
-const UPDATED = 'November 10, 2026';
+const UPDATED = 'November 11, 2026';
 const CONTACT = `Omi Bell
 3126 S. Sepulveda Blvd., #1226
 Los Angeles, CA 90034
@@ -16,36 +16,37 @@ hello@omisworld.com`;
 
 const TERMS = `Last updated: ${UPDATED}
 
-These Terms of Purchase and Use ("Terms") apply to Smooth Operators, a live, guided 21-day business operations cohort hosted by Omi Bell ("we," "us," "our"), and to the Smooth Operators website and member area at omibell.com/smoothoperators (together, the "Program"). By creating an account, submitting a fit check, or paying for the Program, you agree to these Terms. If you don't agree, please don't enroll.
+These Terms of Purchase and Use ("Terms") apply to Smooth Operators, a live, guided 21-day business operations cohort hosted by Omi Bell ("we," "us," "our"), and to the Smooth Operators website and member area at omibell.com/smoothoperators (together, the "Program"). By creating an account or paying for the Program, you agree to these Terms. If you don't agree, please don't enroll.
 
 ## 1. Who can enroll
 - You must be at least 18 years old and able to enter into a binding agreement.
-- The Program is designed for founders and business owners. You're enrolling for business purposes.
+- The Program is designed for business owners with customers and revenue. Before you pay, you confirm that this describes you and that you're enrolling for business purposes.
 - Your account is for you alone. Don't share your sign-in or give anyone else access to the member area.
 
 ## 2. What the Program is
-Smooth Operators is a live cohort: everyone follows the same 21-day calendar, which starts on the date shown at checkout. It includes daily business reflections and practical actions, templates, guided breathwork and meditation practices, live Solutions Seat group calls, and a private journal. We may adjust the schedule, content, or call times when reasonably necessary; if we make a significant change, we'll tell you.
+Smooth Operators is a live cohort: everyone follows the same 21-day calendar, January 4–24, 2027 (Pacific time). Every day, including weekends, a new Guided Audio (breathwork, meditation, or sound healing), Leadership Journal Prompt, and Business Action Toolkit resource unlock in the member platform. The Program also includes three live Solutions Seat group coaching calls led by Omi Bell, a private journal, and a support area where you can submit questions to Omi. We may adjust the schedule, content, or call times when reasonably necessary; if we make a significant change, we'll tell you.
 
-Solutions Seat calls are group sessions. Members bring operational challenges and the group thinks them through together. Individual time depends on attendance, and we can't guarantee that any particular challenge will be discussed.
+Solutions Seat calls are group coaching sessions. A participant brings a business challenge, the group contributes ideas and experience, and Omi guides the conversation toward practical next steps. We can't guarantee that every participant will bring their own challenge to a call or that any particular challenge will be discussed.
 
-## 3. Enrollment review
-Every enrollment is reviewed. You'll complete a fit check before you pay, and after you pay our team reviews it to make sure the Program is the right match for where your business is. We'll let you know our decision within the review timeframe shown at checkout. Until you're approved, you'll have access to your enrollment status, receipt, and support, but not to Program content.
+During the 21-day cohort, Omi responds to questions submitted in the support area within 24 hours, Monday through Friday. Questions submitted over the weekend receive a response by the end of Monday. The support area isn't instant messaging or continuous live support.
+
+## 3. Enrollment
+When your payment succeeds, you're enrolled and your access to the member platform begins. There is no separate application or approval step.
 
 ## 4. Price and payment
 The price is shown at checkout in U.S. dollars and is charged as a one-time payment. Introductory pricing, if offered, applies only to checkouts started before the stated deadline. Payments are processed by Stripe; we don't receive or store your full card details. Any applicable taxes are shown at checkout.
 
 ## 5. Refunds
-- If we decide the Program isn't the right fit for you, we'll refund your payment in full.
-- If you ask to cancel before you're approved and before the Program's start date, we'll refund your payment in full. Email hello@omisworld.com to cancel.
-- Once you're approved, or once the Program has started, your payment is non-refundable. This applies even if you don't attend live calls, don't complete the daily work, or stop using the Program.
+- You may request a full refund before the cohort begins on January 4, 2027 (12:00 a.m. Pacific time). To request a refund before the start date, email hello@omisworld.com or use the request in your account.
+- Once the cohort begins on January 4, all sales are final and no refunds are available. This applies even if you don't attend live calls, don't complete the daily work, or stop using the Program.
 - Refunds are made to your original payment method. How quickly they appear depends on your bank.
 - If you have a concern about a charge, please contact us first so we can help.
 
 ## 6. Your access
-Once approved, you can use the member area for the access period described at checkout and in your account. We may suspend or end access, without a refund, if you break these Terms, misuse the Program, or treat other members or our team abusively.
+You receive 12 months of access to program materials and call recordings, from January 4, 2027 through January 3, 2028 (Pacific time). Daily guided programming runs January 4–24, 2027, and direct Q&A support from Omi is available during the 21-day cohort, Monday through Friday. We may suspend or end access, without a refund, if you break these Terms, misuse the Program, or treat other members or our team abusively.
 
 ## 7. Live calls and recordings
-Live calls may be recorded. If a session is recorded, we'll say so at the start, and recordings are available only to enrolled members. Please don't record, screenshot, or share calls or other members' contributions yourself.
+Live calls are recorded, and recordings are available inside the member platform to enrolled members for the access period. Please don't record, screenshot, or share calls or other members' contributions yourself.
 
 ## 8. Community and confidentiality
 - Be respectful. No harassment, discrimination, spam, or selling to other members without their permission.
@@ -61,7 +62,7 @@ The lessons, templates, recordings, practices, and other materials are owned by 
 ## 11. Important disclaimers
 - No guaranteed results. The Program provides education, structure, and guidance. We don't guarantee revenue, growth, hiring, or any particular business outcome. Your results depend on your business and your work.
 - Not legal, tax, financial, or medical advice. Agreement checklists and contract-related templates are business tools and drafts. Have contracts reviewed by a qualified attorney.
-- Breathwork and meditation. The guided practices are optional and are not medical or mental health treatment. If you're pregnant or have a heart, respiratory, seizure, or other medical or mental health condition, check with your doctor before trying breathwork. Stop any practice if you feel dizzy, lightheaded, or unwell. Never practice while driving or in water.
+- Breathwork, meditation, and sound healing. The guided practices are optional and are not medical or mental health treatment. If you're pregnant or have a heart, respiratory, seizure, or other medical or mental health condition, check with your doctor before trying breathwork. Stop any practice if you feel dizzy, lightheaded, or unwell. Never practice while driving or in water.
 
 ## 12. Limitation of liability
 To the fullest extent the law allows, the Program is provided "as is," and our total liability for any claim related to the Program is limited to the amount you paid for it. We aren't liable for indirect, incidental, or consequential damages, including lost profits.
@@ -84,7 +85,7 @@ We do not sell your personal information, and we do not share it for cross-conte
 
 ## What we collect
 - Account information: your email address. If you choose "Continue with Google," we receive your name, email address, and profile photo from Google.
-- Fit check: the answers you give before enrolling, which may include your name, phone number, business name, website, business address, stage of business, revenue range, years in business, team size, and your questions about operations.
+- Enrollment details: your name, your confirmation that you own a business with customers and revenue, and when you accepted these policies. You can also add a profile photo.
 - Payment: Stripe processes your payment. We receive confirmation of the payment, the amount, and a receipt link. We never receive or store your full card number.
 - Program activity: days you complete, practices you play, templates you open, and similar activity, so the Program works and we can see how the cohort is progressing.
 - Your journal: reflections you write are private to you. We store them to show them back to you; our team does not read them through the Program.
@@ -93,7 +94,7 @@ We do not sell your personal information, and we do not share it for cross-conte
 
 ## How we use it
 - To create and secure your account and let you sign in.
-- To review your enrollment, process payment, and send transactional emails such as receipts, decisions, and replies to your questions.
+- To enroll you, process payment, and send transactional emails such as receipts, confirmations, and replies to your questions.
 - To deliver the Program: your daily content, journal, calls, and resources.
 - To support you and improve the Program.
 - To send optional reminders, only if you opt in. You can change this in your account at any time.
@@ -101,7 +102,7 @@ We do not sell your personal information, and we do not share it for cross-conte
 
 ## Who can see what
 - Your journal is visible only to you.
-- Your fit check, payment status, and support messages are visible only to you and our authorized team.
+- Your enrollment details, payment status, and support messages are visible only to you and our authorized team.
 - Your introduction is visible to members of your cohort and our team.
 - Solutions Seat challenges are visible to Omi and our team, and are discussed with the group only if you give permission.
 
@@ -122,7 +123,7 @@ If you sign in with Google, we use your name, email address, and profile photo o
 We don't use advertising or analytics cookies. Your browser stores a small amount of information to keep you signed in and to protect writing you haven't saved yet. Google (if you use Google sign-in) and Stripe (on its checkout page) may set their own cookies to provide their services.
 
 ## How long we keep information
-We keep account and Program information while your account is active. We keep payment and tax records as long as the law requires. If you complete a fit check but don't enroll, we keep it for up to 24 months unless you ask us to delete it sooner. You can ask us to delete your account and data at any time, subject to records we're legally required to keep.
+We keep account and Program information while your account is active. We keep payment and tax records as long as the law requires. You can ask us to delete your account and data at any time, subject to records we're legally required to keep.
 
 ## Security
 We protect your information with encrypted connections, restricted access for our team, and providers with strong security practices. Files are stored privately and shared only through short-lived links. No system is perfectly secure, so please keep your email account secure, since it's how you sign in.

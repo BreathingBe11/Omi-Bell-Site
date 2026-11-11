@@ -1,5 +1,5 @@
 'use strict';
-// Refunds for rejected enrollments.
+// Full refunds issued by an admin (pre-start refund requests).
 //
 // A refund attempt row is created in the same transaction as the rejection
 // (one live attempt per purchase is enforced by a unique index). The Stripe

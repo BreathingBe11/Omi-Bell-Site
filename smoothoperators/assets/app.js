@@ -100,7 +100,7 @@
     [/^\/app\/resource\/([0-9a-f-]{36})$/, viewResource, { shell: true, nav: '/app/library' }],
     [/^\/app\/introductions$/, viewIntroductions, { shell: true, nav: null }],
     [/^\/app\/introductions\/edit$/, viewIntroEdit, { shell: true, nav: null }],
-    [/^\/app\/account$/, viewAccount, { shell: true, nav: null, limitedOk: true }],
+    [/^\/app\/account$/, viewAccount, { shell: true, nav: '/app/account', limitedOk: true }],
     [/^\/app\/status$/, viewStatus, { shell: 'limited' }],
     [/^\/app\/help$/, viewHelp, { shell: true, nav: '/app/calls-help', limitedOk: true }],
     [/^\/app\/help\/([0-9a-f-]{36})$/, viewThread, { shell: true, nav: '/app/calls-help', limitedOk: true }],
@@ -151,6 +151,7 @@
     const params = m.slice(1);
     const query = Object.fromEntries(new URLSearchParams(location.search));
     let container;
+    let spinnerTimer = null;
     if (opts.shell) {
       const mode = await ensureMember(path, opts);
       if (!mode || id !== state.renderId) return;
@@ -160,7 +161,16 @@
         wireSignout(root);
       } else renderShell(opts.nav);
       container = q('#main');
-      container.innerHTML = '<p class="loading" role="status"><span class="spinner" aria-hidden="true"></span> Loading…</p>';
+      // Keep the previous page on screen, softly faded, while the next one loads;
+      // only show a spinner if loading takes a noticeable moment.
+      if (container.children.length && !container.querySelector(':scope > .loading')) {
+        container.classList.remove('page-enter');
+        container.classList.add('is-leaving');
+        container.setAttribute('aria-busy', 'true');
+        spinnerTimer = setTimeout(() => {
+          if (id === state.renderId) container.innerHTML = '<p class="loading" role="status"><span class="spinner" aria-hidden="true"></span> Loading…</p>';
+        }, 450);
+      } else container.innerHTML = '<p class="loading" role="status"><span class="spinner" aria-hidden="true"></span> Loading…</p>';
     } else {
       state.shell = false;
       root.innerHTML = publicFrame();
@@ -168,7 +178,7 @@
     }
     try {
       const title = await fn(container, params, query, { isCurrent: () => id === state.renderId });
-      if (id !== state.renderId) return;
+      if (id !== state.renderId) { clearTimeout(spinnerTimer); return; }
       setTitle(title);
     } catch (err) {
       if (id !== state.renderId) return;
@@ -177,6 +187,11 @@
       wireRetry(container);
       setTitle('Something went wrong');
     }
+    clearTimeout(spinnerTimer);
+    container.classList.remove('is-leaving', 'page-enter');
+    container.removeAttribute('aria-busy');
+    void container.offsetWidth; // restart the entrance animation
+    container.classList.add('page-enter');
     const y = restoreScroll && history.state && typeof history.state.scroll === 'number' ? history.state.scroll : 0;
     window.scrollTo(0, y);
     if (!restoreScroll) focusMain();
@@ -188,7 +203,7 @@
     const cur = relPath();
     const a = (p, l) => `<a href="${B}${p}"${cur === p ? ' aria-current="page"' : ''}>${l}</a>`;
     return `<header class="pub-header"><a class="wordmark" href="${B}">Smooth Operators</a>
-<nav aria-label="Account" class="limited-nav">${a('/app/status', 'My enrollment')}${a('/app/help', 'Help')}${a('/app/account', 'Account')}<button class="linklike" data-signout>Sign out</button></nav></header>
+<nav aria-label="Account" class="limited-nav">${a('/app/status', 'My enrollment')}${a('/app/help', 'Help')}<a class="nav-account" href="${B}/app/account"${cur === '/app/account' ? ' aria-current="page"' : ''}><span data-avatar="sm">${avatarHtml('sm')}</span><span>My Account</span></a></nav></header>
 <main id="main" class="main" tabindex="-1"></main>`;
   }
 
@@ -261,12 +276,25 @@
     }));
   }
 
+  function initials() {
+    const me = state.me || {};
+    const src = (me.display_name || '').trim() || (me.email || '').split('@')[0] || '';
+    const parts = src.split(/[\s._-]+/).filter(Boolean);
+    return ((parts[0] || '?')[0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+  }
+  function avatarHtml(size = 'sm') {
+    const url = state.me && state.me.avatar_url;
+    return `<span class="avatar avatar-${size}" aria-hidden="true">${url ? `<img src="${esc(url)}" alt="">` : `<span>${esc(initials())}</span>`}</span>`;
+  }
+  function refreshAvatars() {
+    qa('[data-avatar]').forEach(el => { el.innerHTML = avatarHtml(el.dataset.avatar); });
+  }
+
   function navHtml(active, idPrefix) {
     const items = NAV.map(([p, label]) => `<li><a href="${B}${p}"${p === active ? ' aria-current="page"' : ''}>${label}</a></li>`).join('');
     return `<ul class="nav-list" id="${idPrefix}-nav">${items}</ul>
 <ul class="nav-list nav-secondary">
-  <li><a href="${B}/app/account">Account</a></li>
-  <li><button class="linklike" style="min-height:42px;padding:0 .9rem" data-signout>Sign out</button></li>
+  <li><a class="nav-account" href="${B}/app/account"${active === '/app/account' ? ' aria-current="page"' : ''}><span data-avatar="sm">${avatarHtml('sm')}</span><span>My Account</span></a></li>
 </ul>`;
   }
 
@@ -279,9 +307,10 @@
     <button class="menu-btn" type="button" aria-expanded="false" aria-controls="drawer" id="menu-btn"><span class="menu-icon" aria-hidden="true"></span>Menu</button>
     <p class="topbar-title" id="topbar-title" aria-hidden="true"></p>
     <a class="call-chip" id="call-chip" hidden></a>
+    <a class="topbar-avatar" href="${B}/app/account" aria-label="My Account"><span data-avatar="sm">${avatarHtml('sm')}</span></a>
   </header>
   <nav class="sidebar" aria-label="Main">
-    <a class="wordmark" href="${B}/app">Smooth Operators</a>
+    <a class="wordmark" href="${B}/app">Smooth Operators<span class="wordmark-by">with Omi Bell</span></a>
     <div id="side-nav-wrap">${navHtml(active, 'side')}</div>
     <div class="sidebar-call" id="side-call"></div>
   </nav>
@@ -530,11 +559,17 @@
       ? `<p class="small muted">Introductory price. Regular enrollment: ${SO.money(p.regular_cents)}. Ends ${esc(SO.fmtDateTime(p.cutoff_at, o.cohort.timezone, { weekday: false }))} (${esc(o.cohort.timezone)}).</p>` : '';
     return `<div class="card stack">
   <p class="eyebrow" style="margin:0">Smooth Operators · Live 21-day cohort</p>
-  <p style="margin:0"><span style="font-family:var(--serif);font-size:2.4rem;color:var(--plum-900);font-weight:600">${SO.money(p.amount_cents)}</span> <span class="muted">USD · one-time payment</span></p>
+  <p style="margin:0"><span style="font-family:var(--serif);font-size:2.4rem;color:var(--ink);font-weight:600">${SO.money(p.amount_cents)}</span> <span class="muted">USD · one-time payment</span></p>
   ${intro}
   <p style="margin:0">${esc(SO.fmtCohortDate(o.cohort.start_date, { weekday: undefined }))} – ${esc(SO.fmtCohortDate(o.cohort.end_date, { weekday: undefined }))} · Hosted by Omi Bell · Everyone follows the same calendar.</p>
+  <ul class="offer-points">
+    <li>New Guided Audio, Leadership Journal Prompt and Business Action Toolkit resource every day, January 4–24, 2027</li>
+    <li>Three live Solutions Seat group coaching calls with Omi: Wednesdays, January 6, 13 and 20, 1–2 p.m. PST</li>
+    <li>Direct Q&amp;A with Omi in the platform during the cohort (replies within 24 hours, Monday–Friday)</li>
+    <li>12 months of access to program materials and call recordings</li>
+  </ul>
   ${o.disclosure.access_terms ? `<p class="small" style="margin:0">${esc(o.disclosure.access_terms)}</p>` : ''}
-  ${o.disclosure.refund_policy ? `<p class="small" style="margin:0">${esc(o.disclosure.refund_policy)}</p>` : ''}
+  ${o.disclosure.refund_policy ? `<p class="small" style="margin:0"><strong>Refunds:</strong> ${esc(o.disclosure.refund_policy)}</p>` : ''}
   ${o.disclosure.tax_treatment ? `<p class="small" style="margin:0">${esc(o.disclosure.tax_treatment)}</p>` : ''}
   ${o.disclosure.extra ? `<p class="small" style="margin:0">${esc(o.disclosure.extra)}</p>` : ''}
   ${o.disclosure.terms_published || o.disclosure.privacy_published ? `<p class="small muted" style="margin:0">By continuing you agree to the ${o.disclosure.terms_published ? `<a href="${B}/terms" data-external>Terms</a>` : ''}${o.disclosure.terms_published && o.disclosure.privacy_published ? ' and ' : ''}${o.disclosure.privacy_published ? `<a href="${B}/privacy" data-external>Privacy Policy</a>` : ''}.</p>` : ''}
@@ -565,16 +600,15 @@
       loginForm(q('#login', step), { next: '/checkout', heading: false, intro: 'We’ll send a one-time code to confirm it’s you. Your enrollment and cohort access will belong to this email.' });
       return 'Join';
     }
-    const fit = await SO.api('GET', 'intake');
-    if (!fit.intake || fit.intake.status !== 'submitted' || query.edit === 'fit') {
-      fitCheckForm(step, fit, me);
+    const el = await SO.api('GET', 'eligibility');
+    if (!el.confirmed || query.edit === 'details') {
+      eligibilityForm(step, el, me, offer);
       return 'Join';
     }
     step.innerHTML = `<p>Signed in as <strong>${esc(me.email)}</strong>. <button class="linklike" data-signout>Not you?</button></p>
-<div class="notice notice-success"><p><strong>Fit check complete.</strong> Thanks, ${esc(fit.intake.first_name)}. <a href="${B}/checkout?edit=fit">Review my answers</a></p></div>
-${fit.intake.early_stage ? '<div class="notice notice-warn"><p>Smooth Operators is built for founders who already have customers and revenue. You’re welcome to join; just know it may be early for where your business is today.</p></div>' : ''}
+<div class="notice notice-success"><p><strong>You’re all set, ${esc((el.name || '').split(' ')[0] || 'friend')}.</strong> <a href="${B}/checkout?edit=details">Edit my details</a></p></div>
 <button class="btn btn-primary btn-lg btn-block" id="pay-btn">Continue to secure payment — ${SO.money(offer.price.amount_cents)}</button>
-<p class="small muted">You’ll finish on Stripe’s secure checkout page. Your receipt comes from Stripe.</p>
+<p class="small muted">You’ll finish on Stripe’s secure checkout page. As soon as your payment goes through, you’re enrolled and your platform opens. Your receipt comes from Stripe.</p>
 <div id="pay-msg" role="status" aria-live="polite"></div>`;
     wireSignout(step);
     const btn = q('#pay-btn', step), msg = q('#pay-msg', step);
@@ -589,10 +623,10 @@ ${fit.intake.early_stage ? '<div class="notice notice-warn"><p>Smooth Operators 
           already_enrolled: `You’re already enrolled. <a href="${B}/app">Open My Cohort</a>.`,
           pending: 'We’re confirming your enrollment. You won’t need to pay again. Check back in a few minutes.',
           full: 'All seats are full.',
-          intake_required: `Please complete the fit check first. <a href="${B}/checkout">Continue</a>`,
+          eligibility_required: `Please confirm your details first. <a href="${B}/checkout">Continue</a>`,
           enrollment_closed: 'Enrollment for this cohort has closed.',
           unavailable: 'Enrollment isn’t open right now.',
-          contact_support: `Your account needs a quick review before checkout. ${supportLine(offer.support_email)}`,
+          contact_support: `Your account needs a quick look from our team before checkout. ${supportLine(offer.support_email)}`,
         }[r.state] || 'Checkout is unavailable right now.';
         msg.innerHTML = `<div class="notice">${text}</div>`;
         btn.hidden = true;
@@ -605,95 +639,32 @@ ${fit.intake.early_stage ? '<div class="notice notice-warn"><p>Smooth Operators 
     return 'Join';
   }
 
-  // Fit check: mostly buttons, one open question. Required before payment.
-  function fitCheckForm(step, fit, me) {
-    const v = fit.intake || {};
-    const radios = (name, legend, opts, cur) => `<div class="field"><label for="${name}">${legend}</label>
-<select id="${name}" name="${name}" required><option value="">Choose one…</option>${opts.map(([val, lab]) => `<option value="${esc(String(val))}"${String(cur) === String(val) ? ' selected' : ''}>${esc(lab)}</option>`).join('')}</select></div>`;
-    const yn = (name, legend, cur) => radios(name, legend, [['yes', 'Yes'], ['no', 'No']], cur === true ? 'yes' : cur === false ? 'no' : '');
-    const input = (id, label, val, attrs = '') => `<div class="field"><label for="${id}">${label}</label><input id="${id}" name="${id}" value="${esc(val || '')}" ${attrs}></div>`;
-    const isOutside = v.state === fit.outside_us;
-    step.innerHTML = `<h2 style="font-size:1.6rem">Fit check</h2>
-<p>Smooth Operators is a cohort, so we want everyone in the room at a similar stage. These answers are private: only Omi and the admin team see them. Most questions are a quick dropdown choice.</p>
-<form id="fit" class="card" novalidate>
-  <h3 style="font-size:1.25rem">About you</h3>
-  <div class="grid-2">${input('first_name', 'First name', v.first_name, 'autocomplete="given-name" required maxlength="80"')}${input('last_name', 'Last name', v.last_name, 'autocomplete="family-name" required maxlength="80"')}</div>
-  ${input('phone', 'Phone number', v.phone, 'type="tel" autocomplete="tel" required maxlength="30"')}
-  <h3 style="font-size:1.25rem">Your business</h3>
-  ${input('business_name', 'Business name', v.business_name, 'autocomplete="organization" required maxlength="160"')}
-  ${input('website_url', 'Website', v.website_url, 'type="url" placeholder="https://" maxlength="300"')}
-  <label class="check" style="margin-top:-.6rem"><input type="checkbox" id="no_website"${v.no_website ? ' checked' : ''}><span>I don’t have a website yet</span></label>
-  <h3 style="font-size:1.25rem">Business address</h3>
-  ${input('address_line1', 'Street address', v.address_line1, 'autocomplete="address-line1" required maxlength="200"')}
-  ${input('address_line2', 'Apartment, suite, etc. <span class="muted small">(optional)</span>', v.address_line2, 'autocomplete="address-line2" maxlength="200"')}
-  <div class="grid-3">
-    ${input('city', 'City', v.city, 'autocomplete="address-level2" required maxlength="120"')}
-    <div class="field"><label for="state">State</label><select id="state" name="state" required autocomplete="address-level1"><option value="">Choose…</option>
-      ${fit.states.map(s => `<option${v.state === s ? ' selected' : ''}>${s}</option>`).join('')}<option value="${fit.outside_us}"${isOutside ? ' selected' : ''}>Outside the US</option></select></div>
-    ${input('postal_code', 'ZIP code', v.postal_code, 'autocomplete="postal-code" required maxlength="12" inputmode="numeric"')}
-  </div>
-  <div id="country-wrap"${isOutside ? '' : ' hidden'}>${input('country', 'Country', v.country && v.country !== 'United States' ? v.country : '', 'autocomplete="country-name" maxlength="80"')}</div>
-  <h3 style="font-size:1.25rem">Where you are in business</h3>
-  ${radios('business_stage', 'Stage of business', fit.options.business_stage, v.business_stage)}
-  ${radios('revenue_to_date', 'Revenue generated so far (total, since you started)', fit.options.revenue_to_date, v.revenue_to_date)}
-  ${radios('years_in_business', 'How long have you been in business?', fit.options.years_in_business, v.years_in_business)}
-  ${yn('prior_ops_work', 'Have you done any operations work before (SOPs, workflows, role descriptions, scorecards)?', v.prior_ops_work)}
-  ${yn('has_full_time_staff', 'Do you have full-time staff?', v.has_full_time_staff)}
-  ${radios('team_size', 'How many people are on your team? Count full-time staff and contractors, not including you.', fit.options.team_size, v.team_size)}
-  <div class="field"><label for="ops_questions">What are your most pressing questions about operations?</label>
-  <textarea id="ops_questions" name="ops_questions" maxlength="3000" required>${esc(v.ops_questions || '')}</textarea></div>
-  <div class="notice"><p><strong>How review works.</strong> ${esc(fit.refund_policy || '')} We review ${esc(fit.review_turnaround || '')}.</p>
-  <label class="check"><input type="checkbox" id="policy_ack"><span>I understand the review and refund policy above, and I agree to the <a href="${B}/terms" target="_blank" rel="noopener">Terms</a> and <a href="${B}/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span></label></div>
-  <p class="form-error" id="fit-err" role="alert"></p>
-  <button class="btn btn-primary btn-lg btn-block" type="submit">Save and continue to payment</button>
-  <p style="text-align:center;margin-top:.75rem"><button class="linklike" type="button" id="save-draft">Save my answers and finish later</button></p>
-  <p id="draft-msg" class="small muted" role="status" style="text-align:center"></p>
+  // Simple eligibility confirmation before purchase.
+  function eligibilityForm(step, el, me, offer) {
+    step.innerHTML = `<h2 style="font-size:1.6rem">Before you pay</h2>
+<form id="elig" class="card" novalidate>
+  <p style="margin-top:0">Signed in as <strong>${esc(me.email)}</strong>. <button class="linklike" type="button" data-signout>Not you?</button></p>
+  <div class="field"><label for="e-name">Your name</label><input id="e-name" type="text" autocomplete="name" maxlength="80" required value="${esc(el.name || '')}"></div>
+  <label class="check"><input type="checkbox" id="e-ok"><span>${esc(el.statement)}</span></label>
+  <div class="notice" style="margin-top:1rem"><p><strong>Refund policy.</strong> ${esc(el.refund_policy || '')}</p></div>
+  <label class="check"><input type="checkbox" id="e-terms"><span>I agree to the <a href="${B}/terms" target="_blank" rel="noopener">Terms</a>, the <a href="${B}/privacy" target="_blank" rel="noopener">Privacy Policy</a>, and the refund policy above.</span></label>
+  <p class="form-error" id="e-err" role="alert"></p>
+  <button class="btn btn-primary btn-lg btn-block" type="submit">Continue</button>
 </form>`;
-    const form = q('#fit', step);
-    const stateSel = q('#state', form);
-    const syncState = () => {
-      const out = stateSel.value === fit.outside_us;
-      q('#country-wrap', form).hidden = !out;
-      q('label[for=postal_code]', form).textContent = out ? 'Postal code' : 'ZIP code';
-    };
-    stateSel.addEventListener('change', syncState); syncState();
-    const noWeb = q('#no_website', form), web = q('#website_url', form);
-    const syncWeb = () => { web.disabled = noWeb.checked; if (noWeb.checked) web.value = ''; };
-    noWeb.addEventListener('change', syncWeb); syncWeb();
-    const collect = () => {
-      const radio = n => { const el = form.querySelector(`[name="${n}"]`); return el && el.value ? el.value : null; };
-      let site = web.value.trim();
-      if (site && !/^https?:\/\//i.test(site)) site = `https://${site}`;
-      const payload = {
-        first_name: form.first_name.value, last_name: form.last_name.value, phone: form.phone.value,
-        business_name: form.business_name.value, website_url: site, no_website: noWeb.checked,
-        address_line1: form.address_line1.value, address_line2: form.address_line2.value, city: form.city.value,
-        state: stateSel.value, postal_code: form.postal_code.value, country: form.country.value,
-        business_stage: radio('business_stage'), revenue_to_date: radio('revenue_to_date'), years_in_business: radio('years_in_business'),
-        prior_ops_work: radio('prior_ops_work'), has_full_time_staff: radio('has_full_time_staff'), team_size: radio('team_size'),
-        ops_questions: form.ops_questions.value, policy_ack: q('#policy_ack', form).checked,
-      };
-      return payload;
-    };
-    q('#save-draft', form).addEventListener('click', async () => {
-      const msg = q('#draft-msg', form);
-      try { await SO.api('PUT', 'intake', { ...collect(), submit: false }); msg.textContent = 'Saved. Come back any time to finish; we won’t review it until you submit.'; }
-      catch (ex) { msg.textContent = ex.message; }
-    });
+    wireSignout(step);
+    const form = q('#elig', step);
     form.addEventListener('submit', async e => {
       e.preventDefault();
-      const err = q('#fit-err', form);
-      const payload = { ...collect(), submit: true };
-      const btn = q('button[type=submit]', form);
-      btn.disabled = true;
+      const err = q('#e-err', form);
+      const name = q('#e-name', form).value.trim();
+      if (!name) { err.textContent = 'Add your name.'; q('#e-name', form).focus(); return; }
+      if (!q('#e-ok', form).checked) { err.textContent = 'Please confirm you own a business with customers and revenue.'; return; }
+      if (!q('#e-terms', form).checked) { err.textContent = 'Please agree to the Terms, Privacy Policy and refund policy.'; return; }
       try {
-        await SO.api('PUT', 'intake', payload);
+        await SO.api('PUT', 'eligibility', { name, eligible: true, terms: true });
+        if (state.me) state.me.display_name = name;
         navigate(`${B}/checkout`, { replace: true });
-      } catch (ex) {
-        err.textContent = ex.message;
-        btn.disabled = false;
-        err.scrollIntoView({ block: 'center' });
-      }
+      } catch (ex) { err.textContent = ex.message; }
     });
   }
 
@@ -731,9 +702,9 @@ ${fit.intake.early_stage ? '<div class="notice notice-warn"><p>Smooth Operators 
       }
       if (r.state === 'confirmed') {
         state.me = null;
-        show(`<h1>Payment confirmed</h1><p>Thank you. Your receipt is on its way from Stripe.</p>
-<p><strong>Your enrollment is under review.</strong> We’ll email you as soon as there’s a decision. If it isn’t the right fit, you’ll be refunded in full.</p>
-<a class="btn btn-primary" href="${B}/app/status" id="open-cohort">See my enrollment status</a>`);
+        show(`<h1>You’re in.</h1><p>Your payment is confirmed and your seat in Smooth Operators is yours. Your receipt is on its way from Stripe.</p>
+<p>Daily guided programming runs January 4–24, 2027. Your platform is open now, so you can look around, add a profile photo, and save the live call dates.</p>
+<a class="btn btn-primary" href="${B}/app" id="open-cohort">Open My Cohort</a>`);
         q('#open-cohort', box).focus();
         return;
       }
@@ -807,8 +778,9 @@ ${fit.intake.early_stage ? '<div class="notice notice-warn"><p>Smooth Operators 
   ${countdownHtml(c.starts_at)}
   <p class="abs-date">Begins ${esc(startLocal)} <span class="small">(cohort time, ${esc(c.timezone)})</span></p>
   <p class="sr-only">The cohort begins ${esc(startLocal)}.</p>
-  <p>Your 21-day experience begins ${esc(startDay)}. Your daily guidance, practices, and tools will appear here when we begin.</p>
+  <p>Your 21-day experience begins ${esc(startDay)}. From then, a new Guided Audio, Leadership Journal Prompt, and Business Action Toolkit resource unlock here every day, including weekends.</p>
   ${reviewNote(home.review_state)}
+  ${gettingReady(home)}
   ${intro}
   ${nextCallBanner(home.next_call)}
   <p>${link('/app/calendar', 'Preview the 21 days')}</p>
@@ -825,12 +797,12 @@ ${fit.intake.early_stage ? '<div class="notice notice-warn"><p>Smooth Operators 
   <p class="promise">The live 21 days are over. Your work, reflections, and tools are still here.</p>
   ${announcementsHtml(home.announcements)}
   <p>${home.completed_count ? `You marked ${home.completed_count} ${home.completed_count === 1 ? 'day' : 'days'} complete.` : ''} Any day you haven’t finished is still open whenever you’re ready.</p>
-  ${home.access && home.access.ends_at ? `<p class="notice">Your access continues through ${esc(SO.fmtDateTime(home.access.ends_at, c.timezone, { weekday: false }))}.</p>` : ''}
+  ${home.access && home.access.ends_at ? `<p class="notice">Your access to program materials and call recordings continues through ${esc(accessLastDay(home))}.</p>` : ''}
   <ul class="link-list">
     <li><a href="${B}/app/calendar">The full 21-day calendar<small>Revisit any day and its action.</small></a></li>
     <li><a href="${B}/app/journal">My Journal<small>Every reflection you saved.</small></a></li>
-    <li><a href="${B}/app/library">Templates<small>The tools behind your operating foundation.</small></a></li>
-    <li><a href="${B}/app/library?tab=practices">Breathwork & Meditation<small>Return to the practices.</small></a></li>
+    <li><a href="${B}/app/library">Business Action Toolkit<small>The templates and tools behind your operating foundation.</small></a></li>
+    <li><a href="${B}/app/library?tab=practices">Guided Audio<small>Return to the breathwork, meditation, and sound healing audios.</small></a></li>
     ${home.replays_available ? `<li><a href="${B}/app/calls-help">Solutions Seat replays<small>Approved recordings from the live calls.</small></a></li>` : ''}
   </ul>
   ${nextCallBanner(home.next_call)}
@@ -855,9 +827,34 @@ ${nextCallBanner(home.next_call)}<p>${link('/app/calendar', 'View all days')}</p
   }
 
   function reviewNote(state) {
-    if (state === 'pending') return '<div class="notice" role="note"><p><strong>Your fit check is with our team.</strong> We review every enrollment to make sure the cohort is the right match for where your business is. We’ll email you once you’re approved.</p></div>';
-    if (state === 'approved') return '<div class="notice notice-success" role="note"><p><strong>You’re approved.</strong> Your seat is confirmed.</p></div>';
+    if (state === 'approved') return '<div class="notice notice-success" role="note"><p><strong>You’re enrolled.</strong> Your seat is confirmed.</p></div>';
     return '';
+  }
+
+  // Last full day of access, e.g. "January 3, 2028" (access ends at midnight cohort time).
+  function accessLastDay(home) {
+    if (!home.access || !home.access.ends_at) return '';
+    const last = new Date(new Date(home.access.ends_at).getTime() - 60000).toLocaleDateString('en-CA', { timeZone: home.cohort.timezone });
+    return SO.fmtCohortDate(last, { weekday: undefined });
+  }
+
+  // Onboarding before day 1.
+  function gettingReady(home) {
+    const ends = accessLastDay(home) || 'January 3, 2028';
+    return `<section class="card getting-ready" aria-labelledby="ready-h">
+  <h2 id="ready-h">Get ready for day one</h2>
+  <ol class="ready-list">
+    <li><strong>Plan your daily time.</strong> About 5–10 minutes of guided audio and 20–40 minutes to apply the day’s work. Some activities take up to an hour; lighter ones about 20 minutes.</li>
+    <li><strong>Save the live calls.</strong> Solutions Seat group coaching with Omi on Wednesdays, January 6, 13 and 20, 1–2 p.m. PST. ${link('/app/calls-help', 'Add them to your calendar')}</li>
+    <li><strong>Make it yours.</strong> ${link('/app/account', 'Add a profile photo')} and check your time zone.</li>
+    <li><strong>Questions?</strong> ${link('/app/help', 'Ask Omi')} any time. During the cohort, Omi replies within 24 hours, Monday through Friday.</li>
+  </ol>
+  <dl class="kv access-kv">
+    <dt>Daily guided programming</dt><dd>January 4–24, 2027</dd>
+    <dt>Direct Q&amp;A with Omi</dt><dd>During the 21-day cohort, Monday–Friday</dd>
+    <dt>Materials &amp; recordings</dt><dd>Through ${esc(ends)}</dd>
+  </dl>
+</section>`;
   }
 
   function announcementsHtml(list) {
@@ -940,15 +937,18 @@ ${day.call.state === 'joinable' ? `<button class="btn btn-primary btn-sm" data-j
 ${callBanner}
 ${content}
 <section class="step" aria-labelledby="arrive-h">
-  <div class="step-label"><span class="n">1</span><h2 id="arrive-h">Arrive</h2></div>
-  <div id="practice">${day.practice ? '' : '<p class="muted">Today’s guided practice will appear here.</p>'}</div>
+  <div class="step-label"><span class="n">1</span><h2 id="arrive-h">Guided Audio</h2></div>
+  <p class="step-hint">5–10 minutes to arrive.</p>
+  <div id="practice">${day.practice ? '' : '<p class="muted">Today’s guided audio will appear here.</p>'}</div>
 </section>
 <section class="step" aria-labelledby="reflect-h" id="reflect">
-  <div class="step-label"><span class="n">2</span><h2 id="reflect-h">Reflect</h2></div>
+  <div class="step-label"><span class="n">2</span><h2 id="reflect-h">Leadership Journal Prompt</h2></div>
+  <p class="step-hint">Reflect on how you lead. Saved privately to My Journal.</p>
   <div id="reflect-box"></div>
 </section>
 <section class="step" aria-labelledby="apply-h">
-  <div class="step-label"><span class="n">3</span><h2 id="apply-h">Apply</h2></div>
+  <div class="step-label"><span class="n">3</span><h2 id="apply-h">Business Action Toolkit</h2></div>
+  <p class="step-hint">About 20–40 minutes to apply today’s work to your business. Some days take up to an hour; lighter days about 20 minutes.</p>
   ${day.action_title && day.action_title !== 'Today’s action' ? `<h3 style="font-family:var(--sans);font-size:1.1rem;font-weight:500">${esc(day.action_title)}</h3>` : ''}
   <div class="content-body">${SO.paras(day.action_body || '')}</div>
   ${templates}
@@ -978,7 +978,7 @@ ${content}
   function practicePlayer(el, p) {
     el.innerHTML = `<div class="card player">
   <div><h3 style="margin:0 0 .2rem">${esc(p.title)}</h3>
-  <p class="player-meta">${esc(p.practice_type ? p.practice_type[0].toUpperCase() + p.practice_type.slice(1) : 'Guided practice')}${p.duration_seconds ? ` · ${SO.duration(p.duration_seconds)}` : ''}${p.position_seconds > 5 ? ' · You can pick up where you left off' : ''}</p></div>
+  <p class="player-meta">${esc(p.practice_type ? ({ breathwork: 'Breathwork', meditation: 'Meditation', sound_healing: 'Sound healing' }[p.practice_type] || 'Guided audio') : 'Guided audio')}${p.duration_seconds ? ` · ${SO.duration(p.duration_seconds)}` : ''}${p.position_seconds > 5 ? ' · You can pick up where you left off' : ''}</p></div>
   <div data-media><button class="btn btn-primary" data-play>Play practice<span class="sr-only">: ${esc(p.title)}</span></button></div>
   ${p.transcript ? `<details class="more"><summary>Transcript</summary><div class="transcript">${esc(p.transcript)}</div></details>` : ''}
 </div>`;
@@ -1212,7 +1212,7 @@ ${d.status === 'upcoming' ? `<span class="day-card-sum">Unlocks ${esc(new Date(d
       panel.setAttribute('aria-labelledby', `tab-${tab}`);
       if (tab === 'templates') {
         const items = lib.templates.filter(match);
-        if (!lib.templates.length) { panel.innerHTML = '<p class="empty">Templates will appear here as each day unlocks.</p>'; return; }
+        if (!lib.templates.length) { panel.innerHTML = '<p class="empty">Business Action Toolkit resources will appear here as each day unlocks.</p>'; return; }
         if (!items.length) { panel.innerHTML = '<p class="empty">No released templates match that search.</p>'; return; }
         const groups = [['standards', 'Standards'], ['systems', 'Systems'], ['scorecards', 'Scorecards'], [null, 'More tools']];
         panel.innerHTML = groups.map(([k, label]) => {
@@ -1225,7 +1225,7 @@ ${d.status === 'upcoming' ? `<span class="day-card-sum">Unlocks ${esc(new Date(d
         wireResourceButtons(panel);
       } else {
         const items = lib.practices.filter(match);
-        if (!lib.practices.length) { panel.innerHTML = '<p class="empty">Guided practices will appear here as each day unlocks.</p>'; return; }
+        if (!lib.practices.length) { panel.innerHTML = '<p class="empty">Guided audios will appear here as each day unlocks.</p>'; return; }
         if (!items.length) { panel.innerHTML = '<p class="empty">No released practices match that search.</p>'; return; }
         panel.innerHTML = `<div class="stack">${items.map(r => `<article class="card"><p class="small muted" style="margin:0">${r.related_days.length ? r.related_days.map(d => `Day ${d}`).join(', ') : 'Practice'} · ${esc(r.practice_type || 'practice')}${r.duration_seconds ? ` · ${SO.duration(r.duration_seconds)}` : ''}</p>
 <h2 style="font-size:1.4rem;margin:.2rem 0 .6rem">${esc(r.title)}</h2>
@@ -1233,7 +1233,7 @@ ${d.status === 'upcoming' ? `<span class="day-card-sum">Unlocks ${esc(new Date(d
 ${r.related_days[0] ? `<a href="${B}/app/day/${r.related_days[0]}">Go to Day ${r.related_days[0]}</a>` : ''}</div></article>`).join('')}</div>`;
       }
     };
-    tabs(q('#tabs', main), [['templates', 'Templates'], ['practices', 'Breathwork & Meditation']], tab, t => {
+    tabs(q('#tabs', main), [['templates', 'Business Action Toolkit'], ['practices', 'Guided Audio']], tab, t => {
       tab = t;
       history.replaceState(history.state, '', `${B}/app/library${t === 'practices' ? '?tab=practices' : ''}`);
       qa('[role=tab]', main).forEach(b => { b.setAttribute('aria-selected', String(b.dataset.tab === t)); b.tabIndex = b.dataset.tab === t ? 0 : -1; });
@@ -1409,8 +1409,8 @@ ${differs ? `<p class="call-cohort-time">Cohort time: ${esc(SO.fmtDateTime(c.sta
 ${c.description ? `<div class="content-body">${SO.paras(c.description)}</div>` : ''}${actions}</article>`;
     };
     const upcoming = data.calls.filter(c => c.state === 'upcoming' || c.state === 'joinable');
-    panel.innerHTML = `<p class="promise" style="font-size:1.3rem">Bring a challenge you’re working through. We’ll think it through together.</p>
-<p>In each live Solutions Seat, members bring an operational challenge and the group helps think it through. How much individual time each person gets depends on attendance.</p>
+    panel.innerHTML = `<p class="promise" style="font-size:1.3rem">Group coaching led by Omi Bell. Wednesdays, January 6, 13 and 20, 1–2 p.m. PST.</p>
+<p>A participant brings a business challenge they’re working through that week, the group contributes ideas and experience, and Omi guides the conversation toward practical next steps. You can learn by bringing your own challenge, contributing to someone else’s, and applying the discussion to your business. Each call is one hour, and recordings are available here afterward.</p>
 ${data.recording_policy ? `<p class="small muted">${esc(data.recording_policy)}</p>` : ''}
 <div class="stack" style="margin:1.5rem 0">${data.calls.length ? data.calls.map(callCard).join('') : '<p class="empty">Solutions Seat dates will appear here once they’re scheduled.</p>'}</div>
 <section class="card" aria-labelledby="ch-h">
@@ -1482,12 +1482,13 @@ ${data.intros_open ? `<p style="margin-top:1.5rem">${link('/app/introductions', 
 
   async function drawSupport(panel) {
     const r = await SO.api('GET', 'faqs');
-    panel.innerHTML = `${r.faqs.length ? `<div class="faq">${r.faqs.map(f => `<details><summary>${esc(f.question)}</summary>${SO.paras(f.answer)}</details>`).join('')}</div>` : '<p class="empty">Answers to common questions will appear here.</p>'}
-<section class="card" style="margin-top:2rem"><h2 style="font-size:1.45rem">Support</h2>
-${r.support.email ? `<p>Email <a href="mailto:${esc(r.support.email)}">${esc(r.support.email)}</a>.</p>` : '<p>Support contact details will be posted here before the cohort begins.</p>'}
+    panel.innerHTML = `${r.faqs.length ? SO.faqHtml(r.faqs, 'mfaq') : '<p class="empty">Answers to common questions will appear here.</p>'}
+<section class="card" style="margin-top:2rem"><h2 style="font-size:1.45rem">Ask Omi</h2>
 ${r.support.note ? SO.paras(r.support.note) : ''}
-<p><a class="btn btn-secondary btn-sm" href="${B}/app/help">Ask for help</a></p>
+<p><a class="btn btn-primary btn-sm" href="${B}/app/help">Ask a question</a></p>
+${r.support.email ? `<p class="small">You can also email <a href="mailto:${esc(r.support.email)}">${esc(r.support.email)}</a>.</p>` : ''}
 <p class="small">${link('/login/help', 'Trouble signing in?')}</p></section>`;
+    SO.initFaq(panel);
   }
 
   // ============================================================ Introductions
@@ -1506,7 +1507,7 @@ ${r.support.note ? SO.paras(r.support.note) : ''}
 ${i.website_url ? `<p class="small" style="margin:.4rem 0 0"><a href="${esc(i.website_url)}" target="_blank" rel="noopener noreferrer nofollow">Website</a></p>` : ''}
 ${i.is_mine && i.moderation_state === 'hidden' ? '<p class="small notice-warn" style="padding:.4rem .6rem;border-radius:6px">Hidden from the cohort by an admin. Contact support with questions.</p>' : ''}</article>`;
     main.innerHTML = `<a class="back-link" href="${B}/app">Back to Today</a>
-<div class="page-head row-between"><div><h1>Cohort introductions</h1><p>The founders building alongside you. Visible only to members of this cohort.</p></div>
+<div class="page-head row-between"><div><h1>Cohort introductions</h1><p>The business owners building alongside you. Visible only to members of this cohort.</p></div>
 <a class="btn ${mine ? 'btn-secondary' : 'btn-primary'}" href="${B}/app/introductions/edit">${mine ? 'Edit My Introduction' : 'Introduce Yourself'}</a></div>
 <div class="intro-grid">${mine ? card(mine) : ''}${others.map(card).join('')}</div>
 ${!others.length ? '<p class="empty" style="margin-top:1rem">No one else has introduced themselves yet.</p>' : ''}`;
@@ -1612,8 +1613,8 @@ ${a.payment.receipt_url ? `<p style="margin:.4rem 0 0"><a href="${esc(a.payment.
   // ============================================================ Help
   async function viewHelp(main) {
     const r = await SO.api('GET', 'help/threads');
-    main.innerHTML = `<div class="page-head"><h1>Ask for help</h1><p>Questions about the program, your account, billing or resources. We reply here and email you a link.</p>
-<p class="small muted">For a business challenge you’d like to bring to a live call, use Solutions Seat instead.</p></div>
+    main.innerHTML = `<div class="page-head"><h1>Ask Omi</h1><p>Send a question and chat back and forth with Omi here. You’ll get an email when there’s a reply.</p>
+<p class="small muted">During the 21-day cohort, Omi responds within 24 hours, Monday through Friday. Questions sent over the weekend receive a response by the end of Monday.</p></div>
 <form id="ask" class="card" novalidate>
   <div class="field"><label for="h-cat">Topic</label><select id="h-cat">${r.categories.map(c => `<option value="${c.key}">${esc(c.label)}</option>`).join('')}</select></div>
   <div class="field"><label for="h-sub">Subject</label><input id="h-sub" type="text" maxlength="140"></div>
@@ -1651,28 +1652,143 @@ ${r.threads.length ? `<div class="card" style="padding:.4rem 1.25rem">${r.thread
   }
 
   // ============================================================ Account
+  // Square-crop and shrink a chosen photo in the browser so uploads are small and consistent.
+  async function squarePhoto(file, px = 480) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('That image couldn’t be opened. Try a JPEG or PNG.')); i.src = url; });
+      const side = Math.min(img.naturalWidth, img.naturalHeight);
+      const c = document.createElement('canvas');
+      c.width = c.height = Math.min(px, side);
+      c.getContext('2d').drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, c.width, c.height);
+      return await new Promise((res, rej) => c.toBlob(b => (b ? res(b) : rej(new Error('That image couldn’t be processed.'))), 'image/jpeg', 0.88));
+    } finally { URL.revokeObjectURL(url); }
+  }
+
+  function refundHtml(a) {
+    const r = a.refund;
+    const tz = (a.cohort && a.cohort.timezone) || 'America/Los_Angeles';
+    const deadline = esc(SO.fmtDateTime(new Date(new Date(r.deadline).getTime() - 60000).toISOString(), tz, { weekday: true }));
+    if (r.state === 'available') return `<p>You may request a full refund before the cohort begins on January 4, 2027 (through <strong>${deadline}</strong>). Once the cohort begins, all sales are final. You can request it here or email <a href="mailto:hello@omisworld.com">hello@omisworld.com</a>.</p>
+<div id="refund-box"><button class="btn btn-secondary btn-sm" type="button" id="refund-open">Request a refund</button></div>`;
+    if (r.state === 'requested') return `<div class="notice"><p><strong>Refund requested</strong> on ${esc(new Date(r.requested_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric' }))}. We’ll reply in <a href="${B}/app/help">Ask for help</a> and by email.</p></div>
+<button class="btn btn-ghost btn-sm" type="button" id="refund-withdraw">Withdraw my request</button>`;
+    if (r.state === 'processing') return '<div class="notice"><p><strong>Your refund is being processed.</strong> It goes back to your original payment method, usually within 5–10 business days.</p></div>';
+    if (r.state === 'refunded') return '<div class="notice notice-success"><p><strong>Refunded.</strong> Your payment was returned to your original payment method.</p></div>';
+    if (r.state === 'closed') return '<p class="muted">The cohort began on January 4, 2027, so all sales are final and refunds are no longer available.</p>';
+    return '';
+  }
+
   async function viewAccount(main) {
     const a = await SO.api('GET', 'account');
+    if (state.me) { state.me.avatar_url = a.avatar_url; state.me.display_name = a.display_name; }
     let zones = [];
     try { zones = Intl.supportedValuesOf('timeZone'); } catch { /* older browsers */ }
     const prefs = a.email_prefs || {};
-    main.innerHTML = `<div class="page-head"><h1>Account</h1><p>Signed in as <strong>${esc(a.email)}</strong>.</p></div>
-<form id="acct" class="card" novalidate>
-  <div class="field"><label for="a-name">Display name</label><input id="a-name" type="text" maxlength="80" value="${esc(a.display_name || '')}"></div>
-  <div class="field"><label for="a-tz">Your timezone</label><input id="a-tz" type="text" list="tz-list" value="${esc(a.timezone || SO.viewerTz())}">
-  <datalist id="tz-list">${zones.map(z => `<option value="${esc(z)}">`).join('')}</datalist>
-  <p class="help">Call times show in your device’s timezone, with cohort time alongside.</p></div>
-  <fieldset style="border:0;padding:0;margin:0 0 1rem"><legend class="label">Optional reminder emails</legend>
-  <p class="help" style="margin-top:0">Choose what you’d like to hear about. Reminder emails aren’t being sent yet; these choices apply once they start. Enrollment and account emails are always sent.</p>
-  ${[['intros_open', 'When introductions open'], ['cohort_begins', 'When the cohort begins'], ['daily_content', 'When each day unlocks'], ['upcoming_calls', 'Before each Solutions Seat']].map(([k, l]) =>
+    const since = a.member_since ? new Date(a.member_since).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : '';
+    const status = !a.enrolled ? 'Not enrolled' : a.review_state === 'approved' ? 'Enrolled · your seat is confirmed'
+      : a.review_state === 'rejected' ? 'Not approved' : 'Under review';
+    const pay = a.payment;
+    main.innerHTML = `<div class="account-hero">
+  <div class="account-photo" data-avatar="lg">${avatarHtml('lg')}</div>
+  <div class="account-id">
+    <p class="eyebrow" style="margin:0 0 .3rem">My Account</p>
+    <h1 id="acct-name">${esc(a.display_name || 'Welcome')}</h1>
+    <p class="muted" style="margin:0">${esc(a.email)}${since ? ` · Member since ${esc(since)}` : ''}</p>
+    <div class="row" style="margin-top:.9rem">
+      <label class="btn btn-secondary btn-sm file-btn">${a.avatar_url ? 'Change photo' : 'Add a profile photo'}<input type="file" id="avatar-file" accept="image/jpeg,image/png,image/webp" class="sr-only"></label>
+      ${a.avatar_url ? '<button class="btn btn-ghost btn-sm" type="button" id="avatar-rm">Remove photo</button>' : ''}
+    </div>
+    <p class="small muted" id="avatar-msg" role="status" style="margin:.5rem 0 0"></p>
+  </div>
+</div>
+
+<div class="account-grid">
+<section class="card account-card" aria-labelledby="h-profile">
+  <h2 id="h-profile">Profile</h2>
+  <form id="acct" novalidate>
+    <div class="field"><label for="a-name">Name</label><input id="a-name" type="text" maxlength="80" autocomplete="name" value="${esc(a.display_name || '')}"></div>
+    <div class="field"><label for="a-tz">Time zone</label><input id="a-tz" type="text" list="tz-list" value="${esc(a.timezone || SO.viewerTz())}">
+    <datalist id="tz-list">${zones.map(z => `<option value="${esc(z)}">`).join('')}</datalist>
+    <p class="help">Call times show in your device’s time zone, with cohort time alongside.</p></div>
+    <fieldset class="prefs"><legend class="label">Reminder emails</legend>
+    <p class="help" style="margin-top:0">Choose what you’d like to hear about. Enrollment and account emails always arrive.</p>
+    ${[['intros_open', 'When introductions open'], ['cohort_begins', 'When the cohort begins'], ['daily_content', 'When each day unlocks'], ['upcoming_calls', 'Before each Solutions Seat']].map(([k, l]) =>
       `<label class="check"><input type="checkbox" data-pref="${k}" ${prefs[k] ? 'checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>
-  <p id="acct-msg" role="status"></p>
-  <button class="btn btn-primary" type="submit">Save</button>
-</form>
-<section class="card" style="margin-top:1rem"><h2 style="font-size:1.4rem">Your journal</h2><p>Download every reflection you’ve written as a text file.</p>
-<button class="btn btn-secondary btn-sm" id="export">Download my journal</button></section>
-<p style="margin-top:1.5rem"><button class="btn btn-ghost" data-signout>Sign out</button></p>`;
+    <p id="acct-msg" role="status"></p>
+    <button class="btn btn-primary" type="submit">Save changes</button>
+  </form>
+</section>
+
+<section class="card account-card" aria-labelledby="h-member">
+  <h2 id="h-member">Membership</h2>
+  <dl class="kv">
+    <dt>Program</dt><dd>${esc((a.cohort && a.cohort.name) || 'Smooth Operators')}</dd>
+    ${a.cohort ? `<dt>Begins</dt><dd>${esc(SO.fmtCohortDate(a.cohort.start_date))}</dd>` : ''}
+    <dt>Status</dt><dd>${esc(status)}</dd>
+    ${pay ? `<dt>Payment</dt><dd>${SO.money(pay.amount_cents || 0)} · ${esc(new Date(pay.paid_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }))}${pay.receipt_url ? ` · <a href="${esc(pay.receipt_url)}" target="_blank" rel="noopener">Receipt</a>` : ''}</dd>` : ''}
+  </dl>
+  ${pay ? `<h3 class="account-sub">Refunds</h3><div id="refund-area">${refundHtml(a)}</div>` : ''}
+</section>
+
+<section class="card account-card" aria-labelledby="h-data">
+  <h2 id="h-data">Your writing</h2>
+  <p>Download everything you’ve written in My Journal as a text file. It’s yours to keep.</p>
+  <button class="btn btn-secondary btn-sm" id="export" type="button">Download my journal</button>
+</section>
+
+<section class="card account-card" aria-labelledby="h-help">
+  <h2 id="h-help">Help</h2>
+  <ul class="quick-links">
+    <li><a href="${B}/app/help">Ask a question</a></li>
+    <li><a href="${B}/app/calls-help?tab=support">FAQ</a></li>
+    <li><a href="${B}/app/calls-help?tab=bug">Report a bug</a></li>
+    <li><a href="${B}/terms" data-external>Terms</a></li>
+    <li><a href="${B}/privacy" data-external>Privacy Policy</a></li>
+  </ul>
+</section>
+</div>
+
+<div class="account-foot">
+  <button class="btn btn-primary" type="button" data-signout>Log out</button>
+  <details class="danger-zone" id="danger">
+    <summary>Delete my account</summary>
+    <div class="danger-body">
+      ${pay ? `<p>Deleting your account erases your journal, introduction, progress and photo, and ends your access to Smooth Operators. We keep your payment record because the law requires it.</p>
+      <p><strong>Deleting your account doesn’t refund your payment.</strong>${a.refund && a.refund.can_request ? ' If you want a refund, request it above first.' : ''}</p>`
+      : '<p>Deleting your account permanently removes your sign-in and everything you’ve saved.</p>'}
+      <div class="field"><label for="del-confirm">Type DELETE to confirm</label><input id="del-confirm" type="text" autocomplete="off" style="max-width:16rem"></div>
+      <p class="form-error" id="del-err" role="alert"></p>
+      <button class="btn btn-danger" type="button" id="del-go">Permanently delete my account</button>
+    </div>
+  </details>
+</div>`;
     wireSignout(main);
+    refreshAvatars();
+
+    // Profile photo
+    const amsg = q('#avatar-msg', main);
+    q('#avatar-file', main).addEventListener('change', async e => {
+      const f = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!f) return;
+      if (!/^image\//.test(f.type) || f.size > 20 * 1024 * 1024) { amsg.textContent = 'Choose a JPEG, PNG or WebP photo.'; return; }
+      amsg.textContent = 'Uploading…';
+      try {
+        const blob = await squarePhoto(f);
+        const u = await SO.api('POST', 'account/avatar-upload', { mime_type: 'image/jpeg', size: blob.size });
+        const put = await fetch(u.upload_url, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg', 'x-upsert': 'false' }, body: blob });
+        if (!put.ok) throw new Error('Upload failed. Please try again.');
+        const r = await SO.api('PUT', 'account/avatar', { avatar_path: u.avatar_path });
+        if (state.me) state.me.avatar_url = r.avatar_url || URL.createObjectURL(blob);
+        render();
+      } catch (ex) { amsg.textContent = ex.message; }
+    });
+    const arm = q('#avatar-rm', main);
+    if (arm) arm.addEventListener('click', async () => {
+      try { await SO.api('DELETE', 'account/avatar'); if (state.me) state.me.avatar_url = null; render(); } catch (ex) { amsg.textContent = ex.message; }
+    });
+
     q('#export', main).addEventListener('click', () => downloadBlob('journal/export', 'smooth-operators-journal.md').catch(e => alert(e.message)));
     q('#acct', main).addEventListener('submit', async e => {
       e.preventDefault();
@@ -1680,12 +1796,57 @@ ${r.threads.length ? `<div class="card" style="padding:.4rem 1.25rem">${r.thread
       const email_prefs = {};
       qa('[data-pref]', main).forEach(c => { email_prefs[c.dataset.pref] = c.checked; });
       try {
-        await SO.api('PUT', 'account', { display_name: q('#a-name', main).value, timezone: q('#a-tz', main).value.trim() || null, email_prefs });
+        const name = q('#a-name', main).value;
+        await SO.api('PUT', 'account', { display_name: name, timezone: q('#a-tz', main).value.trim() || null, email_prefs });
         out.className = 'notice notice-success'; out.textContent = 'Saved.';
-        if (state.me) state.me.display_name = q('#a-name', main).value;
+        if (state.me) state.me.display_name = name.trim() || null;
+        q('#acct-name', main).textContent = name.trim() || 'Welcome';
+        refreshAvatars();
       } catch (ex) { out.className = 'notice notice-error'; out.textContent = ex.message; }
     });
-    return 'Account';
+
+    // Refunds
+    const wireRefund = () => {
+      const area = q('#refund-area', main);
+      if (!area) return;
+      const open = q('#refund-open', area);
+      if (open) open.addEventListener('click', () => {
+        q('#refund-box', area).innerHTML = `<form id="refund-form" class="refund-form" novalidate>
+  <div class="field"><label for="rf-why">Anything you’d like us to know? <span class="muted">(optional)</span></label><textarea id="rf-why" maxlength="2000" style="min-height:5rem"></textarea></div>
+  <p class="form-error" id="rf-err" role="alert"></p>
+  <div class="row"><button class="btn btn-primary btn-sm" type="submit">Send refund request</button><button class="btn btn-ghost btn-sm" type="button" id="rf-cancel">Never mind</button></div></form>`;
+        q('#rf-why', area).focus();
+        q('#rf-cancel', area).addEventListener('click', () => { area.innerHTML = refundHtml(a); wireRefund(); });
+        q('#refund-form', area).addEventListener('submit', async ev => {
+          ev.preventDefault();
+          try {
+            const r = await SO.api('POST', 'account/refund-request', { reason: q('#rf-why', area).value.trim() });
+            a.refund = r.refund; area.innerHTML = refundHtml(a); wireRefund();
+          } catch (ex) { q('#rf-err', area).textContent = ex.message; }
+        });
+      });
+      const wd = q('#refund-withdraw', area);
+      if (wd) wd.addEventListener('click', async () => {
+        try { const r = await SO.api('DELETE', 'account/refund-request'); a.refund = r.refund; area.innerHTML = refundHtml(a); wireRefund(); } catch (ex) { alert(ex.message); }
+      });
+    };
+    wireRefund();
+
+    // Delete account
+    q('#del-go', main).addEventListener('click', async () => {
+      const err = q('#del-err', main);
+      const v = q('#del-confirm', main).value.trim();
+      if (v.toUpperCase() !== 'DELETE') { err.textContent = 'Type DELETE in the box to confirm.'; return; }
+      const btn = q('#del-go', main);
+      btn.disabled = true; err.textContent = '';
+      try {
+        await SO.api('POST', 'account/delete', { confirm: v });
+        await SO.signOut().catch(() => {});
+        state.me = null;
+        window.location.href = B;
+      } catch (ex) { err.textContent = ex.message; btn.disabled = false; }
+    });
+    return 'My Account';
   }
 
   // ------------------------------------------------------------- start

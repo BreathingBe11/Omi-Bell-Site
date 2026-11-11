@@ -401,3 +401,83 @@ test('bug reports go to the questions inbox, from any signed-in member', async (
   const t = inbox.body.questions.find(x => x.subject === 'Audio will not play');
   assert.equal(t.category_label, 'Bug report');
 });
+
+// ------------------------------------------------------------- My Account
+async function paidMember(email) {
+  const s = await h.enroll(email);
+  const c = await h.cohort();
+  const p = (await h.sql`insert into so_purchases (user_id, cohort_id, status, price_tier, amount_cents, amount_paid_cents, paid_at)
+                         values (${s.user.id}, ${c.id}, 'paid', 'intro', 99900, 99900, now()) returning id`)[0];
+  await h.sql`update so_enrollments set purchase_id = ${p.id}, source = 'stripe' where user_id = ${s.user.id}`;
+  return { ...s, purchaseId: p.id };
+}
+
+test('profile picture: upload, set, shown on /me, removed', async () => {
+  const up = await h.api('POST', 'account/avatar-upload', { token: A.token, body: { mime_type: 'image/png', size: 2048 } });
+  assert.equal(up.status, 200);
+  assert.match(up.body.avatar_path, new RegExp(`^avatars/${A.user.id}/`));
+  assert.equal((await h.api('POST', 'account/avatar-upload', { token: A.token, body: { mime_type: 'image/gif', size: 10 } })).status, 400);
+  const bad = await h.api('PUT', 'account/avatar', { token: A.token, body: { avatar_path: `avatars/${B.user.id}/x.png` } });
+  assert.equal(bad.status, 400, 'cannot point at another member’s photo');
+  const set = await h.api('PUT', 'account/avatar', { token: A.token, body: { avatar_path: up.body.avatar_path } });
+  assert.equal(set.status, 200);
+  assert.ok(set.body.avatar_url);
+  assert.ok((await h.api('GET', 'me', { token: A.token })).body.avatar_url);
+  assert.ok((await h.api('GET', 'account', { token: A.token })).body.avatar_url);
+  await h.api('DELETE', 'account/avatar', { token: A.token });
+  assert.equal((await h.api('GET', 'me', { token: A.token })).body.avatar_url, null);
+});
+
+test('refund requests: open until the cohort starts, reach the inbox, can be withdrawn', async () => {
+  await h.setCohort({ start_date: '2027-01-04', unlock_time: '00:00' });
+  const P = await paidMember('refund-asker@example.com');
+  const acct = await h.api('GET', 'account', { token: P.token });
+  assert.equal(acct.body.refund.state, 'available');
+  assert.equal(acct.body.refund.deadline, '2027-01-04T08:00:00.000Z', 'through Jan 3 at 11:59 PM Pacific');
+  assert.equal(acct.body.payment.amount_cents, 99900);
+
+  const none = await h.api('POST', 'account/refund-request', { token: A.token, body: {} });
+  assert.equal(none.status, 409, 'no payment, nothing to refund');
+
+  const r = await h.api('POST', 'account/refund-request', { token: P.token, body: { reason: 'Timing changed.' } });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.refund.state, 'requested');
+  assert.equal((await h.api('POST', 'account/refund-request', { token: P.token, body: {} })).body.refund.state, 'requested', 'repeat is harmless');
+  assert.equal((await h.sql`select count(*)::int as n from so_refund_requests where purchase_id = ${P.purchaseId}`)[0].n, 1);
+  const inbox = await admin('GET', 'admin/questions');
+  assert.ok(inbox.body.questions.some(q => q.subject === 'Refund request' && q.category_label === 'Billing or refund'));
+  const home = await admin('GET', 'admin/home');
+  assert.ok(home.body.attention.some(a => a.kind === 'refund_request'));
+
+  const w = await h.api('DELETE', 'account/refund-request', { token: P.token });
+  assert.equal(w.body.refund.state, 'available');
+
+  await h.setLiveDay(1);
+  const closed = await h.api('GET', 'account', { token: P.token });
+  assert.equal(closed.body.refund.state, 'closed');
+  assert.equal((await h.api('POST', 'account/refund-request', { token: P.token, body: {} })).status, 409);
+  await h.setCohort({ start_date: '2027-01-04', unlock_time: '00:00' });
+});
+
+test('delete account: unpaid accounts are removed; paid ones are erased and keep payment records', async () => {
+  const u = await h.mocks.signIn('just-looking@example.com');
+  await h.api('GET', 'me', { token: u.token });
+  assert.equal((await h.api('POST', 'account/delete', { token: u.token, body: { confirm: 'nope' } })).status, 400);
+  const d1 = await h.api('POST', 'account/delete', { token: u.token, body: { confirm: 'DELETE' } });
+  assert.equal(d1.status, 200, JSON.stringify(d1.body));
+  assert.equal(d1.body.mode, 'removed');
+  assert.equal((await h.sql`select count(*)::int as n from auth.users where id = ${u.user.id}`)[0].n, 0);
+  assert.equal((await h.sql`select count(*)::int as n from so_profiles where user_id = ${u.user.id}`)[0].n, 0);
+
+  const P = await paidMember('leaving@example.com');
+  await h.api('POST', 'journal/notes', { token: P.token, body: { title: 'Private', body: 'Something personal' } });
+  const d2 = await h.api('POST', 'account/delete', { token: P.token, body: { confirm: 'delete' } });
+  assert.equal(d2.status, 200, JSON.stringify(d2.body));
+  assert.equal(d2.body.mode, 'erased');
+  assert.equal((await h.sql`select count(*)::int as n from so_journal_notes where user_id = ${P.user.id}`)[0].n, 0);
+  assert.equal((await h.sql`select count(*)::int as n from so_purchases where user_id = ${P.user.id}`)[0].n, 1, 'payment record kept');
+  assert.equal((await h.sql`select access_state from so_enrollments where user_id = ${P.user.id}`)[0].access_state, 'revoked');
+  assert.ok((await h.sql`select deleted_at from so_profiles where user_id = ${P.user.id}`)[0].deleted_at);
+  const inbox = await admin('GET', 'admin/questions');
+  assert.ok(inbox.body.questions.some(q => q.subject === 'Account deleted by member'));
+});
