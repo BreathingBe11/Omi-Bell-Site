@@ -57,27 +57,27 @@
     },
     {
       "source": "/smoothoperators/admin/:path*",
-      "destination": "/smoothoperators/admin.html"
+      "destination": "/smoothoperators/admin"
     },
     {
       "source": "/smoothoperators/app/:path*",
-      "destination": "/smoothoperators/app.html"
+      "destination": "/smoothoperators/app"
     },
     {
       "source": "/smoothoperators/checkout",
-      "destination": "/smoothoperators/app.html"
+      "destination": "/smoothoperators/app"
     },
     {
       "source": "/smoothoperators/checkout/:path*",
-      "destination": "/smoothoperators/app.html"
+      "destination": "/smoothoperators/app"
     },
     {
       "source": "/smoothoperators/login",
-      "destination": "/smoothoperators/app.html"
+      "destination": "/smoothoperators/app"
     },
     {
       "source": "/smoothoperators/login/:path*",
-      "destination": "/smoothoperators/app.html"
+      "destination": "/smoothoperators/app"
     }
   ]
 }
