@@ -7,7 +7,7 @@
 //   /smoothoperators/privacy  -> ?route=page/privacy
 // One function keeps the deployment under Vercel's per-project function limits.
 
-const { getSql } = require('./_lib/so/db');
+const { getSqlReady } = require('./_lib/so/db');
 const H = require('./_lib/so/http');
 
 const table = [];
@@ -55,7 +55,7 @@ module.exports = async function handler(req, res) {
     // If the database isn't configured, routes still run and get an error on first use,
     // so public pages (landing, terms, privacy) can fall back to built-in text.
     let sql;
-    try { sql = getSql(); } catch (e) {
+    try { sql = await getSqlReady(); } catch (e) {
       const fail = () => { throw e; };
       sql = new Proxy(fail, { apply: fail, get: () => fail });
     }
