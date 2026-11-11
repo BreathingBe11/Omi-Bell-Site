@@ -21,7 +21,7 @@ test('landing page shows dates, host, server price and test-mode label', async (
   const res = await fetch(`${h.appBase}/smoothoperators`);
   const html = await res.text();
   assert.equal(res.status, 200);
-  assert.match(html, /You’ve built a business\. Now stop being what holds it together\./);
+  assert.match(html, /Your business is growing\. Your room to breathe keeps shrinking\./);
   assert.match(html, /SMOOTH OPERATORS · LIVE 21-DAY COHORT/);
   assert.match(html, /January 4–24, 2027/);
   assert.match(html, /Omi Bell/);

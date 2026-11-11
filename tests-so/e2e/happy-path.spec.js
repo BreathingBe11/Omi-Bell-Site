@@ -28,7 +28,7 @@ test('founder pays, gets verified access and saves a private reflection', async 
   const email = `founder-${info.project.name}@example.com`;
 
   await page.goto(`${base()}/smoothoperators`);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('You’ve built a business. Now stop being what holds it together.');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Your business is growing. Your room to breathe keeps shrinking.');
   await expect(page.getByText('January 4–24, 2027').first()).toBeVisible();
   expect(await axe(page)).toEqual([]);
   await page.locator('#hero-cta').click();
