@@ -213,6 +213,12 @@ async function salesReadiness(sql, cohort, content, now) {
   if (mode === 'test') add('stripe_live', 'Stripe is in TEST mode (live key not configured)');
   if (!process.env.STRIPE_WEBHOOK_SECRET) add('stripe_webhook', 'Stripe webhook signing secret (STRIPE_WEBHOOK_SECRET)');
   if (!env.supabaseConfigured()) add('auth', 'Supabase Auth settings (SUPABASE_URL, SUPABASE_ANON_KEY)');
+  const schema = await sql`select
+      exists (select 1 from information_schema.columns where table_name = 'so_profiles' and column_name = 'eligibility_confirmed_at') as eligibility,
+      exists (select 1 from information_schema.tables where table_name = 'so_refund_requests') as refund_requests,
+      exists (select 1 from so_admin_audit_log where action = 'migration:v3-direct-enrollment') as migrated`.catch(() => [{}]);
+  if (!schema[0].eligibility || !schema[0].refund_requests) add('schema', 'Database update: re-run supabase/smooth_operators.sql in the Supabase SQL editor');
+  else if (!schema[0].migrated) add('seed', 'Content update: re-run supabase/smooth_operators_seed.sql in the Supabase SQL editor');
   if (!cohort.settings_confirmed_at) add('settings_confirmed', 'Owner confirmation of dates, unlock time, price cutoff and enrollment window');
   if (cohort.access_policy === 'unset') add('access_policy', 'Post-cohort access policy');
   for (const [key, label] of SALES_CONTENT) if (!content.isPublished(key)) add(`content:${key}`, `${label} (published)`);

@@ -370,3 +370,17 @@ test('landing: confirmed copy, accordion FAQ from the shared source, and no empt
   assert.match(html2, /Omi helped me hand off the work\.[\s\S]*Advising client/);
   await h.sql`delete from so_site_content where key in ('video.url', 'testimonial.1.quote', 'testimonial.1.name', 'testimonial.1.context')`;
 });
+
+test('if the database update has not been run, members get a clear message and admin readiness says what to do', async () => {
+  await h.sql`alter table so_profiles drop column eligibility_confirmed_at`;
+  try {
+    const { token } = await h.mocks.signIn('early-bird@example.com');
+    const r = await h.api('PUT', 'eligibility', { token, body: { name: 'Early Bird', eligible: true, terms: true } });
+    assert.equal(r.status, 503);
+    assert.equal(r.body.error, 'database_update_needed');
+    const ov = await h.api('GET', 'admin/overview', { token: h.adminToken });
+    assert.ok(ov.body.sales.blockers.some(b => b.key === 'schema' && /smooth_operators\.sql/.test(b.label)));
+  } finally {
+    await h.sql`alter table so_profiles add column if not exists eligibility_confirmed_at timestamptz`;
+  }
+});
