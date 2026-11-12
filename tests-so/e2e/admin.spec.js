@@ -54,7 +54,7 @@ test('/admin hub leads to the blog admin or the Smooth Operators admin; refunds 
   await sql`insert into so_profiles (user_id, email, display_name) values (${uid}, 'grace@example.com', 'Grace Hopper')`;
   const c = (await sql`select id from so_cohorts where is_default`)[0];
   const p = (await sql`insert into so_purchases (user_id, cohort_id, status, price_tier, amount_cents, amount_paid_cents, paid_at, stripe_payment_intent_id, livemode)
-                       values (${uid}, ${c.id}, 'paid', 'intro', 99900, 99900, now(), ${`pi_e2e_${uid.slice(0, 8)}`}, false) returning id`)[0];
+                       values (${uid}, ${c.id}, 'paid', 'intro', 99700, 99700, now(), ${`pi_e2e_${uid.slice(0, 8)}`}, false) returning id`)[0];
   await sql`insert into so_enrollments (user_id, cohort_id, purchase_id, source) values (${uid}, ${c.id}, ${p.id}, 'stripe')`;
   await sql`update so_cohorts set start_date = '2027-01-04' where is_default`;
   await sql.end();
@@ -81,7 +81,7 @@ test('/admin hub leads to the blog admin or the Smooth Operators admin; refunds 
   const v = (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations;
   expect(v.map(x => x.id)).toEqual([]);
   await card.getByRole('button', { name: 'Refund in full…' }).click();
-  await expect(card.getByRole('heading', { name: 'Refund $999 in full' })).toBeVisible();
+  await expect(card.getByRole('heading', { name: 'Refund $997 in full' })).toBeVisible();
   await card.getByRole('button', { name: 'Cancel' }).click();
   await card.getByRole('button', { name: 'Close' }).click();
   await expect(card).toBeHidden();

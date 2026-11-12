@@ -144,6 +144,15 @@ function startMocks({ sql, webhookUrl, webhookSecret, port = 0 } = {}) {
       }
       if (p === '/auth/v1/token') return json(400, { error: 'refresh not supported in mock' });
       if (p === '/auth/v1/logout') return json(204, {});
+      if (p === '/auth/v1/admin/users' && req.method === 'POST') {
+        if (!String(req.headers.authorization || '').includes('service')) return json(403, { msg: 'service role required' });
+        const b = JSON.parse((await readBody(req)).toString() || '{}');
+        const em = String(b.email || '').toLowerCase();
+        if (state.users.has(em)) return json(422, { msg: 'A user with this email address has already been registered' });
+        const u = await ensureUser(em);
+        state.createdUsers = (state.createdUsers || []).concat(em);
+        return json(200, { id: u.id, email: u.email, email_confirmed_at: b.email_confirm ? new Date().toISOString() : null });
+      }
       let du;
       if ((du = /^\/auth\/v1\/admin\/users\/([0-9a-f-]{36})$/.exec(p)) && req.method === 'DELETE') {
         if (!String(req.headers.authorization || '').includes('service')) return json(403, { msg: 'service role required' });

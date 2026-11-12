@@ -47,14 +47,17 @@ BLYMI is untouched.
 | `/api/so/*` | JSON API |
 | `/api/smoothoperators-webhook` | Stripe webhook endpoint |
 
-## Enrollment flow: confirm, pay, you're in
+## Enrollment flow: form, pay, set up your account
 
-As of November 2026 there is no fit check and no manual approval.
+No fit check, no approval, and no sign-in before paying.
 
-1. **Sign in** with an email code or Google.
-2. **Eligibility confirmation** before payment: the buyer's name, a checkbox confirming they own a business with customers and revenue, and agreement to the Terms, Privacy Policy and refund policy (timestamps recorded on the profile).
-3. **Payment** through Stripe Checkout. A verified payment enrolls the member immediately and sends a "You're enrolled" email with the schedule, support hours, access period and refund policy.
-4. **Refunds:** members may request a full refund before the cohort begins (Jan 4, 2027, 12:00 a.m. Pacific), from My Account or by emailing hello@omisworld.com. Requests land in the admin Questions inbox and the Overview. An admin issues the refund from the member card (**Refund in full…**). After the start, all sales are final; the button then requires an explicit policy exception.
+1. **Join the cohort → one form:** name, email, a checkbox confirming they own a business with customers and revenue, and agreement to the Terms, Privacy Policy and refund policy (a hidden field traps bots; submissions are rate-limited).
+2. **Continue to payment** saves the form as a lead (`so_leads`) *before* Stripe opens, creates the member's account for that email (already confirmed, so Google sign-in with the same address links to it), and opens Stripe Checkout with the email prefilled. An email that's already enrolled gets "sign in" instead of a second charge.
+3. **Payment** enrolls the member immediately. The "You're in" page and the confirmation email both offer **Set up my account**: the sign-in page with their email prefilled (Google or a 6-digit code).
+4. **Didn't pay?** Admin → Members → *Started checkout* lists everyone who continued to payment. People who haven't paid after 24 hours get **one** reminder email with an unsubscribe link, sent by a daily Vercel cron (`/api/so/cron/reminders`, 17:00 UTC). The cron needs a `CRON_SECRET` environment variable in Vercel; until then, use *Send due reminders* in admin. Reminders stop when the cohort starts or checkout closes.
+5. **Refunds:** members may request a full refund before the cohort begins (Jan 4, 2027, 12:00 a.m. Pacific), from My Account or by emailing hello@omisworld.com. An admin issues it from the member card (**Refund in full…**). After the start, all sales are final; the button then requires an explicit policy exception.
+
+Price: $997 introductory through November 30, 2026 (11:59 p.m. Pacific), then $1,497.
 
 Key dates: daily programming Jan 4–24, 2027 (every day, including weekends); Solutions Seat group coaching Wednesdays Jan 6, 13, 20, 1–2 p.m. PST; direct Q&A with Omi during the cohort, replies within 24 hours Monday–Friday; 12 months of access to materials and recordings (through Jan 3, 2028).
 
@@ -68,7 +71,7 @@ Log in at `/admin` and choose **Smooth Operators admin**. There are seven sectio
 |---|---|
 | **Overview** | Four cards: sales collected (scope labeled), paid members (awaiting vs. approved; rejected excluded), profiles awaiting review, and next Solutions Seat with its challenge count. Below them, a **Needs your attention** list covering reviews waiting, paid-but-incomplete info, failed refunds, failed or bounced emails, new questions, days unlocking within 7 days that aren't ready, calls missing a meeting link, flagged payments, failed Stripe events, and launch items. Plus a Questions shortcut with the new-question count. |
 | **Members** | Filters: All / Info incomplete / Awaiting review (oldest first) / Approved / Rejected, plus payment filters, search, sorting and pages. Click a name to open the **member card** (a slide-over on desktop, full screen on mobile; the list stays where it was). The card shows every answer with its version, private notes, payment (amount, tax, Stripe reference, receipt, fee), refunds with retry, access state, review and email history with delivery status and resend, and an activity summary. A sticky **Approve / Reject** footer opens a confirmation panel with the recipient, an editable message, and a live email preview. Also: the Introductions moderation tab, and a CSV export. |
-| **Sales** | Gross collected, refunds (completed vs. pending), net, and net after Stripe fees. These are defined on the page and never presented as profit. Counts of $999 vs. $1,497 purchases, review status counts, a chart by day, a date range and filters, a transaction list (click to open the member card), and a CSV export that follows the filters. "Payments & access tools" holds Stripe reconciliation, manual grants, and access changes. |
+| **Sales** | Gross collected, refunds (completed vs. pending), net, and net after Stripe fees. These are defined on the page and never presented as profit. Counts of $997 vs. $1,497 purchases, review status counts, a chart by day, a date range and filters, a transaction list (click to open the member card), and a CSV export that follows the filters. "Payments & access tools" holds Stripe reconciliation, manual grants, and access changes. |
 | **Program** | All 21 days grouped by week, each with a readiness checklist. A day editor that can save drafts, schedule publication, attach resources, and edit questions (with versioning). The resource library with uploads and replacement versions, and the lifecycle preview on a simulated clock. |
 | **Solutions Seat** | Sessions, which feed the member banner and Calls & Help. Challenges with what they're working on, where they're stuck, the help wanted, and permission to discuss them with the cohort, moving through Submitted → Selected → Discussed → Follow up, with private facilitator notes. A printable **Session prep** view. |
 | **Progress** | Approved members who are not started, started, or recently active, plus days voluntarily marked complete and a per-member activity timeline. Definitions sit on the page: a download isn't completed work, and a link click isn't attendance. Journal text is never shown or counted. |
@@ -83,7 +86,7 @@ Log in at `/admin` and choose **Smooth Operators admin**. There are seven sectio
 ## Key design decisions
 
 - **Identity:** Supabase Auth email one-time codes (or the emailed link). There are no passwords, so recovery is the same as sign-in on any device. Members sign in *before* paying, so every purchase belongs to a verified user ID. A purchase can never be claimed by typing an email.
-- **Payments:** Stripe-hosted Checkout through the REST API, with the webhook signature verified by hand (no SDK). The price is chosen by server time: $999 (99900 cents) before the cutoff, then $1,497 (149700). Client-sent amounts are ignored.
+- **Payments:** Stripe-hosted Checkout through the REST API, with the webhook signature verified by hand (no SDK). The price is chosen by server time: $997 (99700 cents) before the cutoff, then $1,497 (149700). Client-sent amounts are ignored.
   - At most one in-flight purchase per member, enforced by a unique index. Stripe idempotency keys stop duplicate sessions.
   - Access is granted **only** when Stripe confirms a paid session, either through the signed webhook or a server-to-server lookup when someone returns before the webhook arrives. The success URL alone grants nothing.
 - **Intro-price policy:** a session quoted before the cutoff keeps its price until its own Stripe expiry (`checkout_ttl_minutes`, default 60, range 30–1440). After that, new sessions are quoted at the regular price and the stale session is expired at Stripe. Open sessions are never silently repriced.

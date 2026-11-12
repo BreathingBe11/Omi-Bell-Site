@@ -29,6 +29,7 @@ register(require('./_lib/so/workspace').routes);
 register(require('./_lib/so/support').routes);
 register(require('./_lib/so/admin').routes);
 register(require('./_lib/so/pages').routes);
+register(require('./_lib/so/leads').routes);
 // Fixed paths win over parameterized ones (e.g. admin/members/export vs admin/members/:id).
 table.sort((a, b) => a.names.length - b.names.length);
 

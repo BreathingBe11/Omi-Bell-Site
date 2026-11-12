@@ -19,13 +19,14 @@ const COMMON = ['first_name', 'cohort_name', 'cohort_dates', 'app_link', 'suppor
 
 // key: [label, category, subject, body, extra merge fields]
 const DEFAULTS = {
-  purchase_next_steps: ['Enrollment confirmed', 'transactional',
-    'You’re enrolled in {{cohort_name}}',
+  purchase_next_steps: ['Enrollment confirmed: set up your account', 'transactional',
+    'You’re in! Set up your {{cohort_name}} account',
     `Hi {{first_name}},
 
 You’re in. Your payment for {{cohort_name}} ({{cohort_dates}}) is confirmed and your seat is yours. Your receipt comes separately from our payment provider.
 
-Your platform is open now: {{app_link}}
+Set up your account (takes a minute): {{account_link}}
+Sign in with Google or with a one-time code sent to this email address. Use this same email so your enrollment is waiting for you.
 
 What to expect:
 - Every day, January 4–24, 2027, including weekends: a new Guided Audio, Leadership Journal Prompt, and Business Action Toolkit resource. Plan for 5–10 minutes of audio and about 20–40 minutes to apply the day’s work.
@@ -35,7 +36,18 @@ What to expect:
 
 Refunds: you may request a full refund before the cohort begins on January 4, 2027. Once the cohort begins, all sales are final. To request a refund before the start date, email hello@omisworld.com.
 
-{{support_line}}`, ['support_line']],
+{{support_line}}`, ['support_line', 'account_link']],
+  checkout_reminder: ['Unfinished checkout reminder (one per person)', 'optional',
+    'Your seat in {{cohort_name}} is still open',
+    `Hi {{first_name}},
+
+You started enrolling in {{cohort_name}} ({{cohort_dates}}) but didn’t finish checkout. Your seat isn’t reserved until payment goes through.
+
+Finish enrolling: {{checkout_link}}
+
+If you have questions first, just reply to {{support_email}}.
+
+You’re receiving this one-time reminder because you started checkout. Unsubscribe: {{unsubscribe_link}}`, ['checkout_link', 'unsubscribe_link']],
   submission_received: ['Fit check received', 'transactional',
     'We received your fit check',
     `Hi {{first_name}},

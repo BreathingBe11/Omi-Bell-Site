@@ -381,15 +381,15 @@
   }
 
   // ============================================================ sign in
-  function loginForm(container, { next, heading = true, intro } = {}) {
-    container.innerHTML = `${heading ? '<h1>Sign in</h1>' : ''}
+  function loginForm(container, { next, heading = true, intro, email: prefill } = {}) {
+    container.innerHTML = `${heading ? `<h1>${typeof heading === 'string' ? esc(heading) : 'Sign in'}</h1>` : ''}
 <p>${intro || 'Continue with Google, or use your email and we’ll send you a 6-digit code. There’s no password to remember.'}</p>
 <div id="oauth-err" role="alert"></div>
 <div id="google-slot" class="google-slot" aria-busy="true"></div><div id="google-fallback" hidden><button class="btn btn-secondary btn-block google-btn" type="button" id="google-btn"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.6 13.2l7.9 6.2C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.5 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.2C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.8l7.9-6.2z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.7 2.2-8.5 2.2-6.3 0-11.6-4.1-13.5-9.9l-7.9 6.2C6.6 42.6 14.6 48 24 48z"/></svg> Continue with Google</button></div>
 <p class="or-divider"><span>or use your email</span></p>
 <form id="email-form" novalidate>
   <div class="field"><label for="email">Email address</label>
-  <input id="email" type="email" name="email" autocomplete="email" required inputmode="email"></div>
+  <input id="email" type="email" name="email" autocomplete="email" required inputmode="email" value="${esc(prefill || '')}"></div>
   <p class="form-error" id="email-err" role="alert"></p>
   <button class="btn btn-primary" type="submit">Send my code</button>
 </form>
@@ -531,9 +531,12 @@
     wrap.className = 'stack';
     main.innerHTML = '';
     main.appendChild(wrap);
-    loginForm(wrap, { next });
+    const prefill = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(query.email || '') ? query.email : '';
+    loginForm(wrap, prefill
+      ? { next, email: prefill, heading: 'Set up your account', intro: `Set up your account by signing in as <strong>${esc(prefill)}</strong>: continue with Google (using that address), or we’ll email you a 6-digit code. There’s no password.` }
+      : { next });
     if (oauthError) q('#oauth-err', wrap).innerHTML = `<p class="notice notice-error">Google sign-in didn’t finish (${esc(oauthError)}). Try again, or use your email.</p>`;
-    return 'Sign in';
+    return prefill ? 'Set up your account' : 'Sign in';
   }
 
   async function viewLoginHelp(main) {
@@ -582,7 +585,7 @@
     const me = token ? await SO.api('GET', 'me') : { signed_in: false };
     const test = offer.sales.test_mode ? '<div class="notice notice-warn" role="note"><p><strong>Test mode.</strong> Use a Stripe test card. No real payment is taken.</p></div>' : '';
     const canceled = query.canceled ? '<div class="notice" role="status"><p>Checkout was canceled. You haven’t been charged. You can continue whenever you’re ready.</p></div>' : '';
-    main.innerHTML = `<div class="stack"><h1>Join Smooth Operators</h1>${test}${canceled}${offerSummary(offer)}<div id="step"></div></div>`;
+    main.innerHTML = `<div class="stack"><h1>Join Smooth Operators</h1>${test}${canceled}<div id="step"></div><h2 style="font-size:1.45rem;margin:1.5rem 0 0">What’s included</h2>${offerSummary(offer)}</div>`;
     const step = q('#step', main);
 
     if (me.signed_in && me.enrolled && me.access.active) {
@@ -595,87 +598,65 @@
 <p>${supportLine(offer.support_email)}</p>`;
       return 'Join';
     }
-    if (!me.signed_in) {
-      step.innerHTML = '<h2 style="font-size:1.5rem">Step 1: Confirm your email</h2><div id="login"></div>';
-      loginForm(q('#login', step), { next: '/checkout', heading: false, intro: 'We’ll send a one-time code to confirm it’s you. Your enrollment and cohort access will belong to this email.' });
-      return 'Join';
-    }
-    const el = await SO.api('GET', 'eligibility');
-    if (!el.confirmed || query.edit === 'details') {
-      eligibilityForm(step, el, me, offer);
-      return 'Join';
-    }
-    step.innerHTML = `<p>Signed in as <strong>${esc(me.email)}</strong>. <button class="linklike" data-signout>Not you?</button></p>
-<div class="notice notice-success"><p><strong>You’re all set, ${esc((el.name || '').split(' ')[0] || 'friend')}.</strong> <a href="${B}/checkout?edit=details">Edit my details</a></p></div>
-<button class="btn btn-primary btn-lg btn-block" id="pay-btn">Continue to secure payment — ${SO.money(offer.price.amount_cents)}</button>
-<p class="small muted">You’ll finish on Stripe’s secure checkout page. As soon as your payment goes through, you’re enrolled and your platform opens. Your receipt comes from Stripe.</p>
-<div id="pay-msg" role="status" aria-live="polite"></div>`;
-    wireSignout(step);
-    const btn = q('#pay-btn', step), msg = q('#pay-msg', step);
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Preparing secure checkout…';
-      msg.innerHTML = '';
-      try {
-        const r = await SO.api('POST', 'checkout/session', {});
-        if (r.state === 'redirect') { window.location.assign(r.url); return; }
-        const text = {
-          already_enrolled: `You’re already enrolled. <a href="${B}/app">Open My Cohort</a>.`,
-          pending: 'We’re confirming your enrollment. You won’t need to pay again. Check back in a few minutes.',
-          full: 'All seats are full.',
-          eligibility_required: `Please confirm your details first. <a href="${B}/checkout">Continue</a>`,
-          enrollment_closed: 'Enrollment for this cohort has closed.',
-          unavailable: 'Enrollment isn’t open right now.',
-          contact_support: `Your account needs a quick look from our team before checkout. ${supportLine(offer.support_email)}`,
-        }[r.state] || 'Checkout is unavailable right now.';
-        msg.innerHTML = `<div class="notice">${text}</div>`;
-        btn.hidden = true;
-      } catch (e) {
-        msg.innerHTML = errorBox(e);
-        btn.disabled = false;
-        btn.textContent = `Continue to secure payment — ${SO.money(offer.price.amount_cents)}`;
-      }
-    });
+    checkoutForm(step, offer, me);
     return 'Join';
   }
 
-  // Simple eligibility confirmation before purchase.
-  function eligibilityForm(step, el, me, offer) {
-    step.innerHTML = `<h2 style="font-size:1.6rem">Before you pay</h2>
-<form id="elig" class="card" novalidate>
-  <p style="margin-top:0">Signed in as <strong>${esc(me.email)}</strong>. <button class="linklike" type="button" data-signout>Not you?</button></p>
-  <div class="field"><label for="e-name">Your name</label><input id="e-name" type="text" autocomplete="name" maxlength="80" required value="${esc(el.name || '')}"></div>
-  <label class="check"><input type="checkbox" id="e-ok"><span>${esc(el.statement)}</span></label>
-  <div class="notice" style="margin-top:1rem"><p><strong>Refund policy.</strong> ${esc(el.refund_policy || '')}</p></div>
-  <label class="check"><input type="checkbox" id="e-terms"><span>I agree to the <a href="${B}/terms" target="_blank" rel="noopener">Terms</a>, the <a href="${B}/privacy" target="_blank" rel="noopener">Privacy Policy</a>, and the refund policy above.</span></label>
-  <p class="form-error" id="e-err" role="alert"></p>
-  <button class="btn btn-primary btn-lg btn-block" type="submit">Continue</button>
+  // One short form, then straight to Stripe. No sign-in first: the form is
+  // saved when they continue, and they set up sign-in after paying.
+  function checkoutForm(step, offer, me) {
+    const signedIn = !!me.signed_in;
+    const price = SO.money(offer.price.amount_cents);
+    step.innerHTML = `<form id="join" class="card" novalidate>
+  <h2 style="font-size:1.6rem;margin-top:0">Your details</h2>
+  <div class="field"><label for="j-name">Your name</label><input id="j-name" type="text" autocomplete="name" maxlength="80" required value="${esc((me && me.display_name) || '')}"></div>
+  <div class="field"><label for="j-email">Email address</label>
+    <input id="j-email" type="email" autocomplete="email" inputmode="email" maxlength="254" required value="${esc((me && me.email) || '')}"${signedIn ? ' readonly' : ''}>
+    <p class="help">${signedIn ? `Signed in. <button class="linklike" type="button" data-signout>Use a different email</button>` : 'Your receipt and account setup link go here, so double-check it.'}</p></div>
+  <div class="hp" aria-hidden="true"><label for="j-company">Company website</label><input id="j-company" type="text" tabindex="-1" autocomplete="off"></div>
+  <label class="check"><input type="checkbox" id="j-ok"><span>I own a business with customers and revenue, and I’m enrolling for business purposes.</span></label>
+  <div class="notice" style="margin-top:1rem"><p><strong>Refund policy.</strong> ${esc(offer.disclosure.refund_policy || '')}</p></div>
+  <label class="check"><input type="checkbox" id="j-terms"><span>I agree to the <a href="${B}/terms" target="_blank" rel="noopener">Terms</a>, the <a href="${B}/privacy" target="_blank" rel="noopener">Privacy Policy</a>, and the refund policy above.</span></label>
+  <p class="form-error" id="j-err" role="alert"></p>
+  <button class="btn btn-primary btn-lg btn-block" type="submit" id="pay-btn">Continue to payment — ${price}</button>
+  <p class="small muted" style="margin:.75rem 0 0">Secure checkout by Stripe. After you pay, we’ll email you a link to set up your account. If you don’t finish checkout, we may send you one reminder (unsubscribe any time).</p>
+  ${signedIn ? '' : `<p class="small" style="margin:.5rem 0 0">Already enrolled? ${link('/login', 'Sign in')}</p>`}
 </form>`;
     wireSignout(step);
-    const form = q('#elig', step);
+    const form = q('#join', step), err = q('#j-err', form), btn = q('#pay-btn', form);
     form.addEventListener('submit', async e => {
       e.preventDefault();
-      const err = q('#e-err', form);
-      const name = q('#e-name', form).value.trim();
-      if (!name) { err.textContent = 'Add your name.'; q('#e-name', form).focus(); return; }
-      if (!q('#e-ok', form).checked) { err.textContent = 'Please confirm you own a business with customers and revenue.'; return; }
-      if (!q('#e-terms', form).checked) { err.textContent = 'Please agree to the Terms, Privacy Policy and refund policy.'; return; }
+      const name = q('#j-name', form).value.trim();
+      const email = q('#j-email', form).value.trim();
+      const fail = (msg, el) => { err.textContent = msg; if (el) el.focus(); };
+      if (!name) return fail('Add your name.', q('#j-name', form));
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('Enter a valid email address.', q('#j-email', form));
+      if (!q('#j-ok', form).checked) return fail('Please confirm you own a business with customers and revenue.');
+      if (!q('#j-terms', form).checked) return fail('Please agree to the Terms, Privacy Policy and refund policy.');
+      err.textContent = '';
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Opening secure checkout…';
       try {
-        await SO.api('PUT', 'eligibility', { name, eligible: true, terms: true });
-        if (state.me) state.me.display_name = name;
-        navigate(`${B}/checkout`, { replace: true });
+        const r = await SO.api('POST', 'checkout/start', { name, email, eligible: true, terms: true, company_website: q('#j-company', form).value });
+        if (r.state === 'redirect') { window.location.assign(r.url); return; }
+        const text = {
+          already_enrolled: `You’re already enrolled with this email. <a href="${r.login_url || `${B}/login`}">Sign in to your account</a>.`,
+          pending: 'We’re confirming your enrollment. You won’t need to pay again. Check your email in a few minutes.',
+          full: 'All seats are full.',
+          enrollment_closed: 'Enrollment for this cohort has closed.',
+          unavailable: 'Enrollment isn’t open right now.',
+          contact_support: `This email needs a quick look from our team before checkout. ${supportLine(offer.support_email)}`,
+        }[r.state] || 'Checkout is unavailable right now.';
+        err.innerHTML = text;
       } catch (ex) { err.textContent = ex.message; }
+      btn.disabled = false;
+      btn.textContent = `Continue to payment — ${price}`;
     });
   }
 
   async function viewSuccess(main, _p, query, ctx) {
     const sid = query.session_id || '';
     const token = await SO.token();
-    if (!token) {
-      main.innerHTML = '<div class="stack"><h1>Confirm it’s you</h1><div id="login"></div></div>';
-      loginForm(q('#login', main), { next: `/checkout/success?session_id=${encodeURIComponent(sid)}`, heading: false, intro: 'Sign in with the email you used at checkout so we can confirm your enrollment.' });
-      return 'Confirming enrollment';
-    }
     const email = await supportEmail();
     main.innerHTML = '<div class="stack" id="status-box" aria-live="polite"></div>';
     const box = q('#status-box', main);
@@ -702,9 +683,11 @@
       }
       if (r.state === 'confirmed') {
         state.me = null;
+        const setup = `${B}/login?next=%2Fapp&email=${encodeURIComponent(r.email || '')}`;
         show(`<h1>You’re in.</h1><p>Your payment is confirmed and your seat in Smooth Operators is yours. Your receipt is on its way from Stripe.</p>
-<p>Daily guided programming runs January 4–24, 2027. Your platform is open now, so you can look around, add a profile photo, and save the live call dates.</p>
-<a class="btn btn-primary" href="${B}/app" id="open-cohort">Open My Cohort</a>`);
+${token ? '' : `<div class="notice"><p><strong>Next: set up your account.</strong> We’ve emailed ${r.email ? `<strong>${esc(r.email)}</strong>` : 'you'} a link. You can also do it right now: sign in with Google or a one-time code, using that same email.</p></div>`}
+<p>Daily guided programming runs January 4–24, 2027. Once you’re in, you can look around, add a profile photo, and save the live call dates.</p>
+${token ? `<a class="btn btn-primary" href="${B}/app" id="open-cohort">Open My Cohort</a>` : `<a class="btn btn-primary" href="${setup}" id="open-cohort">Set up my account</a>`}`);
         q('#open-cohort', box).focus();
         return;
       }
