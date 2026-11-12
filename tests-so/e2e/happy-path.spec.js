@@ -33,38 +33,35 @@ test('business owner pays, is enrolled right away and saves a private reflection
   expect(await axe(page)).toEqual([]);
   await page.locator('#hero-cta').click();
 
+  // One form, no sign-in first.
   await expect(page.getByRole('heading', { name: 'Join Smooth Operators' })).toBeVisible();
   await expect(page.getByText('Test mode.')).toBeVisible();
-  await page.getByLabel('Email address').fill(email);
-  await page.getByRole('button', { name: 'Send my code' }).click();
-  await page.getByLabel('Sign-in code').fill('123456');
-  await page.getByRole('button', { name: 'Sign in' }).click();
-
-  // Simple eligibility confirmation (no fit check).
-  await expect(page.getByRole('heading', { name: 'Before you pay' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Send my code' })).toHaveCount(0);
   await expect(page.getByText(/full refund before the cohort begins on January 4, 2027/).first()).toBeVisible();
   expect(await axe(page)).toEqual([]);
+  const pay = page.getByRole('button', { name: 'Continue to payment — $997' });
   await page.getByLabel('Your name').fill('Ada Lovelace');
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByLabel('Email address').fill(email);
+  await pay.click();
   await expect(page.getByRole('alert')).toContainText(/customers and revenue/);
   await page.getByLabel(/I own a business with customers and revenue/).check();
   await page.getByLabel(/I agree to the Terms/).check();
-  await page.getByRole('button', { name: 'Continue' }).click();
-  await expect(page.getByText('You’re all set, Ada.')).toBeVisible();
-
-  const pay = page.getByRole('button', { name: 'Continue to secure payment — $999' });
-  await expect(pay).toBeVisible();
-  expect(await axe(page)).toEqual([]);
   await pay.click();
 
-  // Stripe test double's hosted page.
-  await expect(page.locator('#amount')).toHaveText('99900');
+  // Stripe test double's hosted page. The form was saved before Stripe opened.
+  await expect(page.locator('#amount')).toHaveText('99700');
+  expect((await sql`select status from so_leads where email = ${email}`)[0].status).toBe('started');
   await page.locator('#pay').click();
 
-  // Payment enrolls directly: straight into the platform.
+  // Paid: enrolled; set up the account (prefilled email), then into the platform.
   await expect(page.getByRole('heading', { name: 'You’re in.' })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText(/We’ve emailed/)).toContainText(email);
   expect(await axe(page)).toEqual([]);
-  await page.getByRole('link', { name: 'Open My Cohort' }).click();
+  await page.getByRole('link', { name: 'Set up my account' }).click();
+  await expect(page.getByLabel('Email address')).toHaveValue(email);
+  await page.getByRole('button', { name: 'Send my code' }).click();
+  await page.getByLabel('Sign-in code').fill('123456');
+  await page.getByRole('button', { name: 'Sign in' }).click();
 
   await expect(page.getByRole('heading', { name: 'You’re in. Let’s build what comes next.' })).toBeVisible();
   await expect(page.getByText('You know how to generate business. We’ll help you build the operations to handle what comes next.')).toBeVisible();
@@ -200,13 +197,14 @@ const FAKE_GIS = `window.google = { accounts: { id: {
     el.appendChild(b);
   } } } };`;
 
-test('Google’s own button signs in on our page (no redirect), then checkout continues', async ({ page }) => {
+test('Google’s own button signs in on our page (no redirect), then checkout continues with that email', async ({ page }) => {
   await page.route('https://accounts.google.com/gsi/client', r => r.fulfill({ contentType: 'text/javascript', body: FAKE_GIS }));
   let redirected = false;
   page.on('request', r => { if (r.url().includes('/auth/v1/authorize')) redirected = true; });
-  await page.goto(`${base()}/smoothoperators/checkout`);
+  await page.goto(`${base()}/smoothoperators/login?next=%2Fcheckout`);
   await page.getByRole('button', { name: 'Continue with Google' }).click();
-  await expect(page.getByRole('heading', { name: 'Before you pay' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your details' })).toBeVisible();
+  await expect(page.getByLabel('Email address')).toHaveValue('gis-user@gmail.com');
   expect(redirected).toBe(false);
   await page.goto(`${base()}/smoothoperators/login`);
   await expect(page.getByText(/Signed in as/)).toContainText('gis-user@gmail.com');
@@ -214,10 +212,10 @@ test('Google’s own button signs in on our page (no redirect), then checkout co
 
 test('if Google’s button can’t load, the fallback Google sign-in still works', async ({ page }) => {
   await page.route('https://accounts.google.com/**', r => r.abort());
-  await page.goto(`${base()}/smoothoperators/checkout`);
+  await page.goto(`${base()}/smoothoperators/login?next=%2Fcheckout`);
   await page.getByRole('button', { name: 'Continue with Google' }).click();
   await expect(page).toHaveURL(/\/smoothoperators\/checkout/);
-  await expect(page.getByRole('heading', { name: 'Before you pay' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your details' })).toBeVisible();
   await page.goto(`${base()}/smoothoperators/login`);
   await expect(page.getByText(/Signed in as/)).toContainText('google-user@gmail.com');
 });

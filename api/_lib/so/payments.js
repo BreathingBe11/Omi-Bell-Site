@@ -134,6 +134,17 @@ async function createStripeSession(req, cohort, purchase, user) {
 async function checkoutSession({ sql, req, now }) {
   const user = await requireUser(req);
   await ensureProfile(sql, user);
+  const prof = (await sql`select eligibility_confirmed_at, terms_accepted_at from so_profiles where user_id = ${user.id}`)[0];
+  if (!prof || !prof.eligibility_confirmed_at || !prof.terms_accepted_at) {
+    const cohort = await C.loadCohort(sql);
+    const e = await C.loadEnrollment(sql, user.id, cohort.id);
+    if (!(e && e.access_state === 'active')) return { state: 'eligibility_required' };
+  }
+  return checkoutFor(sql, req, now, user);
+}
+
+// Shared by signed-in checkout and the public "continue to payment" form.
+async function checkoutFor(sql, req, now, user) {
   const cohort = await C.loadCohort(sql);
   const enrollment = await C.loadEnrollment(sql, user.id, cohort.id);
   if (enrollment && enrollment.access_state === 'active') return { state: 'already_enrolled' };
@@ -144,8 +155,6 @@ async function checkoutSession({ sql, req, now }) {
   if (!readiness.can_checkout) {
     return { state: readiness.reason === 'enrollment_closed' ? 'enrollment_closed' : 'unavailable', reason: readiness.reason };
   }
-  const prof = (await sql`select eligibility_confirmed_at, terms_accepted_at from so_profiles where user_id = ${user.id}`)[0];
-  if (!prof || !prof.eligibility_confirmed_at || !prof.terms_accepted_at) return { state: 'eligibility_required' };
   await H.rateLimit(sql, `checkout:${user.id}`, 12, 600);
   if (await seatsFull(sql, cohort, now, user.id)) return { state: 'full' };
 
@@ -283,6 +292,7 @@ async function activatePurchase(sql, purchase, { paymentIntent, amountTotal, amo
   });
   if (result.activated) {
     C.recordEvent(sql, 'payment_confirmed', { userId: result.purchase.user_id, cohortId: result.purchase.cohort_id, refId: result.purchase.price_tier });
+    await require('./leads').markLeadPaid(sql, result.purchase).catch(e => console.error('[so] lead update failed', e.message));
     await enrichPurchase(sql, result.purchase).catch(e => console.error('[so] receipt lookup failed', e.code || e.message));
     await sendConfirmation(sql, result.enrollment).catch(e => console.error('[so] confirmation email error', e.message));
   }
@@ -308,7 +318,9 @@ async function sendConfirmation(sql, enrollment) {
   if (!profile) return;
   const m = await email.enqueue(sql, {
     key: 'purchase_next_steps', dedupeKey: `purchase-next-steps:${enrollment.id}`, to: profile.email, userId: enrollment.user_id,
-    cohortId: cohort.id, vars: await email.baseVars(sql, cohort, enrollment.user_id), related: { type: 'enrollment', id: enrollment.id }, actor: 'system',
+    cohortId: cohort.id, related: { type: 'enrollment', id: enrollment.id }, actor: 'system',
+    vars: { ...(await email.baseVars(sql, cohort, enrollment.user_id)),
+      account_link: `${env.siteUrl()}${env.BASE_PATH}/login?next=%2Fapp&email=${encodeURIComponent(profile.email)}` },
   });
   if (m) {
     await email.processOutbox(sql, { ids: [m.id] });
@@ -317,17 +329,26 @@ async function sendConfirmation(sql, enrollment) {
 }
 
 // Return from Stripe: verify server-side, reconciling if the webhook is late.
+// Works signed in or not: buyers no longer sign in before paying. The Stripe
+// session id in the return URL is the buyer's proof; a signed-in viewer must
+// also own the checkout.
 async function checkoutStatus({ sql, req, query }) {
-  const user = await requireUser(req);
+  const user = await getAuthUser(req).catch(() => null);
   const cohort = await C.loadCohort(sql);
   const sid = H.text(query.session_id, { max: 255, field: 'session' });
-  if (!/^cs_[A-Za-z0-9_]+$/.test(sid)) throw new HttpError(404, 'not_found', 'We could not find that checkout.');
-  const purchase = (await sql`select * from so_purchases where stripe_session_id = ${sid} and user_id = ${user.id}`)[0];
+  if (!/^cs_[A-Za-z0-9_]{10,}$/.test(sid)) throw new HttpError(404, 'not_found', 'We could not find that checkout.');
+  await H.rateLimit(sql, `status:${H.clientIp(req)}`, 120, 600);
+  const purchase = (await sql`select * from so_purchases where stripe_session_id = ${sid}`)[0];
   // Someone else's (or a made-up) session id looks the same as a missing one.
-  if (!purchase) throw new HttpError(404, 'not_found', 'We could not find that checkout for this account.');
+  if (!purchase || (user && purchase.user_id !== user.id)) throw new HttpError(404, 'not_found', 'We could not find that checkout for this account.');
+  const owner = (await sql`select email from so_profiles where user_id = ${purchase.user_id}`)[0];
+  const result = await checkoutState(sql, cohort, purchase, sid);
+  return { ...result, email: result.state === 'confirmed' && owner ? owner.email : undefined };
+}
 
+async function checkoutState(sql, cohort, purchase, sid) {
   const enrolled = async () => {
-    const e = await C.loadEnrollment(sql, user.id, cohort.id);
+    const e = await C.loadEnrollment(sql, purchase.user_id, cohort.id);
     return e && e.access_state === 'active';
   };
   if (purchase.status === 'paid' && await enrolled()) return { state: 'confirmed' };
@@ -452,4 +473,4 @@ const routes = {
   'GET checkout/status': checkoutStatus,
 };
 
-module.exports = { routes, offerPayload, seatsTaken, applySession, activatePurchase, processWebhook, handleEvent, sendConfirmation, retireSession };
+module.exports = { routes, checkoutFor, offerPayload, seatsTaken, applySession, activatePurchase, processWebhook, handleEvent, sendConfirmation, retireSession };

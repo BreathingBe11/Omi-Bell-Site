@@ -664,3 +664,5 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); outline: 
 .ready-list li::marker { color: var(--gold-ink); font-family: var(--serif); font-weight: 600; }
 .access-kv { border-top: 1px solid var(--line); padding-top: .8rem; margin-bottom: 0; }
 .step-hint { margin: -.25rem 0 .8rem; font-size: .92rem; color: var(--muted); }
+/* Bot trap on the checkout form: invisible to people and screen readers. */
+.hp { position: absolute !important; left: -10000px; width: 1px; height: 1px; overflow: hidden; }

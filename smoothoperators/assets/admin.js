@@ -13,7 +13,7 @@
     ['seat', 'Solutions Seat'], ['progress', 'Progress'], ['settings', 'Emails & Settings'],
   ];
   const SUBS = {
-    members: [['all', 'All members'], ['intros', 'Introductions']],
+    members: [['all', 'All members'], ['leads', 'Started checkout'], ['intros', 'Introductions']],
     sales: [['summary', 'Sales'], ['access', 'Payments & access tools']],
     program: [['days', '21 days'], ['announcements', 'Announcements'], ['resources', 'Resources'], ['preview', 'Preview']],
     seat: [['sessions', 'Sessions'], ['challenges', 'Challenges'], ['prep', 'Session prep']],
@@ -95,8 +95,8 @@ ${subs ? `<nav class="admin-subnav" aria-label="${esc(SECTIONS.find(x => x[0] ==
     const pick = q('#cohort-pick');
     if (pick) pick.addEventListener('change', () => { COHORT.id = pick.value; try { sessionStorage.setItem('so_admin_cohort', pick.value); } catch { /* ignore */ } route(); });
     const main = q('#admin-main');
-    const view = VIEWS[subs ? (s === 'members' && sub !== 'intros' ? 'members' : sub === 'summary' ? 'sales' : sub === 'sessions' ? 'calls' : sub) : s];
-    if (s === 'members' && sub !== 'intros') ARG = sub;
+    const view = VIEWS[subs ? (s === 'members' && sub !== 'intros' && sub !== 'leads' ? 'members' : sub === 'summary' ? 'sales' : sub === 'sessions' ? 'calls' : sub) : s];
+    if (s === 'members' && sub !== 'intros' && sub !== 'leads') ARG = sub;
     try { await view(main); } catch (e) { if (token()) main.innerHTML = `<div class="notice notice-error" role="alert"><p>${esc(e.message)}</p><button class="btn btn-secondary btn-sm" onclick="location.reload()">Try again</button></div>`; }
   }
   let NEWQ = 0;
@@ -433,6 +433,28 @@ ${purchases.length ? purchases.map(p => `<tr><td>${esc(p.email)}</td><td>${esc(p
   };
 
   // --------------------------------------------------------------- intros
+  VIEWS.leads = async main => {
+    const d = await api('GET', 'admin/leads');
+    const started = d.leads.filter(l => l.status === 'started');
+    const status = l => l.status === 'paid' ? '<span class="pill pill-complete">Paid</span>'
+      : l.unsubscribed_at ? '<span class="pill">Unsubscribed</span>'
+      : l.reminder_sent_at ? `<span class="pill pill-progress">Reminder sent ${esc(shortDate(l.reminder_sent_at))}</span>` : '<span class="pill pill-draft">Not paid</span>';
+    main.innerHTML = `<div class="row-between"><h1>Started checkout <span class="muted" style="font-size:1.2rem">(${started.length} not paid)</span></h1>
+${canDo('settings') ? `<button class="btn btn-secondary btn-sm" id="remind"${d.due ? '' : ' disabled'}>Send due reminders (${d.due})</button>` : ''}</div>
+<p class="muted small">Everyone who filled in the form and continued to payment, saved even if they didn’t pay. People who haven’t paid after ${d.reminder_after_hours} hours get one reminder email with an unsubscribe link${d.cron_configured ? ', sent automatically each morning.' : '. <strong>Automatic sending is off until CRON_SECRET is set in Vercel</strong>; use the button meanwhile.'}</p>
+<div id="lmsg" role="status"></div>
+${d.leads.length ? `<div class="table-wrap"><table class="data"><thead><tr><th>Name</th><th>Email</th><th>First started</th><th>Last checkout</th><th>Status</th></tr></thead><tbody>
+${d.leads.map(l => `<tr><td>${esc(l.name)}</td><td><a href="mailto:${esc(l.email)}">${esc(l.email)}</a></td><td class="small">${esc(dt(l.created_at))}</td>
+<td class="small">${esc(dt(l.last_checkout_at))}${l.checkout_count > 1 ? ` · ${l.checkout_count} tries` : ''}</td><td>${status(l)}</td></tr>`).join('')}</tbody></table></div>`
+      : '<p class="empty">No one has started checkout yet.</p>'}`;
+    const b = q('#remind');
+    if (b) b.addEventListener('click', async () => {
+      b.disabled = true;
+      try { const r = await api('POST', 'admin/leads/remind'); await VIEWS.leads(main); flash(q('#lmsg'), `Sent ${r.sent} reminder${r.sent === 1 ? '' : 's'}.${r.reason ? ` (${r.reason.replace(/_/g, ' ')})` : ''}`, true); }
+      catch (e) { flash(q('#lmsg'), e.message, false); b.disabled = false; }
+    });
+  };
+
   VIEWS.intros = async main => {
     const { introductions } = await api('GET', 'admin/introductions');
     main.innerHTML = `<h1>Introductions</h1><p class="muted">Hidden introductions stay visible to their author only.</p>
@@ -777,11 +799,11 @@ ${d.series.map((x, i) => `<g><rect x="${i * 24 + 4}" y="${110 - (x.cents / max) 
 ${sel('s-state', 'Payment', [['', 'Any'], ['paid', 'Paid'], ['pending', 'Pending'], ['failed', 'Failed'], ['refunded', 'Refunded'], ['partially_refunded', 'Partly refunded'], ['disputed', 'Disputed']], st.state)}
 <input type="hidden" id="s-review" value="">
 ${sel('s-refund', 'Refund', [['', 'Any'], ['any', 'Has a refund'], ['succeeded', 'Completed'], ['pending', 'Pending'], ['failed', 'Failed']], st.refund)}
-${sel('s-tier', 'Price', [['', 'Any'], ['intro', '$999 introductory'], ['regular', '$1,497 regular']], st.tier)}
+${sel('s-tier', 'Price', [['', 'Any'], ['intro', '$997 introductory'], ['regular', '$1,497 regular']], st.tier)}
 </div><label class="check"><input type="checkbox" id="s-flag"${st.flagged ? ' checked' : ''}><span>Only payments flagged for review</span></label>
 <div class="row"><button class="btn btn-primary btn-sm">Apply</button><button class="btn btn-ghost btn-sm" type="button" id="s-clear">Clear</button></div></form>
 <div class="grid-4" style="margin-top:1rem">
-  <div class="card"><p class="small muted" style="margin:0">Gross collected</p><p class="stat">${money(t.gross_cents)}</p><p class="small muted" style="margin:0">${t.purchases} payment${t.purchases === 1 ? '' : 's'} · ${t.intro_count} at $999 · ${t.regular_count} at $1,497</p></div>
+  <div class="card"><p class="small muted" style="margin:0">Gross collected</p><p class="stat">${money(t.gross_cents)}</p><p class="small muted" style="margin:0">${t.purchases} payment${t.purchases === 1 ? '' : 's'} · ${t.intro_count} at $997 · ${t.regular_count} at $1,497</p></div>
   <div class="card"><p class="small muted" style="margin:0">Refunds</p><p class="stat">${money(t.refunds_completed_cents)}</p><p class="small muted" style="margin:0">completed · ${money(t.refunds_pending_cents)} pending${t.refunds_failed ? ` · <strong style="color:var(--danger)">${t.refunds_failed} failed</strong>` : ''}</p></div>
   <div class="card"><p class="small muted" style="margin:0">Net collected</p><p class="stat">${money(t.net_cents)}</p><p class="small muted" style="margin:0">after completed refunds</p></div>
   <div class="card"><p class="small muted" style="margin:0">After Stripe fees</p><p class="stat">${t.net_after_fees_cents != null ? money(t.net_after_fees_cents) : '—'}</p><p class="small muted" style="margin:0">${t.fee_cents != null ? `fees ${money(t.fee_cents)} (known for ${t.fees_known_for} of ${t.purchases})` : 'fees not reported yet'}. Not profit.</p></div>

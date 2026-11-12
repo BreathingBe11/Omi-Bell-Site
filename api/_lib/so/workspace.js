@@ -266,6 +266,8 @@ routes['GET admin/home'] = can(async ({ sql, query, now, admin: who }) => {
   const ef = await sql`select template_key, count(*)::int as n from so_email_outbox where cohort_id = ${cohort.id} and status in ('failed', 'bounced', 'complained') group by 1`;
   const efTotal = ef.reduce((a, r) => a + r.n, 0);
   if (efTotal) add('email', `${efTotal} email${efTotal === 1 ? '' : 's'} failed or bounced${ef.some(r => ['approval', 'rejection'].includes(r.template_key)) ? ', including decision emails' : ''}.`, '#settings/emails/failed', 'high');
+  const unpaid = (await sql`select count(*)::int as n from so_leads where cohort_id = ${cohort.id} and status = 'started'`.catch(() => [{ n: 0 }]))[0].n;
+  if (unpaid) add('leads', `${unpaid} ${unpaid === 1 ? 'person' : 'people'} started checkout but haven’t paid.`, '#members/leads');
   if (newQuestions) add('question', `${newQuestions} new question${newQuestions === 1 ? '' : 's'} from members.`, '#settings/questions');
   // Content readiness for days unlocking within 7 days.
   const sched = S.schedule(cohort);
@@ -544,9 +546,11 @@ routes['PUT admin/email-templates/:key'] = can(async ({ sql, req, params, admin:
 
 async function sampleVars(sql, cohort) {
   return { ...(await email.baseVars(sql, cohort, null)), first_name: 'Jordan', member_message: '(Your personal note to the member appears here.)',
-    refund_amount: '$999.00', refund_message: refunds.refundMessage({ status: 'pending', amount_cents: 99900 }, 99900, (await C.loadContent(sql)).get('purchase.refund_timing')),
+    refund_amount: '$997.00', refund_message: refunds.refundMessage({ status: 'pending', amount_cents: 99700 }, 99700, (await C.loadContent(sql)).get('purchase.refund_timing')),
     thread_subject: 'Question about my account', thread_link: `${env.siteUrl()}${env.BASE_PATH}/app/help`, call_title: 'Solutions Seat',
-    call_time: 'Tuesday, January 5 at 10:00 a.m. PST' };
+    call_time: 'Wednesday, January 6 at 1:00 p.m. PST',
+    account_link: `${env.siteUrl()}${env.BASE_PATH}/login?next=%2Fapp&email=jordan%40example.com`,
+    checkout_link: `${env.siteUrl()}${env.BASE_PATH}/checkout`, unsubscribe_link: `${env.siteUrl()}/api/so/leads/unsubscribe?token=example` };
 }
 
 routes['POST admin/email-templates/:key/preview'] = can(async ({ sql, req, query, params }) => {

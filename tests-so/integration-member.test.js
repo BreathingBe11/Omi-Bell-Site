@@ -307,7 +307,7 @@ test('admin preview uses a simulated clock and writes nothing', async () => {
   const draft = await admin('GET', `admin/preview?view=day&n=12&drafts=1&at=${encodeURIComponent(day10)}`);
   assert.equal(draft.body.day.state, 'locked', 'simulated clock still enforces unlocks');
   const offer = await admin('GET', `admin/preview?view=offer&at=${encodeURIComponent('2026-11-30T12:00:00Z')}`);
-  assert.equal(offer.body.price.amount_cents, 99900);
+  assert.equal(offer.body.price.amount_cents, 99700);
   assert.deepEqual(await counts(), before);
   // Members cannot use it.
   assert.equal((await h.api('GET', `admin/preview?view=home&at=${encodeURIComponent(day10)}`, { token: A.token })).status, 403);
@@ -323,7 +323,7 @@ test('schedule changes show an impact preview, reset owner confirmation, and are
 
   const confirm = await admin('PUT', 'admin/cohort', { confirm_settings: true });
   assert.ok(confirm.body.cohort.settings_confirmed_at);
-  const change = await admin('PUT', 'admin/cohort', { price_cutoff_local: '2026-12-01T00:00', intro_price_cents: 99900 });
+  const change = await admin('PUT', 'admin/cohort', { price_cutoff_local: '2026-12-01T00:00', intro_price_cents: 99700 });
   assert.equal(change.status, 200);
   const unchanged = change.body.timing_changed.length === 0;
   const moved = await admin('PUT', 'admin/cohort', { unlock_time: '05:00' });
@@ -407,7 +407,7 @@ async function paidMember(email) {
   const s = await h.enroll(email);
   const c = await h.cohort();
   const p = (await h.sql`insert into so_purchases (user_id, cohort_id, status, price_tier, amount_cents, amount_paid_cents, paid_at)
-                         values (${s.user.id}, ${c.id}, 'paid', 'intro', 99900, 99900, now()) returning id`)[0];
+                         values (${s.user.id}, ${c.id}, 'paid', 'intro', 99700, 99700, now()) returning id`)[0];
   await h.sql`update so_enrollments set purchase_id = ${p.id}, source = 'stripe' where user_id = ${s.user.id}`;
   return { ...s, purchaseId: p.id };
 }
@@ -434,7 +434,7 @@ test('refund requests: open until the cohort starts, reach the inbox, can be wit
   const acct = await h.api('GET', 'account', { token: P.token });
   assert.equal(acct.body.refund.state, 'available');
   assert.equal(acct.body.refund.deadline, '2027-01-04T08:00:00.000Z', 'through Jan 3 at 11:59 PM Pacific');
-  assert.equal(acct.body.payment.amount_cents, 99900);
+  assert.equal(acct.body.payment.amount_cents, 99700);
 
   const none = await h.api('POST', 'account/refund-request', { token: A.token, body: {} });
   assert.equal(none.status, 409, 'no payment, nothing to refund');

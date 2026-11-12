@@ -7,7 +7,7 @@ const S = require('../api/_lib/so/schedule');
 const cohort = {
   start_date: '2027-01-04', days_count: 21, timezone: 'America/Los_Angeles', unlock_time: '00:00',
   intro_opens_at: '2026-12-01T08:00:00Z', price_cutoff_at: '2026-12-01T08:00:00Z',
-  regular_price_cents: 149700, intro_price_cents: 99900, currency: 'usd',
+  regular_price_cents: 149700, intro_price_cents: 99700, currency: 'usd',
   access_policy: 'unset', enrollment_closes_at: null, enrollment_opens_at: null,
 };
 const BASE = cohort;
@@ -74,8 +74,8 @@ test('a different unlock time and timezone shift every day consistently', () => 
 test('price switches exactly at the server-side cutoff', () => {
   const before = S.priceAt(cohort, at('2026-12-01T07:59:59.999Z'));
   assert.equal(before.tier, 'intro');
-  assert.equal(before.amount_cents, 99900);
-  assert.equal(before.savings_cents, 49800);
+  assert.equal(before.amount_cents, 99700);
+  assert.equal(before.savings_cents, 50000);
   const after = S.priceAt(cohort, at('2026-12-01T08:00:00Z'));
   assert.equal(after.tier, 'regular');
   assert.equal(after.amount_cents, 149700);

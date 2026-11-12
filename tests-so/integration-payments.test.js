@@ -25,8 +25,8 @@ test('landing page shows dates, host, server price and test-mode label', async (
   assert.match(html, /SMOOTH OPERATORS · LIVE 21-DAY COHORT/);
   assert.match(html, /January 4–24, 2027/);
   assert.match(html, /Omi Bell/);
-  assert.match(html, /Join the Cohort — \$999/);
-  assert.match(html, /Save \$498 through November 30\. Regular enrollment: \$1,497\./);
+  assert.match(html, /Join the Cohort — \$997/);
+  assert.match(html, /Save \$500 through November 30\. Regular enrollment: \$1,497\./);
   assert.match(html, /11:59 p\.m\. PST on November 30, 2026 \(America\/Los_Angeles\)/);
   assert.match(html, /Test mode\./);
   assert.doesNotMatch(html, /Questions<\/h2>/, 'draft FAQs are not published');
@@ -36,8 +36,8 @@ test('after the cutoff the landing page drops the expired offer', async () => {
   await h.setCohort({ price_cutoff_at: new Date(Date.now() - 1000) });
   const html = await (await fetch(`${h.appBase}/smoothoperators`)).text();
   assert.match(html, /Join the Cohort — \$1,497/);
-  assert.doesNotMatch(html, /\$999/);
-  assert.doesNotMatch(html, /Save \$498/);
+  assert.doesNotMatch(html, /\$997/);
+  assert.doesNotMatch(html, /Save \$500/);
   await h.setCohort({ price_cutoff_at: new Date('2026-12-01T08:00:00Z') });
 });
 
@@ -53,9 +53,9 @@ test('price comes from server time; client-sent amounts are ignored', async () =
   const r = await h.api('POST', 'checkout/session', { token, body: { amount_cents: 1, price_tier: 'intro', unit_amount: 100 } });
   assert.equal(r.status, 200);
   assert.equal(r.body.state, 'redirect');
-  assert.equal(r.body.amount_cents, 99900);
+  assert.equal(r.body.amount_cents, 99700);
   const call = h.mocks.state.stripeCalls.at(-1);
-  assert.equal(call.form['line_items[0][price_data][unit_amount]'], '99900');
+  assert.equal(call.form['line_items[0][price_data][unit_amount]'], '99700');
   assert.equal(call.form['line_items[0][price_data][currency]'], 'usd');
   assert.equal(call.form.mode, 'payment');
   assert.equal(call.form['custom_text[submit][message]'], 'Smooth Operators with Omi Bell. Payment is processed by Omi’s World Media.');
@@ -76,13 +76,13 @@ test('repeated and concurrent clicks reuse one checkout session', async () => {
 test('intro quote is honoured until its own expiry, then new sessions use the regular price', async () => {
   const { token, user } = await h.buyer('cutoff@example.com');
   const first = await h.api('POST', 'checkout/session', { token, body: {} });
-  assert.equal(first.body.amount_cents, 99900);
+  assert.equal(first.body.amount_cents, 99700);
 
   // Cutoff passes while the session is still open: same session, same quote.
   await h.setCohort({ price_cutoff_at: new Date(Date.now() - 1000) });
   const again = await h.api('POST', 'checkout/session', { token, body: {} });
   assert.equal(again.body.url, first.body.url);
-  assert.equal(again.body.amount_cents, 99900);
+  assert.equal(again.body.amount_cents, 99700);
   assert.equal(again.body.reused, true);
 
   // Once that session reaches expiry, a new session is quoted at $1,497 and the old one is expired at Stripe.
@@ -156,10 +156,10 @@ test('verified payment enrolls exactly once, even with duplicate and repeated we
   assert.equal(app.body.review_state, 'approved');
   const conf = await h.sql`select subject, body_text from so_email_outbox where user_id = ${user.id} and template_key = 'purchase_next_steps'`;
   assert.equal(conf.length, 1, 'one enrollment confirmation');
-  assert.match(conf[0].subject, /You’re enrolled in Smooth Operators/);
+  assert.match(conf[0].subject, /You’re in! Set up your Smooth Operators account/);
   assert.match(conf[0].body_text, /all sales are final/);
   assert.doesNotMatch(conf[0].body_text, /review|approv|fit check/i);
-  assert.equal(app.body.payment.amount_cents, 99900);
+  assert.equal(app.body.payment.amount_cents, 99700);
 });
 
 test('delayed webhook: returning to the success page reconciles with Stripe server-side', async () => {
@@ -220,7 +220,7 @@ test('refunds suspend access per policy without deleting the member’s writing'
   const day = (await h.sql`select id from so_days where cohort_id = ${c.id} and day_number = 1`)[0];
   await h.sql`insert into so_journal_entries (user_id, cohort_id, day_id, body) values (${user.id}, ${c.id}, ${day.id}, 'private words')`;
 
-  await h.mocks.sendEvent('charge.refunded', { id: 'ch_1', object: 'charge', payment_intent: s.payment_intent, amount: 99900, amount_refunded: 99900 });
+  await h.mocks.sendEvent('charge.refunded', { id: 'ch_1', object: 'charge', payment_intent: s.payment_intent, amount: 99700, amount_refunded: 99700 });
   assert.equal((await enrollments(user.id))[0].access_state, 'refunded');
   assert.equal((await h.api('GET', 'home', { token })).status, 403);
   assert.equal((await h.sql`select count(*)::int as n from so_journal_entries where user_id = ${user.id}`)[0].n, 1);
@@ -369,4 +369,18 @@ test('landing: confirmed copy, accordion FAQ from the shared source, and no empt
   assert.match(html2, /youtube-nocookie\.com\/embed\/abcdefghijk/);
   assert.match(html2, /Omi helped me hand off the work\.[\s\S]*Advising client/);
   await h.sql`delete from so_site_content where key in ('video.url', 'testimonial.1.quote', 'testimonial.1.name', 'testimonial.1.context')`;
+});
+
+test('if the database update has not been run, members get a clear message and admin readiness says what to do', async () => {
+  await h.sql`alter table so_profiles drop column eligibility_confirmed_at`;
+  try {
+    const { token } = await h.mocks.signIn('early-bird@example.com');
+    const r = await h.api('PUT', 'eligibility', { token, body: { name: 'Early Bird', eligible: true, terms: true } });
+    assert.equal(r.status, 503);
+    assert.equal(r.body.error, 'database_update_needed');
+    const ov = await h.api('GET', 'admin/overview', { token: h.adminToken });
+    assert.ok(ov.body.sales.blockers.some(b => b.key === 'schema' && /smooth_operators\.sql/.test(b.label)));
+  } finally {
+    await h.sql`alter table so_profiles add column if not exists eligibility_confirmed_at timestamptz`;
+  }
 });

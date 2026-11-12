@@ -37,7 +37,7 @@ test('payment enrolls directly; a full refund before the start refunds once and 
   const r = await refund(m.user.id);
   assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.equal(r.body.refund.status, 'succeeded');
-  assert.equal(r.body.refund.amount_cents, 99900);
+  assert.equal(r.body.refund.amount_cents, 99700);
   assert.equal(h.mocks.state.refunds.length, refundsBefore + 1);
   const lastRefund = h.mocks.state.stripeCalls.filter(x => x.path === '/v1/refunds').at(-1);
   assert.equal(lastRefund.form.payment_intent, m.sess.payment_intent);
@@ -47,7 +47,7 @@ test('payment enrolls directly; a full refund before the start refunds once and 
   const rf = h.mocks.state.refunds.at(-1);
   await h.mocks.sendEvent('refund.updated', rf);
   await h.mocks.sendEvent('refund.updated', rf);
-  await h.mocks.sendEvent('charge.refunded', { id: 'ch_r', object: 'charge', payment_intent: m.sess.payment_intent, amount: 99900, amount_refunded: 99900, refunds: { data: [rf] } });
+  await h.mocks.sendEvent('charge.refunded', { id: 'ch_r', object: 'charge', payment_intent: m.sess.payment_intent, amount: 99700, amount_refunded: 99700, refunds: { data: [rf] } });
   const attempts = await h.sql`select * from so_refund_attempts ra join so_purchases p on p.id = ra.purchase_id where p.user_id = ${m.user.id}`;
   assert.equal(attempts.length, 1);
   assert.equal((await h.sql`select status from so_purchases where user_id = ${m.user.id} and status <> 'expired'`)[0].status, 'refunded');

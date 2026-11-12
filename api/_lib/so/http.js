@@ -21,6 +21,11 @@ function sendError(res, err) {
   if (err instanceof HttpError) {
     return sendJson(res, err.status, { error: err.code, message: err.message, ...(err.extra || {}) });
   }
+  // Missing column/table: the code was deployed before supabase/smooth_operators.sql was re-run.
+  if (err && (err.code === '42703' || err.code === '42P01')) {
+    console.error('[so] database schema is behind the code; re-run supabase/smooth_operators.sql:', err.message);
+    return sendJson(res, 503, { error: 'database_update_needed', message: 'We’re finishing a site update. Please try again in a few minutes.' });
+  }
   // Never echo internal errors (they can contain SQL or provider detail).
   console.error('[so] unhandled error:', err && (err.code || ''), err && err.message);
   return sendJson(res, 500, { error: 'server_error', message: 'Something went wrong on our side. Please try again.' });

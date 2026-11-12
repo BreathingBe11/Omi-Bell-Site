@@ -8,7 +8,7 @@
 //
 // Format: "## " starts a heading, "- " starts a bullet, blank lines separate paragraphs.
 
-const UPDATED = 'November 11, 2026';
+const UPDATED = 'November 12, 2026';
 const CONTACT = `Omi Bell
 3126 S. Sepulveda Blvd., #1226
 Los Angeles, CA 90034
@@ -85,7 +85,8 @@ We do not sell your personal information, and we do not share it for cross-conte
 
 ## What we collect
 - Account information: your email address. If you choose "Continue with Google," we receive your name, email address, and profile photo from Google.
-- Enrollment details: your name, your confirmation that you own a business with customers and revenue, and when you accepted these policies. You can also add a profile photo.
+- Enrollment details: your name, email address, your confirmation that you own a business with customers and revenue, and when you accepted these policies. You can also add a profile photo.
+- Unfinished checkouts: when you continue to payment, we save your name and email even if you don't complete the purchase. We may send you one reminder about finishing your enrollment. Every reminder includes a link to unsubscribe.
 - Payment: Stripe processes your payment. We receive confirmation of the payment, the amount, and a receipt link. We never receive or store your full card number.
 - Program activity: days you complete, practices you play, templates you open, and similar activity, so the Program works and we can see how the cohort is progressing.
 - Your journal: reflections you write are private to you. We store them to show them back to you; our team does not read them through the Program.

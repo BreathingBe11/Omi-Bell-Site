@@ -601,6 +601,31 @@ alter table so_resources drop constraint if exists so_resources_practice_type_ch
 alter table so_resources add constraint so_resources_practice_type_check
   check (practice_type in ('breathwork', 'meditation', 'sound_healing'));
 
+-- v4 (Nov 2026): checkout without signing in first. The form is saved as a
+-- lead the moment someone continues to payment; people who don't finish get
+-- one reminder email (with an unsubscribe link). Accounts are created at
+-- checkout and members set up sign-in after paying.
+create table if not exists so_leads (
+  id                       uuid primary key default gen_random_uuid(),
+  cohort_id                uuid not null references so_cohorts(id) on delete cascade,
+  email                    text not null,
+  name                     text not null,
+  user_id                  uuid references auth.users(id) on delete set null,
+  eligibility_confirmed_at timestamptz not null,
+  terms_accepted_at        timestamptz not null,
+  status                   text not null default 'started' check (status in ('started', 'paid')),
+  checkout_count           int not null default 1,
+  last_checkout_at         timestamptz not null default now(),
+  paid_at                  timestamptz,
+  reminder_sent_at         timestamptz,
+  unsubscribed_at          timestamptz,
+  unsubscribe_token        text not null unique default encode(gen_random_bytes(18), 'hex'),
+  created_at               timestamptz not null default now(),
+  updated_at               timestamptz not null default now(),
+  unique (cohort_id, email)
+);
+create index if not exists so_leads_due_idx on so_leads (cohort_id, status, last_checkout_at) where reminder_sent_at is null;
+
 -- --------------------------------------------------------------- security
 do $$
 declare t text;
@@ -612,7 +637,7 @@ begin
     'so_webhook_events','so_admin_audit_log','so_events','so_email_log','so_rate_limits','so_intakes',
     'so_intake_versions','so_review_decisions','so_refund_attempts','so_email_templates','so_email_template_versions',
     'so_email_outbox','so_support_threads','so_support_messages','so_admin_notes',
-    'so_journal_notes','so_announcements','so_refund_requests']
+    'so_journal_notes','so_announcements','so_refund_requests','so_leads']
   loop
     execute format('alter table %I enable row level security', t);
     if exists (select 1 from pg_roles where rolname = 'anon') then
