@@ -391,7 +391,8 @@
   <div class="field"><label for="email">Email address</label>
   <input id="email" type="email" name="email" autocomplete="email" required inputmode="email" value="${esc(prefill || '')}"></div>
   <p class="form-error" id="email-err" role="alert"></p>
-  <button class="btn btn-primary" type="submit">Send my code</button>
+  <div class="row"><button class="btn btn-primary" type="submit">Send my code</button>
+  <button class="linklike" type="button" id="have-code">I already have a code</button></div>
 </form>
 <form id="code-form" hidden novalidate>
   <p id="code-intro"></p>
@@ -399,28 +400,96 @@
   <input id="code" class="code-input" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="10" required></div>
   <p class="form-error" id="code-err" role="alert"></p>
   <div class="row"><button class="btn btn-primary" type="submit">Sign in</button>
+  <button class="btn btn-ghost btn-sm" type="button" id="resend-code">Send a new code</button>
   <button class="linklike" type="button" id="change-email">Use a different email</button></div>
 </form>
 <p class="small muted" style="margin-top:1.5rem">${link('/login/help', 'Trouble signing in?')}</p>`;
     const ef = q('#email-form', container), cf = q('#code-form', container);
+    const RESEND_AFTER = 60 * 1000, CODE_LIFETIME = 60 * 60 * 1000;
+    const remember = v => { try { v ? sessionStorage.setItem('so-otp', JSON.stringify(v)) : sessionStorage.removeItem('so-otp'); } catch { /* ignore */ } };
+    const recall = () => { try { return JSON.parse(sessionStorage.getItem('so-otp') || 'null'); } catch { return null; } };
     let email = '';
+    let sentAt = 0;
+    let tick = null;
+    onCleanup(() => clearInterval(tick));
+    const validEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+    const timeLabel = t => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+    // Countdown on "Send a new code" so people don't trip the provider's limit.
+    function startCooldown() {
+      const rb = q('#resend-code', container);
+      clearInterval(tick);
+      const update = () => {
+        const left = Math.ceil((sentAt + RESEND_AFTER - Date.now()) / 1000);
+        if (left > 0) { rb.disabled = true; rb.textContent = `Send a new code in ${left}s`; } else { rb.disabled = false; rb.textContent = 'Send a new code'; clearInterval(tick); }
+      };
+      update();
+      tick = setInterval(update, 1000);
+    }
+    function showCode(intro) {
+      ef.hidden = true; cf.hidden = false;
+      q('#code-intro', container).innerHTML = intro;
+      q('#code-err', container).textContent = '';
+      startCooldown();
+      q('#code', container).focus();
+    }
+    // Plain-language reasons. Supabase limits how often one address can get a code.
+    function sendProblem(error) {
+      const m = String((error && error.message) || '');
+      const status = error && error.status;
+      if (status === 429 || /rate|seconds|security purposes|too many/i.test(m)) return 'recent';
+      if (status === 400 && /email/i.test(m) && /invalid|valid/i.test(m)) return 'address';
+      return 'sending';
+    }
+    async function sendCode() {
+      const client = await SO.auth();
+      if (!client) return { problem: 'config' };
+      const { error } = await client.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+      if (!error) { sentAt = Date.now(); remember({ email, at: sentAt }); return { ok: true }; }
+      return { problem: sendProblem(error), error };
+    }
+    const sentIntro = () => `We sent a 6-digit code to <strong>${esc(email)}</strong>. Enter it below. It can take a minute to arrive; check spam or promotions if you don’t see it.`;
+    const recentIntro = () => `We already sent a code to <strong>${esc(email)}</strong>${sentAt ? ` at ${esc(timeLabel(sentAt))}` : ' a moment ago'}. Codes last an hour, so use that one, or send a new code when the timer runs out (a new code replaces the old one).`;
+
     ef.addEventListener('submit', async e => {
       e.preventDefault();
       const input = q('#email', container);
       const err = q('#email-err', container);
       email = input.value.trim().toLowerCase();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { err.textContent = 'Enter a valid email address.'; input.setAttribute('aria-invalid', 'true'); input.focus(); return; }
+      if (!validEmail(email)) { err.textContent = 'Enter a valid email address.'; input.setAttribute('aria-invalid', 'true'); input.focus(); return; }
       input.removeAttribute('aria-invalid'); err.textContent = '';
+      // Same address within the last minute: go straight to the code box instead of failing.
+      const prev = recall();
+      if (prev && prev.email === email && Date.now() - prev.at < RESEND_AFTER) { sentAt = prev.at; showCode(recentIntro()); return; }
       const btn = q('button[type=submit]', ef);
       btn.disabled = true; btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Sending…';
-      const client = await SO.auth();
-      if (!client) { err.textContent = 'Sign-in isn’t configured yet. Please try again later.'; btn.disabled = false; btn.textContent = 'Send my code'; return; }
-      const { error } = await client.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+      const r = await sendCode();
       btn.disabled = false; btn.textContent = 'Send my code';
-      if (error) { err.textContent = /rate|seconds/i.test(error.message) ? 'Please wait a minute before requesting another code.' : 'We couldn’t send a code. Check the address and try again.'; return; }
-      ef.hidden = true; cf.hidden = false;
-      q('#code-intro', container).innerHTML = `We sent a 6-digit code to <strong>${esc(email)}</strong>. Enter it below. It can take a minute to arrive; check spam if you don’t see it.`;
-      q('#code', container).focus();
+      if (r.ok) { showCode(sentIntro()); return; }
+      if (r.problem === 'recent') { if (!sentAt) sentAt = (prev && prev.email === email && prev.at) || Date.now(); showCode(recentIntro()); return; }
+      err.textContent = {
+        config: 'Sign-in isn’t configured yet. Please try again later.',
+        address: 'That email address doesn’t look right. Check it and try again.',
+        sending: 'We couldn’t send the email just now. That’s on our side, not your address. Please try again in a few minutes, or continue with Google.',
+      }[r.problem];
+    });
+    q('#have-code', container).addEventListener('click', () => {
+      const input = q('#email', container);
+      const typed = input.value.trim().toLowerCase();
+      const prev = recall();
+      email = validEmail(typed) ? typed : (prev && prev.email) || '';
+      if (!email) { q('#email-err', container).textContent = 'Enter the email address the code was sent to first.'; input.focus(); return; }
+      sentAt = prev && prev.email === email ? prev.at : 0;
+      showCode(`Enter the 6-digit code we sent to <strong>${esc(email)}</strong>. Codes last an hour; if yours has expired, send a new one.`);
+    });
+    q('#resend-code', container).addEventListener('click', async () => {
+      const rb = q('#resend-code', container), err = q('#code-err', container);
+      rb.disabled = true; rb.innerHTML = '<span class="spinner" aria-hidden="true"></span> Sending…';
+      const r = await sendCode();
+      if (r.ok) { q('#code-intro', container).innerHTML = `We sent a new code to <strong>${esc(email)}</strong>. Use the newest one; it replaces any earlier code.`; q('#code', container).value = ''; err.textContent = ''; }
+      else if (r.problem === 'recent') { sentAt = Date.now(); err.textContent = 'A code was sent very recently. Please wait for the timer, then try again.'; }
+      else err.textContent = r.problem === 'sending' ? 'We couldn’t send the email just now. Please try again in a few minutes.' : 'We couldn’t send a code. Please try again.';
+      startCooldown();
     });
     cf.addEventListener('submit', async e => {
       e.preventDefault();
@@ -432,11 +501,20 @@
       const client = await SO.auth();
       const { error } = await client.auth.verifyOtp({ email, token: code, type: 'email' });
       btn.disabled = false; btn.textContent = 'Sign in';
-      if (error) { err.textContent = 'That code didn’t work or has expired. Check it, or request a new one.'; return; }
+      if (error) { err.textContent = 'That code didn’t work or has expired. Check you’re using the newest code, or send a new one.'; return; }
+      remember(null);
       state.me = null;
       navigate(`${B}${next}`, { replace: true });
     });
     q('#change-email', container).addEventListener('click', () => { cf.hidden = true; ef.hidden = false; q('#email', container).focus(); });
+
+    // Came back after requesting a code (e.g. left the page): offer the code box right away.
+    const pending = recall();
+    if (pending && Date.now() - pending.at < CODE_LIFETIME && (!prefill || prefill.toLowerCase() === pending.email)) {
+      email = pending.email; sentAt = pending.at;
+      q('#email', container).value = email;
+      showCode(`We sent a code to <strong>${esc(email)}</strong> at ${esc(timeLabel(sentAt))}. Enter it below, or send a new one.`);
+    }
     // Preferred: Google's own button on this page (no redirect through the Supabase address).
     setupGoogleButton(container, next);
     // Fallback if Google's button can't load: Supabase redirect flow.

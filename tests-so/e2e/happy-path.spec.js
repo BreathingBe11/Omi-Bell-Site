@@ -255,3 +255,44 @@ test('landing FAQ is an accessible accordion: plus/minus, keyboard, and the same
   await expect(page.locator('#faq-a-11')).toContainText('To request a refund before the start date, email hello@omisworld.com');
   expect(await axe(page)).toEqual([]);
 });
+
+test('sign-in codes: clear errors, back to the code box after leaving, resend timer', async ({ page }, info) => {
+  const email = `code-${info.project.name}@example.com`;
+  // Sending fails on the provider side: say so, don't blame the address.
+  await page.route('**/auth/v1/otp', r => r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ code: 500, error_code: 'unexpected_failure', msg: 'Error sending magic link email' }) }));
+  await page.goto(`${base()}/smoothoperators/login`);
+  await page.getByLabel('Email address').fill(email);
+  await page.getByRole('button', { name: 'Send my code' }).click();
+  await expect(page.locator('#email-err')).toContainText('That’s on our side, not your address');
+  await page.unroute('**/auth/v1/otp');
+
+  // Too soon after a previous code: show the code box instead of an error.
+  await page.route('**/auth/v1/otp', r => r.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ code: 429, error_code: 'over_email_send_rate_limit', msg: 'For security purposes, you can only request this after 45 seconds.' }) }));
+  await page.getByRole('button', { name: 'Send my code' }).click();
+  await expect(page.locator('#code-intro')).toContainText('We already sent a code to');
+  await expect(page.getByRole('button', { name: /Send a new code in \d+s/ })).toBeDisabled();
+  await page.unroute('**/auth/v1/otp');
+
+  // A real send, then leave and come back: the code box is waiting.
+  await page.getByRole('button', { name: 'Use a different email' }).click();
+  await page.getByLabel('Email address').fill(`fresh-${email}`);
+  await page.getByRole('button', { name: 'Send my code' }).click();
+  await expect(page.getByLabel('Sign-in code')).toBeVisible();
+  await page.reload();
+  await expect(page.locator('#code-intro')).toContainText(`fresh-${email}`);
+  await expect(page.getByRole('button', { name: /Send a new code in \d+s/ })).toBeDisabled();
+  expect(await axe(page)).toEqual([]);
+  await page.getByLabel('Sign-in code').fill('123456');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByRole('heading', { name: /You’re signed in|Join Smooth Operators|This space is for enrolled members/ })).toBeVisible();
+});
+
+test('"I already have a code" goes straight to the code box', async ({ page }, info) => {
+  await page.goto(`${base()}/smoothoperators/login`);
+  await page.getByRole('button', { name: 'I already have a code' }).click();
+  await expect(page.locator('#email-err')).toContainText('Enter the email address the code was sent to first.');
+  await page.getByLabel('Email address').fill(`have-${info.project.name}@example.com`);
+  await page.getByRole('button', { name: 'I already have a code' }).click();
+  await expect(page.locator('#code-intro')).toContainText(`have-${info.project.name}@example.com`);
+  await expect(page.getByRole('button', { name: 'Send a new code' })).toBeEnabled();
+});
