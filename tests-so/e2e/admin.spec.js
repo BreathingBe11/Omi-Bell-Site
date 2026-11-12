@@ -80,6 +80,7 @@ test('/admin hub leads to the blog admin or the Smooth Operators admin; refunds 
   await expect(card.getByRole('button', { name: 'Reject' })).toHaveCount(0);
   const v = (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations;
   expect(v.map(x => x.id)).toEqual([]);
+  await expect(card.getByRole('button', { name: 'Delete member…' })).toBeVisible();
   await card.getByRole('button', { name: 'Refund in full…' }).click();
   await expect(card.getByRole('heading', { name: 'Refund $997 in full' })).toBeVisible();
   await card.getByRole('button', { name: 'Cancel' }).click();

@@ -202,6 +202,40 @@ routes['POST admin/members/:id/refund'] = can(async ({ sql, req, query, params, 
   return { refund: { status: done.status, amount_cents: done.amount_cents, failure_reason: done.failure_reason } };
 }, 'finance');
 
+// Remove a person completely (sign-in account, enrollment, test payments,
+// application, journal, photos) so the email can be used again, e.g. to clear
+// out test sign-ups. Anyone with a real (live-mode) payment is never deleted:
+// those records are needed for taxes and refunds.
+routes['POST admin/members/:id/delete'] = can(async ({ sql, req, params, admin: who }) => {
+  const userId = H.uuid(params.id, 'member');
+  const confirm = String(H.body(req).confirm_email || '').trim().toLowerCase();
+  const prof = (await sql`select email, avatar_path from so_profiles where user_id = ${userId}`)[0];
+  const authUser = (await sql`select email from auth.users where id = ${userId}`)[0];
+  const addr = String((prof && prof.email) || (authUser && authUser.email) || '').toLowerCase();
+  if (!addr) throw new HttpError(404, 'not_found', 'Member not found.');
+  if (confirm !== addr) throw new HttpError(400, 'invalid_input', 'Type the member’s email address exactly to confirm.');
+  const live = (await sql`select count(*)::int as n from so_purchases where user_id = ${userId} and livemode is true and paid_at is not null`)[0].n;
+  if (live) throw new HttpError(409, 'has_live_payment', 'This person made a real payment, so their records can’t be deleted. Refund them instead if needed.');
+  const files = (await sql`select photo_path from so_introductions where user_id = ${userId} and photo_path is not null`).map(r => r.photo_path);
+  if (prof && prof.avatar_path) files.push(prof.avatar_path);
+  await sql.begin(async tx => {
+    const purchases = (await tx`select id from so_purchases where user_id = ${userId}`).map(r => r.id);
+    if (purchases.length) await tx`delete from so_refund_attempts where purchase_id in ${tx(purchases)}`;
+    await tx`delete from so_enrollments where user_id = ${userId}`;
+    await tx`delete from so_purchases where user_id = ${userId}`;
+    await tx`delete from so_leads where user_id = ${userId} or lower(email) = ${addr}`;
+    await tx`delete from so_events where user_id = ${userId}`;
+    await tx`delete from so_rate_limits where key in (${`start-email:${addr}`}, ${`refundreq:${userId}`}, ${`delete:${userId}`})`;
+    await C.audit(tx, who.actor, 'member_deleted', 'user', userId, { email: addr, test_purchases: purchases.length }, null);
+  });
+  await require('./member').deleteAuthUser(userId);
+  // Everything else (profile, application, journal, progress, questions...) cascades with the account.
+  await sql`delete from auth.users where id = ${userId}`.catch(() => {});
+  await sql`delete from so_profiles where user_id = ${userId}`.catch(() => {});
+  if (files.length) await storage.removeObjects(files);
+  return { deleted: true, email: addr };
+}, 'settings');
+
 routes['POST admin/refunds/:id/retry'] = can(async ({ sql, params, admin: who }) => {
   const id = H.uuid(params.id, 'refund');
   const a = (await sql`select * from so_refund_attempts where id = ${id}`)[0];
