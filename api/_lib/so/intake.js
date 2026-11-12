@@ -150,11 +150,10 @@ function parseApplication(b) {
   if (digits.length < 10 || digits.length > 15) throw new HttpError(400, 'invalid_input', 'Enter a phone number we can reach you at.');
   const postal = req(optText(b.postal_code, 12, 'ZIP code'), 'Enter your ZIP code.').toUpperCase();
   if (!/^[A-Z0-9][A-Z0-9 -]{2,10}$/.test(postal)) throw new HttpError(400, 'invalid_input', 'Enter a valid ZIP or postal code.');
-  let website = null;
-  if (b.website_url && String(b.website_url).trim()) {
-    const raw = String(b.website_url).trim();
-    website = H.optionalUrl(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`, { field: 'Website' });
-  }
+  const raw = req(optText(b.website_url, 300, 'Website'), 'Enter your business website.');
+  if (!/\.[a-z]{2,}/i.test(raw)) throw new HttpError(400, 'invalid_input', 'Enter a website address, like yourbusiness.com.');
+  const website = H.optionalUrl(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`, { field: 'Website' });
+  if (!website) throw new HttpError(400, 'invalid_input', 'Enter a website address, like yourbusiness.com.');
   return {
     first_name: req(optText(b.first_name, 80, 'First name'), 'Enter your first name.'),
     last_name: req(optText(b.last_name, 80, 'Last name'), 'Enter your last name.'),

@@ -345,7 +345,7 @@ test('landing: confirmed copy, accordion FAQ from the shared source, and no empt
   assert.doesNotMatch(html, /\bfounders\b|solo founder|for founders/i, 'business owners, not founders (Omi’s own title in her bio stays)');
   assert.doesNotMatch(html, /fit check|approved|approval/i);
   for (const t of ['Guided Audio', 'Leadership Journal Prompt', 'Business Action Toolkit', 'including weekends',
-    'Plan for 5–10 minutes of guided audio', 'Solutions Seat is group coaching led by Omi Bell', '1–2 p.m. PST',
+    'Plan for 5–10 minutes of guided audio', '21 days of active content, 12-month access to all materials, a lifetime of transformation', 'Solutions Seat is group coaching led by Omi Bell', '1–2 p.m. PST',
     'Omi responds within 24 hours, Monday through Friday', 'January 4, 2027 through January 3, 2028']) {
     assert.ok(html.includes(t), `landing includes “${t}”`);
   }
