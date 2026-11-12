@@ -433,6 +433,18 @@ ${purchases.length ? purchases.map(p => `<tr><td>${esc(p.email)}</td><td>${esc(p
   };
 
   // --------------------------------------------------------------- intros
+  // Permanently remove a (test) person so their email can be used again.
+  async function deleteMember(userId, email, onDone) {
+    const typed = prompt(`Permanently delete ${email}?\n\nThis removes their account, enrollment, test payments, application and journal so the email can be used again. It can’t be undone. People with a real payment can’t be deleted.\n\nType their email to confirm:`);
+    if (typed === null) return false;
+    try {
+      await api('POST', `admin/members/${userId}/delete`, { confirm_email: typed });
+      alert(`${email} was deleted.`);
+      if (onDone) onDone();
+      return true;
+    } catch (e) { alert(e.message); return false; }
+  }
+
   VIEWS.leads = async main => {
     const d = await api('GET', 'admin/leads');
     const started = d.leads.filter(l => l.status === 'started');
@@ -443,11 +455,12 @@ ${purchases.length ? purchases.map(p => `<tr><td>${esc(p.email)}</td><td>${esc(p
 ${canDo('settings') ? `<button class="btn btn-secondary btn-sm" id="remind"${d.due ? '' : ' disabled'}>Send due reminders (${d.due})</button>` : ''}</div>
 <p class="muted small">Everyone who filled in the form and continued to payment, saved even if they didn’t pay. People who haven’t paid after ${d.reminder_after_hours} hours get one reminder email with an unsubscribe link${d.cron_configured ? ', sent automatically each morning.' : '. <strong>Automatic sending is off until CRON_SECRET is set in Vercel</strong>; use the button meanwhile.'}</p>
 <div id="lmsg" role="status"></div>
-${d.leads.length ? `<div class="table-wrap"><table class="data"><thead><tr><th>Name</th><th>Contact</th><th>Business</th><th>Last checkout</th><th>Status</th></tr></thead><tbody>
+${d.leads.length ? `<div class="table-wrap"><table class="data"><thead><tr><th>Name</th><th>Contact</th><th>Business</th><th>Last checkout</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
 ${d.leads.map(l => `<tr><td>${l.user_id ? `<button class="linklike" data-open="${l.user_id}">${esc(l.name)}</button>` : esc(l.name)}</td><td class="small"><a href="mailto:${esc(l.email)}">${esc(l.email)}</a>${l.phone ? `<br>${esc(l.phone)}` : ''}${l.postal_code ? ` · ${esc(l.postal_code)}` : ''}</td><td class="small">${esc(l.business_name || '—')}${l.revenue_label ? `<br>${esc(l.revenue_label)} revenue` : ''}${l.years_label ? ` · ${esc(l.years_label)}` : ''}</td>
-<td class="small">${esc(dt(l.last_checkout_at))}${l.checkout_count > 1 ? ` · ${l.checkout_count} tries` : ''}</td><td>${status(l)}</td></tr>`).join('')}</tbody></table></div>`
+<td class="small">${esc(dt(l.last_checkout_at))}${l.checkout_count > 1 ? ` · ${l.checkout_count} tries` : ''}</td><td>${status(l)}</td><td>${l.user_id && canDo('settings') ? `<button class="btn btn-ghost btn-sm del-btn" data-del-member="${l.user_id}" data-email="${esc(l.email)}">Delete</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`
       : '<p class="empty">No one has started checkout yet.</p>'}`;
     qa('[data-open]', main).forEach(x => x.addEventListener('click', () => openMember(x.dataset.open, x, () => VIEWS.leads(main))));
+    qa('[data-del-member]', main).forEach(x => x.addEventListener('click', () => deleteMember(x.dataset.delMember, x.dataset.email, () => VIEWS.leads(main))));
     const b = q('#remind');
     if (b) b.addEventListener('click', async () => {
       b.disabled = true;
@@ -632,19 +645,20 @@ ${canDo('finance') ? '<button class="btn btn-secondary btn-sm" id="export">Downl
   <input type="hidden" id="m-sort" value="">
   <button class="btn btn-secondary btn-sm">Apply</button>
 </form>
-${d.members.length ? `<div class="table-wrap member-table"><table class="data"><thead><tr><th>Name</th><th>Business</th><th>Payment</th><th>Last active</th></tr></thead><tbody>
+${d.members.length ? `<div class="table-wrap member-table"><table class="data"><thead><tr><th>Name</th><th>Business</th><th>Payment</th><th>Last active</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
 ${d.members.map(m => `<tr><td><button class="linklike" data-open="${m.user_id}">${esc(m.name)}</button><br><span class="small muted">${esc(m.email)}</span>${m.is_test ? ' <span class="pill pill-draft">test</span>' : ''}</td>
 <td>${esc(m.business || '—')}</td>
 <td class="small">${payLabel(m.payment_status)}${m.refund_status ? `<br>refund ${esc(m.refund_status)}` : ''}${m.needs_review ? `<br><strong style="color:var(--danger)">${esc(m.needs_review)}</strong>` : ''}</td>
-<td class="small">${shortDate(m.last_active)}</td></tr>`).join('')}</tbody></table></div>
+<td class="small">${shortDate(m.last_active)}</td><td>${canDo('settings') ? `<button class="btn btn-ghost btn-sm del-btn" data-del-member="${m.user_id}" data-email="${esc(m.email)}">Delete</button>` : ''}</td></tr>`).join('')}</tbody></table></div>
 <ul class="member-cards">${d.members.map(m => `<li class="card"><button class="linklike" data-open="${m.user_id}" style="font-size:1.1rem">${esc(m.name)}</button>
 <p class="small muted" style="margin:.2rem 0">${esc(m.business || '')}</p><div class="row"><span class="pill">${payLabel(m.payment_status)}</span></div>
-<p class="small muted" style="margin:.4rem 0 0">Last active ${shortDate(m.last_active)}</p></li>`).join('')}</ul>
+<p class="small muted" style="margin:.4rem 0 0">Last active ${shortDate(m.last_active)}</p>${canDo('settings') ? `<button class="btn btn-ghost btn-sm del-btn" data-del-member="${m.user_id}" data-email="${esc(m.email)}">Delete</button>` : ''}</li>`).join('')}</ul>
 ${d.pages > 1 ? `<nav class="row" aria-label="Pages" style="margin-top:1rem"><button class="btn btn-ghost btn-sm" data-page="${d.page - 1}"${d.page <= 1 ? ' disabled' : ''}>Previous</button><span class="small">Page ${d.page} of ${d.pages}</span><button class="btn btn-ghost btn-sm" data-page="${d.page + 1}"${d.page >= d.pages ? ' disabled' : ''}>Next</button></nav>` : ''}`
       : '<p class="empty">No members match.</p>'}`;
     q('#mfilter').addEventListener('submit', e => { e.preventDefault(); st.q = q('#m-q').value.trim(); st.pay = q('#m-pay').value; st.sort = q('#m-sort').value; st.page = 1; VIEWS.members(main); });
     qa('[data-page]', main).forEach(b => b.addEventListener('click', () => { st.page = Number(b.dataset.page); VIEWS.members(main); }));
     qa('[data-open]', main).forEach(b => b.addEventListener('click', () => openMember(b.dataset.open, b, () => VIEWS.members(main))));
+    qa('[data-del-member]', main).forEach(b => b.addEventListener('click', () => deleteMember(b.dataset.delMember, b.dataset.email, () => VIEWS.members(main))));
     const ex = q('#export');
     if (ex) ex.addEventListener('click', () => downloadCsv(`admin/members/export?filter=${filter}`, 'smooth-operators-members.csv'));
   };
@@ -700,11 +714,15 @@ ${pay && ['paid', 'partially_refunded'].includes(pay.status) && canDo('finance')
 ${m.activity.events.length ? `<details class="more"><summary>Activity timeline</summary><ul class="small timeline">${m.activity.events.map(ev => `<li>${esc(dt(ev.created_at))} · ${esc(ev.name.replace(/_/g, ' '))}${ev.day_number ? ` (day ${ev.day_number})` : ''}</li>`).join('')}</ul>
 <p class="small muted">A click or download isn’t completed work; a call-link click isn’t attendance.</p></details>` : ''}</section>
 <section><h3>Communication history</h3>${hist ? `<ul class="history">${hist}</ul>` : '<p class="small muted">Nothing yet.</p>'}</section>
+${canDo('settings') ? `<section><h3>Delete this person</h3><p class="small muted">Removes their account, enrollment, test payments, application and journal so the email can be used again (useful for clearing test sign-ups). Not available for anyone with a real payment.</p>
+<button class="btn btn-danger btn-sm" id="mc-delete">Delete member…</button></section>` : ''}
 </div>`;
       q('[data-close]', dlg).onclick = () => dlg.close();
       q('#note-f', dlg).onsubmit = async ev => { ev.preventDefault(); const b = q('#note-b', dlg).value.trim(); if (!b) return; await api('POST', `admin/members/${userId}/notes`, { body: b }); draw(); };
       qa('[data-resend]', dlg).forEach(b => b.onclick = async () => { b.disabled = true; try { const r = await api('POST', `admin/emails/${b.dataset.resend}/resend`); changed = true; draw({ ok: r.status === 'submitted', html: `<p>Resend ${esc(emailStatus(r.status).toLowerCase())}.</p>` }); } catch (x) { draw({ ok: false, html: `<p>${esc(x.message)}</p>` }); } });
       qa('[data-retry-refund]', dlg).forEach(b => b.onclick = async () => { b.disabled = true; try { const r = await api('POST', `admin/refunds/${b.dataset.retryRefund}/retry`); changed = true; draw({ ok: r.refund.status !== 'failed', html: `<p>Refund ${esc(r.refund.status)}.${r.refund.failure_reason ? ` ${esc(r.refund.failure_reason)}` : ''}</p>` }); } catch (x) { draw({ ok: false, html: `<p>${esc(x.message)}</p>` }); } });
+      const md = q('#mc-delete', dlg);
+      if (md) md.onclick = async () => { if (await deleteMember(userId, m.email)) { changed = true; dlg.close(); } };
       const rf = q('#refund-full', dlg);
       if (rf) rf.onclick = () => {
         const started = Date.now() >= new Date(m.cohort.starts_at || 0).getTime();

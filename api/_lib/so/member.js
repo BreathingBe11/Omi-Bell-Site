@@ -848,4 +848,4 @@ routes['GET application'] = async ({ sql, req, now }) => {
   };
 };
 
-module.exports = { routes, buildDay, calendarDays, homePayload, dayByNumber };
+module.exports = { deleteAuthUser, routes, buildDay, calendarDays, homePayload, dayByNumber };

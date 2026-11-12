@@ -142,3 +142,33 @@ test('the daily cron needs the Vercel cron secret', async () => {
     assert.equal((await fetch(`${h.appBase}/api/so/cron/reminders`, { headers: { Authorization: 'Bearer wrong' } })).status, 401);
   } finally { delete process.env.CRON_SECRET; }
 });
+
+test('admin can fully delete a test member so the email can be reused; real payers are protected', async () => {
+  const r = await start({ email: 'reuse-me@example.com', name: 'Test Again' });
+  const sid = r.body.url.split('/pay/')[1];
+  await h.mocks.sendEvent('checkout.session.completed', await h.mocks.completeSession(sid));
+  const uid = (await h.sql`select id from auth.users where email = 'reuse-me@example.com'`)[0].id;
+  assert.equal((await admin('POST', `admin/members/${uid}/delete`, { confirm_email: 'wrong@example.com' })).status, 400);
+  const support = await h.mocks.signIn('helper2@example.com');
+  await h.sql`insert into so_profiles (user_id, email, role) values (${support.user.id}, 'helper2@example.com', 'support') on conflict (user_id) do update set role = 'support'`;
+  assert.equal((await h.api('POST', `admin/members/${uid}/delete`, { token: support.token, body: { confirm_email: 'reuse-me@example.com' } })).status, 403);
+  const d = await admin('POST', `admin/members/${uid}/delete`, { confirm_email: 'Reuse-Me@example.com' });
+  assert.equal(d.status, 200, JSON.stringify(d.body));
+  for (const [t, col] of [['auth.users', 'id'], ['so_profiles', 'user_id'], ['so_enrollments', 'user_id'], ['so_purchases', 'user_id'], ['so_intakes', 'user_id']]) {
+    assert.equal((await h.sql.unsafe(`select count(*)::int as n from ${t} where ${col} = $1`, [uid]))[0].n, 0, `${t} cleared`);
+  }
+  assert.equal((await h.sql`select count(*)::int as n from so_leads where email = 'reuse-me@example.com'`)[0].n, 0);
+  // Same email signs up again from scratch.
+  const again = await start({ email: 'reuse-me@example.com', name: 'Test Again' });
+  assert.equal(again.body.state, 'redirect');
+  const uid2 = (await h.sql`select id from auth.users where email = 'reuse-me@example.com'`)[0].id;
+  assert.notEqual(uid2, uid);
+  // A real (live-mode) payment can't be deleted.
+  const live = await start({ email: 'real-payer@example.com', name: 'Real Payer' });
+  await h.mocks.sendEvent('checkout.session.completed', await h.mocks.completeSession(live.body.url.split('/pay/')[1]));
+  const lid = (await h.sql`select id from auth.users where email = 'real-payer@example.com'`)[0].id;
+  await h.sql`update so_purchases set livemode = true where user_id = ${lid}`;
+  const blocked = await admin('POST', `admin/members/${lid}/delete`, { confirm_email: 'real-payer@example.com' });
+  assert.equal(blocked.status, 409);
+  assert.equal((await h.sql`select count(*)::int as n from so_purchases where user_id = ${lid}`)[0].n, 1);
+});
