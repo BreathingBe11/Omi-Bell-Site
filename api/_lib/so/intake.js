@@ -42,9 +42,7 @@ const OUTSIDE_US = 'OUTSIDE_US';
 // The questions, in order, as shown to reviewers. `required` drives completeness.
 const QUESTIONS = [
   ['first_name', 'First name', true], ['last_name', 'Last name', true], ['phone', 'Phone', true],
-  ['business_name', 'Business name', true], ['website_url', 'Website', false],
-  ['address_line1', 'Street address', true], ['address_line2', 'Address line 2', false], ['city', 'City', true],
-  ['state', 'State', true], ['postal_code', 'ZIP / postal code', true], ['country', 'Country', true],
+  ['postal_code', 'ZIP / postal code', true], ['business_name', 'Business name', true], ['website_url', 'Website', false],
   ['business_stage', 'Stage of business', true], ['revenue_to_date', 'Revenue generated so far', true],
   ['years_in_business', 'Years in business', true], ['prior_ops_work', 'Done operations work before', true],
   ['has_full_time_staff', 'Has full-time staff', true], ['team_size', 'Team size (staff + contractors)', true],
@@ -61,7 +59,6 @@ function earlyStage(i) { return i.business_stage === 'idea' || i.revenue_to_date
 function missingFields(i) {
   if (!i) return QUESTIONS.filter(q => q[2]).map(q => q[0]);
   const miss = QUESTIONS.filter(([k, , req]) => req && (i[k] === null || i[k] === undefined || i[k] === '')).map(q => q[0]);
-  if (!i.no_website && !i.website_url) miss.push('website_url');
   if (!i.policy_ack_at) miss.push('policy_ack');
   return miss;
 }
@@ -134,6 +131,62 @@ function parseIntake(b, { submit }) {
   };
 }
 
+// The application on the checkout page: everything from the original form
+// except the street address. Saved the moment they continue to payment.
+function parseApplication(b) {
+  const req = (v, msg) => { if (v === null || v === undefined || v === '') throw new HttpError(400, 'invalid_input', msg); return v; };
+  const choice = (field, name) => {
+    const v = b[field];
+    if (!OPTIONS[field].some(([k]) => k === v)) throw new HttpError(400, 'invalid_input', `Choose an answer for “${name}”.`);
+    return v;
+  };
+  const yesNo = (field, name) => {
+    if (b[field] === true || b[field] === 'yes') return true;
+    if (b[field] === false || b[field] === 'no') return false;
+    throw new HttpError(400, 'invalid_input', `Choose yes or no for “${name}”.`);
+  };
+  const phone = req(optText(b.phone, 30, 'Phone number'), 'Enter your phone number.');
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length < 10 || digits.length > 15) throw new HttpError(400, 'invalid_input', 'Enter a phone number we can reach you at.');
+  const postal = req(optText(b.postal_code, 12, 'ZIP code'), 'Enter your ZIP code.').toUpperCase();
+  if (!/^[A-Z0-9][A-Z0-9 -]{2,10}$/.test(postal)) throw new HttpError(400, 'invalid_input', 'Enter a valid ZIP or postal code.');
+  let website = null;
+  if (b.website_url && String(b.website_url).trim()) {
+    const raw = String(b.website_url).trim();
+    website = H.optionalUrl(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`, { field: 'Website' });
+  }
+  return {
+    first_name: req(optText(b.first_name, 80, 'First name'), 'Enter your first name.'),
+    last_name: req(optText(b.last_name, 80, 'Last name'), 'Enter your last name.'),
+    phone, postal_code: postal,
+    business_name: req(optText(b.business_name, 160, 'Business name'), 'Enter your business name.'),
+    website_url: website, no_website: !website,
+    business_stage: choice('business_stage', 'Stage of business'),
+    revenue_to_date: choice('revenue_to_date', 'Revenue generated so far'),
+    years_in_business: choice('years_in_business', 'How long have you been in business?'),
+    prior_ops_work: yesNo('prior_ops_work', 'Have you done any operations work before?'),
+    has_full_time_staff: yesNo('has_full_time_staff', 'Do you have full-time staff?'),
+    team_size: choice('team_size', 'How many people are on your team?'),
+    ops_questions: req(optText(b.ops_questions, 3000, 'Your most pressing operations questions', true), 'Tell us your most pressing questions about operations.'),
+  };
+}
+
+async function saveApplication(sql, userId, cohortId, v) {
+  await sql`
+    insert into so_intakes (user_id, cohort_id, first_name, last_name, phone, postal_code, business_name, website_url, no_website,
+      business_stage, revenue_to_date, years_in_business, prior_ops_work, has_full_time_staff, team_size, ops_questions,
+      policy_ack_at, status, submitted_at, version)
+    values (${userId}, ${cohortId}, ${v.first_name}, ${v.last_name}, ${v.phone}, ${v.postal_code}, ${v.business_name}, ${v.website_url}, ${v.no_website},
+      ${v.business_stage}, ${v.revenue_to_date}, ${v.years_in_business}, ${v.prior_ops_work}, ${v.has_full_time_staff}, ${v.team_size}, ${v.ops_questions},
+      now(), 'submitted', now(), 1)
+    on conflict (user_id, cohort_id) do update set first_name = excluded.first_name, last_name = excluded.last_name, phone = excluded.phone,
+      postal_code = excluded.postal_code, business_name = excluded.business_name, website_url = excluded.website_url, no_website = excluded.no_website,
+      business_stage = excluded.business_stage, revenue_to_date = excluded.revenue_to_date, years_in_business = excluded.years_in_business,
+      prior_ops_work = excluded.prior_ops_work, has_full_time_staff = excluded.has_full_time_staff, team_size = excluded.team_size,
+      ops_questions = excluded.ops_questions, policy_ack_at = now(), status = 'submitted', submitted_at = now(),
+      version = so_intakes.version + 1, updated_at = now()`;
+}
+
 async function loadIntake(sql, userId, cohortId) {
   return (await sql`select * from so_intakes where user_id = ${userId} and cohort_id = ${cohortId}`)[0] || null;
 }
@@ -177,4 +230,4 @@ const routes = {
   },
 };
 
-module.exports = { ELIGIBILITY_STATEMENT, routes, OPTIONS, US_STATES, OUTSIDE_US, QUESTIONS, label, earlyStage, missingFields, answersOut, loadIntake, parseIntake };
+module.exports = { ELIGIBILITY_STATEMENT, parseApplication, saveApplication, routes, OPTIONS, US_STATES, OUTSIDE_US, QUESTIONS, label, earlyStage, missingFields, answersOut, loadIntake, parseIntake };

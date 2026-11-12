@@ -113,7 +113,7 @@ hr.rule { border: 0; border-top: 1px solid var(--line); margin: 2rem 0; }
 .field { margin-bottom: 1.15rem; }
 .field label, .label { display: block; font-weight: 500; margin-bottom: .35rem; color: var(--ink); }
 .field .help { font-size: .9rem; color: var(--muted); margin: .3rem 0 0; }
-input[type="text"], input[type="email"], input[type="url"], input[type="password"], input[type="number"],
+input:not([type]), input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input[type="password"], input[type="number"],
 input[type="datetime-local"], input[type="date"], input[type="time"], input[type="search"], select, textarea {
   width: 100%; min-height: 48px; padding: .65rem .85rem; background: #fff; color: var(--text);
   border: 1.5px solid var(--line-strong); border-radius: var(--radius-sm);
@@ -474,7 +474,7 @@ a:hover { color: var(--ink); }
 .notice { border-radius: var(--radius-sm); }
 .pill { border-radius: 2px; text-transform: uppercase; letter-spacing: .1em; font-size: .68rem; padding: .2rem .55rem; background: var(--sand-wash); }
 .pill-progress, .pill-draft { color: var(--gold-ink); }
-input[type="text"], input[type="email"], input[type="url"], input[type="password"], input[type="number"],
+input:not([type]), input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input[type="password"], input[type="number"],
 input[type="datetime-local"], input[type="date"], input[type="time"], input[type="search"], select, textarea {
   border-radius: 4px; border-width: 1px; background: #fff; transition: border-color .2s var(--ease), box-shadow .2s var(--ease);
 }
@@ -666,3 +666,4 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); outline: 
 .step-hint { margin: -.25rem 0 .8rem; font-size: .92rem; color: var(--muted); }
 /* Bot trap on the checkout form: invisible to people and screen readers. */
 .hp { position: absolute !important; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.form-sub { font-family: var(--sans); font-size: .72rem; text-transform: uppercase; letter-spacing: .2em; color: var(--teal-deep); font-weight: 500; margin: 1.5rem 0 .8rem; }

@@ -598,46 +598,79 @@
 <p>${supportLine(offer.support_email)}</p>`;
       return 'Join';
     }
-    checkoutForm(step, offer, me);
+    await checkoutForm(step, offer, me);
     return 'Join';
   }
 
   // One short form, then straight to Stripe. No sign-in first: the form is
   // saved when they continue, and they set up sign-in after paying.
-  function checkoutForm(step, offer, me) {
+  async function checkoutForm(step, offer, me) {
     const signedIn = !!me.signed_in;
     const price = SO.money(offer.price.amount_cents);
+    const { options } = await SO.api('GET', 'checkout/form', undefined, { auth: false });
+    // Restore what they typed if they come back from Stripe without paying.
+    let saved = {};
+    try { saved = JSON.parse(sessionStorage.getItem('so-checkout-form') || '{}'); } catch { /* storage unavailable */ }
+    const nameParts = ((me && me.display_name) || '').trim().split(/\s+/);
+    const v = { first_name: nameParts[0] || '', last_name: nameParts.slice(1).join(' '), email: (me && me.email) || '', ...saved };
+    if (signedIn) v.email = me.email;
+    const input = (id, label, attrs = '', help = '') => `<div class="field"><label for="f-${id}">${label}</label><input${/type=/.test(attrs) ? '' : ' type="text"'} id="f-${id}" name="${id}" value="${esc(v[id] || '')}" ${attrs}>${help ? `<p class="help">${help}</p>` : ''}</div>`;
+    const select = (id, label, opts) => `<div class="field"><label for="f-${id}">${label}</label><select id="f-${id}" name="${id}" required><option value="">Choose one…</option>${opts.map(([val, lab]) => `<option value="${esc(val)}"${String(v[id]) === String(val) ? ' selected' : ''}>${esc(lab)}</option>`).join('')}</select></div>`;
+    const yn = [['yes', 'Yes'], ['no', 'No']];
     step.innerHTML = `<form id="join" class="card" novalidate>
-  <h2 style="font-size:1.6rem;margin-top:0">Your details</h2>
-  <div class="field"><label for="j-name">Your name</label><input id="j-name" type="text" autocomplete="name" maxlength="80" required value="${esc((me && me.display_name) || '')}"></div>
-  <div class="field"><label for="j-email">Email address</label>
-    <input id="j-email" type="email" autocomplete="email" inputmode="email" maxlength="254" required value="${esc((me && me.email) || '')}"${signedIn ? ' readonly' : ''}>
-    <p class="help">${signedIn ? `Signed in. <button class="linklike" type="button" data-signout>Use a different email</button>` : 'Your receipt and account setup link go here, so double-check it.'}</p></div>
+  <h2 style="font-size:1.6rem;margin-top:0">Your application</h2>
+  <p class="muted" style="margin-top:-.25rem">A few quick questions so Omi knows who’s in the room. Most are a dropdown. Your answers are private to Omi and her team.</p>
+  <h3 class="form-sub">About you</h3>
+  <div class="grid-2">${input('first_name', 'First name', 'autocomplete="given-name" maxlength="80" required')}${input('last_name', 'Last name', 'autocomplete="family-name" maxlength="80" required')}</div>
+  ${input('email', 'Email address', `type="email" autocomplete="email" inputmode="email" maxlength="254" required${signedIn ? ' readonly' : ''}`,
+    signedIn ? 'Signed in. <button class="linklike" type="button" data-signout>Use a different email</button>' : 'Your receipt and account setup link go here, so double-check it.')}
+  <div class="grid-2">${input('phone', 'Phone number', 'type="tel" autocomplete="tel" maxlength="30" required')}${input('postal_code', 'ZIP code', 'autocomplete="postal-code" maxlength="12" required')}</div>
+  <h3 class="form-sub">Your business</h3>
+  ${input('business_name', 'Business name', 'autocomplete="organization" maxlength="160" required')}
+  ${input('website_url', 'Website <span class="muted small">(optional)</span>', 'type="url" inputmode="url" placeholder="yourbusiness.com" maxlength="300"')}
+  ${select('business_stage', 'Stage of business', options.business_stage)}
+  ${select('revenue_to_date', 'Revenue generated so far (total, since you started)', options.revenue_to_date)}
+  ${select('years_in_business', 'How long have you been in business?', options.years_in_business)}
+  ${select('prior_ops_work', 'Have you done any operations work before (SOPs, workflows, role descriptions, scorecards)?', yn)}
+  ${select('has_full_time_staff', 'Do you have full-time staff?', yn)}
+  ${select('team_size', 'How many people are on your team? Count full-time staff and contractors, not including you.', options.team_size)}
+  <div class="field"><label for="f-ops_questions">What are your most pressing questions about operations?</label>
+  <textarea id="f-ops_questions" name="ops_questions" maxlength="3000" required style="min-height:6rem">${esc(v.ops_questions || '')}</textarea></div>
   <div class="hp" aria-hidden="true"><label for="j-company">Company website</label><input id="j-company" type="text" tabindex="-1" autocomplete="off"></div>
   <label class="check"><input type="checkbox" id="j-ok"><span>I own a business with customers and revenue, and I’m enrolling for business purposes.</span></label>
   <div class="notice" style="margin-top:1rem"><p><strong>Refund policy.</strong> ${esc(offer.disclosure.refund_policy || '')}</p></div>
   <label class="check"><input type="checkbox" id="j-terms"><span>I agree to the <a href="${B}/terms" target="_blank" rel="noopener">Terms</a>, the <a href="${B}/privacy" target="_blank" rel="noopener">Privacy Policy</a>, and the refund policy above.</span></label>
   <p class="form-error" id="j-err" role="alert"></p>
   <button class="btn btn-primary btn-lg btn-block" type="submit" id="pay-btn">Continue to payment — ${price}</button>
-  <p class="small muted" style="margin:.75rem 0 0">Secure checkout by Stripe. After you pay, we’ll email you a link to set up your account. If you don’t finish checkout, we may send you one reminder (unsubscribe any time).</p>
+  <p class="small muted" style="margin:.75rem 0 0">Secure checkout by Stripe. Your answers are saved when you continue. After you pay, we’ll email you a link to set up your account. If you don’t finish checkout, we may send you one reminder (unsubscribe any time).</p>
   ${signedIn ? '' : `<p class="small" style="margin:.5rem 0 0">Already enrolled? ${link('/login', 'Sign in')}</p>`}
 </form>`;
     wireSignout(step);
     const form = q('#join', step), err = q('#j-err', form), btn = q('#pay-btn', form);
+    const FIELDS = ['first_name', 'last_name', 'email', 'phone', 'postal_code', 'business_name', 'website_url', 'business_stage', 'revenue_to_date',
+      'years_in_business', 'prior_ops_work', 'has_full_time_staff', 'team_size', 'ops_questions'];
+    const collect = () => Object.fromEntries(FIELDS.map(f => [f, form.elements[f].value.trim()]));
+    const remember = () => { try { sessionStorage.setItem('so-checkout-form', JSON.stringify(collect())); } catch { /* ignore */ } };
+    form.addEventListener('change', remember);
     form.addEventListener('submit', async e => {
       e.preventDefault();
-      const name = q('#j-name', form).value.trim();
-      const email = q('#j-email', form).value.trim();
-      const fail = (msg, el) => { err.textContent = msg; if (el) el.focus(); };
-      if (!name) return fail('Add your name.', q('#j-name', form));
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('Enter a valid email address.', q('#j-email', form));
+      const data = collect();
+      const fail = (msg, name) => { err.textContent = msg; if (name) form.elements[name].focus(); };
+      const labels = { first_name: 'Enter your first name.', last_name: 'Enter your last name.', email: 'Enter your email address.', phone: 'Enter your phone number.',
+        postal_code: 'Enter your ZIP code.', business_name: 'Enter your business name.', business_stage: 'Choose your stage of business.',
+        revenue_to_date: 'Choose your revenue so far.', years_in_business: 'Choose how long you’ve been in business.', prior_ops_work: 'Choose yes or no for operations work.',
+        has_full_time_staff: 'Choose yes or no for full-time staff.', team_size: 'Choose your team size.', ops_questions: 'Tell us your most pressing questions about operations.' };
+      const missing = Object.keys(labels).find(k => !data[k]);
+      if (missing) return fail(labels[missing], missing);
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return fail('Enter a valid email address.', 'email');
       if (!q('#j-ok', form).checked) return fail('Please confirm you own a business with customers and revenue.');
       if (!q('#j-terms', form).checked) return fail('Please agree to the Terms, Privacy Policy and refund policy.');
       err.textContent = '';
+      remember();
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Opening secure checkout…';
       try {
-        const r = await SO.api('POST', 'checkout/start', { name, email, eligible: true, terms: true, company_website: q('#j-company', form).value });
+        const r = await SO.api('POST', 'checkout/start', { ...data, eligible: true, terms: true, company_website: q('#j-company', form).value });
         if (r.state === 'redirect') { window.location.assign(r.url); return; }
         const text = {
           already_enrolled: `You’re already enrolled with this email. <a href="${r.login_url || `${B}/login`}">Sign in to your account</a>.`,
@@ -683,6 +716,7 @@
       }
       if (r.state === 'confirmed') {
         state.me = null;
+        try { sessionStorage.removeItem('so-checkout-form'); } catch { /* ignore */ }
         const setup = `${B}/login?next=%2Fapp&email=${encodeURIComponent(r.email || '')}`;
         show(`<h1>You’re in.</h1><p>Your payment is confirmed and your seat in Smooth Operators is yours. Your receipt is on its way from Stripe.</p>
 ${token ? '' : `<div class="notice"><p><strong>Next: set up your account.</strong> We’ve emailed ${r.email ? `<strong>${esc(r.email)}</strong>` : 'you'} a link. You can also do it right now: sign in with Google or a one-time code, using that same email.</p></div>`}
