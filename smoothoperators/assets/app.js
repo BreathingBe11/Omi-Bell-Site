@@ -571,11 +571,11 @@
     <li>Direct Q&amp;A with Omi in the platform during the cohort (replies within 24 hours, Monday–Friday)</li>
     <li>12 months of access to program materials and call recordings</li>
   </ul>
-  ${o.disclosure.access_terms ? `<p class="small" style="margin:0">${esc(o.disclosure.access_terms)}</p>` : ''}
-  ${o.disclosure.refund_policy ? `<p class="small" style="margin:0"><strong>Refunds:</strong> ${esc(o.disclosure.refund_policy)}</p>` : ''}
-  ${o.disclosure.tax_treatment ? `<p class="small" style="margin:0">${esc(o.disclosure.tax_treatment)}</p>` : ''}
-  ${o.disclosure.extra ? `<p class="small" style="margin:0">${esc(o.disclosure.extra)}</p>` : ''}
-  ${o.disclosure.terms_published || o.disclosure.privacy_published ? `<p class="small muted" style="margin:0">By continuing you agree to the ${o.disclosure.terms_published ? `<a href="${B}/terms" data-external>Terms</a>` : ''}${o.disclosure.terms_published && o.disclosure.privacy_published ? ' and ' : ''}${o.disclosure.privacy_published ? `<a href="${B}/privacy" data-external>Privacy Policy</a>` : ''}.</p>` : ''}
+  ${o.disclosure.access_terms ? `<p class="small">${esc(o.disclosure.access_terms)}</p>` : ''}
+  ${o.disclosure.refund_policy ? `<p class="small"><strong>Refunds:</strong> ${esc(o.disclosure.refund_policy)}</p>` : ''}
+  ${o.disclosure.tax_treatment ? `<p class="small">${esc(o.disclosure.tax_treatment)}</p>` : ''}
+  ${o.disclosure.extra ? `<p class="small">${esc(o.disclosure.extra)}</p>` : ''}
+  ${o.disclosure.terms_published || o.disclosure.privacy_published ? `<p class="small muted">By continuing you agree to the ${o.disclosure.terms_published ? `<a href="${B}/terms" data-external>Terms</a>` : ''}${o.disclosure.terms_published && o.disclosure.privacy_published ? ' and ' : ''}${o.disclosure.privacy_published ? `<a href="${B}/privacy" data-external>Privacy Policy</a>` : ''}.</p>` : ''}
 </div>`;
   }
 
