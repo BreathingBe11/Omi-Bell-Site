@@ -40,8 +40,19 @@ test('business owner pays, is enrolled right away and saves a private reflection
   await expect(page.getByText(/full refund before the cohort begins on January 4, 2027/).first()).toBeVisible();
   expect(await axe(page)).toEqual([]);
   const pay = page.getByRole('button', { name: 'Continue to payment — $997' });
-  await page.getByLabel('Your name').fill('Ada Lovelace');
+  await page.getByLabel('First name').fill('Ada');
+  await page.getByLabel('Last name').fill('Lovelace');
   await page.getByLabel('Email address').fill(email);
+  await page.getByLabel('Phone number').fill('(555) 555-0100');
+  await page.getByLabel('ZIP code').fill('94612');
+  await page.getByLabel('Business name').fill('Analytical Ops');
+  await page.getByLabel('Stage of business').selectOption({ label: 'Growing: steady, repeat revenue' });
+  await page.getByLabel(/Revenue generated so far/).selectOption({ label: '$100K–$250K' });
+  await page.getByLabel('How long have you been in business?').selectOption({ label: '3–5 years' });
+  await page.getByLabel(/operations work before/).selectOption({ label: 'No' });
+  await page.getByLabel('Do you have full-time staff?').selectOption({ label: 'Yes' });
+  await page.getByLabel(/How many people are on your team/).selectOption({ label: '3–5 people' });
+  await page.getByLabel('What are your most pressing questions about operations?').fill('How do I hand off client onboarding?');
   await pay.click();
   await expect(page.getByRole('alert')).toContainText(/customers and revenue/);
   await page.getByLabel(/I own a business with customers and revenue/).check();
@@ -51,6 +62,7 @@ test('business owner pays, is enrolled right away and saves a private reflection
   // Stripe test double's hosted page. The form was saved before Stripe opened.
   await expect(page.locator('#amount')).toHaveText('99700');
   expect((await sql`select status from so_leads where email = ${email}`)[0].status).toBe('started');
+  expect((await sql`select revenue_to_date from so_intakes i join so_leads l on l.user_id = i.user_id where l.email = ${email}`)[0].revenue_to_date).toBe('100k_250k');
   await page.locator('#pay').click();
 
   // Paid: enrolled; set up the account (prefilled email), then into the platform.
@@ -203,7 +215,7 @@ test('Google’s own button signs in on our page (no redirect), then checkout co
   page.on('request', r => { if (r.url().includes('/auth/v1/authorize')) redirected = true; });
   await page.goto(`${base()}/smoothoperators/login?next=%2Fcheckout`);
   await page.getByRole('button', { name: 'Continue with Google' }).click();
-  await expect(page.getByRole('heading', { name: 'Your details' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your application' })).toBeVisible();
   await expect(page.getByLabel('Email address')).toHaveValue('gis-user@gmail.com');
   expect(redirected).toBe(false);
   await page.goto(`${base()}/smoothoperators/login`);
@@ -215,7 +227,7 @@ test('if Google’s button can’t load, the fallback Google sign-in still works
   await page.goto(`${base()}/smoothoperators/login?next=%2Fcheckout`);
   await page.getByRole('button', { name: 'Continue with Google' }).click();
   await expect(page).toHaveURL(/\/smoothoperators\/checkout/);
-  await expect(page.getByRole('heading', { name: 'Your details' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your application' })).toBeVisible();
   await page.goto(`${base()}/smoothoperators/login`);
   await expect(page.getByText(/Signed in as/)).toContainText('google-user@gmail.com');
 });

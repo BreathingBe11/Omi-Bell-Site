@@ -11,13 +11,25 @@ test.before(async () => { h = await boot(); });
 test.after(async () => { await h.close(); });
 
 const admin = (m, p, body) => h.api(m, p, { token: h.adminToken, body });
-const start = body => h.api('POST', 'checkout/start', { body: { name: 'Robin Reyes', eligible: true, terms: true, ...body } });
+const APP = { first_name: 'Robin', last_name: 'Reyes', phone: '(555) 555-0142', postal_code: '90034', business_name: 'Reyes Studio',
+  website_url: 'reyes.example.com', business_stage: 'growing', revenue_to_date: '250k_500k', years_in_business: '3_5', prior_ops_work: 'no',
+  has_full_time_staff: 'yes', team_size: '3_5', ops_questions: 'How do I hand off client onboarding?' };
+const start = ({ name, ...body }) => {
+  const [first_name, ...rest] = (name || 'Robin Reyes').split(' ');
+  return h.api('POST', 'checkout/start', { body: { ...APP, first_name, last_name: rest.join(' ') || 'Reyes', eligible: true, terms: true, ...body } });
+};
 
 test('the form validates and quietly rejects bots', async () => {
   assert.equal((await start({ email: 'not-an-email' })).status, 400);
   assert.equal((await start({ email: 'a@example.com', eligible: false })).status, 400);
   assert.equal((await start({ email: 'a@example.com', terms: false })).status, 400);
-  assert.equal((await start({ email: 'a@example.com', name: '' })).status, 400);
+  assert.equal((await start({ email: 'a@example.com', first_name: '' })).status, 400);
+  assert.equal((await start({ email: 'a@example.com', revenue_to_date: '' })).status, 400, 'revenue required');
+  assert.equal((await start({ email: 'a@example.com', team_size: 'lots' })).status, 400, 'only listed choices');
+  assert.equal((await start({ email: 'a@example.com', phone: '123' })).status, 400);
+  assert.equal((await start({ email: 'a@example.com', postal_code: '' })).status, 400);
+  assert.equal((await start({ email: 'a@example.com', ops_questions: '' })).status, 400);
+  assert.equal((await h.api('GET', 'checkout/form')).body.options.revenue_to_date.length, 8);
   assert.equal((await start({ email: 'bot@example.com', company_website: 'http://spam' })).status, 400);
   assert.equal((await h.sql`select count(*)::int as n from so_leads where email = 'bot@example.com'`)[0].n, 0);
 });
@@ -32,6 +44,17 @@ test('continue to payment: no sign-in needed; the form is saved before Stripe op
   assert.equal(lead.status, 'started');
   assert.ok(lead.eligibility_confirmed_at && lead.terms_accepted_at);
   const user = (await h.sql`select id from auth.users where email = 'robin@example.com'`)[0];
+  const app = (await h.sql`select * from so_intakes where user_id = ${user.id}`)[0];
+  assert.equal(app.business_name, 'Reyes Studio');
+  assert.equal(app.revenue_to_date, '250k_500k');
+  assert.equal(app.years_in_business, '3_5');
+  assert.equal(app.postal_code, '90034');
+  assert.equal(app.phone, '(555) 555-0142');
+  assert.match(app.website_url, /^https:\/\/reyes\.example\.com\/?$/);
+  assert.equal(app.prior_ops_work, false);
+  assert.equal(app.has_full_time_staff, true);
+  assert.equal(app.ops_questions, 'How do I hand off client onboarding?');
+  assert.equal(app.address_line1, null, 'no street address asked');
   assert.ok(user, 'account created for the email');
   assert.equal(lead.user_id, user.id);
   const prof = (await h.sql`select display_name, eligibility_confirmed_at from so_profiles where user_id = ${user.id}`)[0];
@@ -86,7 +109,10 @@ test('one reminder for people who did not pay, never for payers or the unsubscri
   assert.match(await unsub.text(), /You’re unsubscribed/);
 
   const list = await admin('GET', 'admin/leads');
-  assert.ok(list.body.leads.some(l => l.email === 'maybe-later@example.com' && l.status === 'started'));
+  const later = list.body.leads.find(l => l.email === 'maybe-later@example.com');
+  assert.equal(later.status, 'started');
+  assert.equal(later.business_name, 'Reyes Studio');
+  assert.equal(later.revenue_label, '$250K–$500K');
   assert.ok(list.body.leads.some(l => l.email === 'paid-buyer@example.com' && l.status === 'paid'));
   assert.ok((await admin('GET', 'admin/home')).body.attention.some(a => a.kind === 'leads'));
 

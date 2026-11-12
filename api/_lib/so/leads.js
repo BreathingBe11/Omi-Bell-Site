@@ -13,6 +13,7 @@ const S = require('./schedule');
 const env = require('./env');
 const email = require('./email');
 const payments = require('./payments');
+const intake = require('./intake');
 const { getAuthUser, requireAdmin } = require('./identity');
 
 const { HttpError } = H;
@@ -60,7 +61,8 @@ async function startCheckout({ sql, req, now }) {
   const b = H.body(req);
   // Bots fill every field; people never see this one.
   if (b.company_website) throw new HttpError(400, 'invalid_input', 'Please try again.');
-  const name = H.text(b.name, { max: 80, required: true, field: 'Your name' });
+  const app = intake.parseApplication(b);
+  const name = `${app.first_name} ${app.last_name}`;
   if (b.eligible !== true) throw new HttpError(400, 'invalid_input', 'Please confirm you own a business with customers and revenue.');
   if (b.terms !== true) throw new HttpError(400, 'invalid_input', 'Please agree to the Terms, Privacy Policy and refund policy.');
   const signedIn = await getAuthUser(req).catch(() => null);
@@ -75,6 +77,7 @@ async function startCheckout({ sql, req, now }) {
             on conflict (user_id) do update set display_name = coalesce(so_profiles.display_name, excluded.display_name),
               eligibility_confirmed_at = coalesce(so_profiles.eligibility_confirmed_at, now()), terms_accepted_at = now(), updated_at = now()`;
   // Saved before payment, so Omi has it even if they never finish.
+  await intake.saveApplication(sql, user.id, cohort.id, app);
   await sql`insert into so_leads (cohort_id, email, name, user_id, eligibility_confirmed_at, terms_accepted_at)
             values (${cohort.id}, ${addr}, ${name}, ${user.id}, now(), now())
             on conflict (cohort_id, email) do update set name = excluded.name, user_id = excluded.user_id,
@@ -138,6 +141,7 @@ function page(res, title, body) {
 
 const routes = {
   'POST checkout/start': startCheckout,
+  'GET checkout/form': async () => ({ options: intake.OPTIONS }),
 
   'GET leads/unsubscribe': async ({ sql, query, res }) => {
     const token = String(query.token || '');
@@ -156,8 +160,12 @@ const routes = {
   'GET admin/leads': async ({ sql, req, now }) => {
     await requireAdmin(req, sql, 'view');
     const cohort = await C.loadCohort(sql);
-    const leads = await sql`select id, email, name, status, checkout_count, created_at, last_checkout_at, paid_at, reminder_sent_at, unsubscribed_at
-                            from so_leads where cohort_id = ${cohort.id} order by (status = 'started') desc, last_checkout_at desc limit 500`;
+    const rows = await sql`select l.id, l.user_id, l.email, l.name, l.status, l.checkout_count, l.created_at, l.last_checkout_at, l.paid_at,
+                              l.reminder_sent_at, l.unsubscribed_at, i.phone, i.postal_code, i.business_name, i.revenue_to_date, i.years_in_business
+                           from so_leads l left join so_intakes i on i.user_id = l.user_id and i.cohort_id = l.cohort_id
+                           where l.cohort_id = ${cohort.id} order by (l.status = 'started') desc, l.last_checkout_at desc limit 500`;
+    const leads = rows.map(r => ({ ...r, revenue_label: r.revenue_to_date ? intake.label('revenue_to_date', r.revenue_to_date) : null,
+      years_label: r.years_in_business ? intake.label('years_in_business', r.years_in_business) : null }));
     const cutoff = new Date(now.getTime() - REMINDER_AFTER_HOURS * 3600 * 1000);
     return {
       leads,

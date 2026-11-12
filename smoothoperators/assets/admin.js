@@ -443,10 +443,11 @@ ${purchases.length ? purchases.map(p => `<tr><td>${esc(p.email)}</td><td>${esc(p
 ${canDo('settings') ? `<button class="btn btn-secondary btn-sm" id="remind"${d.due ? '' : ' disabled'}>Send due reminders (${d.due})</button>` : ''}</div>
 <p class="muted small">Everyone who filled in the form and continued to payment, saved even if they didn’t pay. People who haven’t paid after ${d.reminder_after_hours} hours get one reminder email with an unsubscribe link${d.cron_configured ? ', sent automatically each morning.' : '. <strong>Automatic sending is off until CRON_SECRET is set in Vercel</strong>; use the button meanwhile.'}</p>
 <div id="lmsg" role="status"></div>
-${d.leads.length ? `<div class="table-wrap"><table class="data"><thead><tr><th>Name</th><th>Email</th><th>First started</th><th>Last checkout</th><th>Status</th></tr></thead><tbody>
-${d.leads.map(l => `<tr><td>${esc(l.name)}</td><td><a href="mailto:${esc(l.email)}">${esc(l.email)}</a></td><td class="small">${esc(dt(l.created_at))}</td>
+${d.leads.length ? `<div class="table-wrap"><table class="data"><thead><tr><th>Name</th><th>Contact</th><th>Business</th><th>Last checkout</th><th>Status</th></tr></thead><tbody>
+${d.leads.map(l => `<tr><td>${l.user_id ? `<button class="linklike" data-open="${l.user_id}">${esc(l.name)}</button>` : esc(l.name)}</td><td class="small"><a href="mailto:${esc(l.email)}">${esc(l.email)}</a>${l.phone ? `<br>${esc(l.phone)}` : ''}${l.postal_code ? ` · ${esc(l.postal_code)}` : ''}</td><td class="small">${esc(l.business_name || '—')}${l.revenue_label ? `<br>${esc(l.revenue_label)} revenue` : ''}${l.years_label ? ` · ${esc(l.years_label)}` : ''}</td>
 <td class="small">${esc(dt(l.last_checkout_at))}${l.checkout_count > 1 ? ` · ${l.checkout_count} tries` : ''}</td><td>${status(l)}</td></tr>`).join('')}</tbody></table></div>`
       : '<p class="empty">No one has started checkout yet.</p>'}`;
+    qa('[data-open]', main).forEach(x => x.addEventListener('click', () => openMember(x.dataset.open, x, () => VIEWS.leads(main))));
     const b = q('#remind');
     if (b) b.addEventListener('click', async () => {
       b.disabled = true;
@@ -682,7 +683,7 @@ ${x.error ? `<br><span class="small" style="color:var(--danger)">${esc(x.error)}
 <div class="row">${e ? '<span class="pill pill-complete">Enrolled</span>' : '<span class="pill">Not enrolled</span>'}${e ? `<span class="pill">Access: ${esc(e.access.replace(/_/g, ' '))}</span>` : ''}${e && e.is_test ? '<span class="pill pill-draft">test</span>' : ''}</div></div></div>
 <button class="close-btn" type="button" data-close>Close</button></div>
 ${msg ? `<div class="notice ${msg.ok ? 'notice-success' : 'notice-error'}" role="status">${msg.html}</div>` : ''}
-${m.info ? `<section><h3>Earlier fit check ${m.info ? `<span class="small muted" style="font-family:var(--sans)">version ${m.info.version}${m.info.submitted_at ? ` · submitted ${esc(dt(m.info.submitted_at))}` : ' · draft'}${m.info.policy_version ? ` · policy ${esc(m.info.policy_version)}` : ''}</span>` : ''}</h3>
+${m.info ? `<section><h3>Application ${m.info ? `<span class="small muted" style="font-family:var(--sans)">version ${m.info.version}${m.info.submitted_at ? ` · submitted ${esc(dt(m.info.submitted_at))}` : ' · draft'}${m.info.policy_version ? ` · policy ${esc(m.info.policy_version)}` : ''}</span>` : ''}</h3>
 ${m.info ? `${m.info.missing.length ? `<p class="notice notice-warn small">Missing: ${esc(m.info.missing.join(', '))}</p>` : ''}<dl class="kv">${m.info.answers.map(a => `<dt>${esc(a.question)}</dt><dd style="white-space:pre-wrap">${a.answer ? esc(a.answer) : '<span class="muted">—</span>'}</dd>`).join('')}</dl>
 ${m.info.versions.length > 1 ? `<p class="small muted">Earlier versions: ${m.info.versions.slice(1).map(v => `v${v.version} (${shortDate(v.submitted_at)})`).join(', ')}</p>` : ''}` : ''}</section>` : ''}
 <section><h3>Private admin notes <span class="small muted" style="font-family:var(--sans)">never sent to the member</span></h3>
