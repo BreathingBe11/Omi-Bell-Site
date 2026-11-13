@@ -29,6 +29,8 @@ test('the form validates and quietly rejects bots', async () => {
   assert.equal((await start({ email: 'a@example.com', phone: '123' })).status, 400);
   assert.equal((await start({ email: 'a@example.com', postal_code: '' })).status, 400);
   assert.equal((await start({ email: 'a@example.com', ops_questions: '' })).status, 400);
+  assert.equal((await start({ email: 'a@example.com', website_url: '' })).status, 400, 'website required');
+  assert.equal((await start({ email: 'a@example.com', website_url: 'not a site' })).status, 400);
   assert.equal((await h.api('GET', 'checkout/form')).body.options.revenue_to_date.length, 8);
   assert.equal((await start({ email: 'bot@example.com', company_website: 'http://spam' })).status, 400);
   assert.equal((await h.sql`select count(*)::int as n from so_leads where email = 'bot@example.com'`)[0].n, 0);

@@ -128,7 +128,10 @@ ${o.failed_webhooks ? `<div class="notice notice-error"><p>${o.failed_webhooks} 
 <div class="grid-2" style="margin-top:1rem">
 <section class="card"><h2 style="margin-top:0">Blocks live sales</h2>
 ${o.sales.blockers.length ? `<ul class="checklist-admin">${o.sales.blockers.map(b => `<li>${esc(b.label)}</li>`).join('')}</ul>` : '<p class="notice notice-success">Everything required for live sales is in place.</p>'}
-<p class="small muted" style="margin-top:.75rem">Checkout available now: <strong>${o.sales.can_checkout ? 'yes' : 'no'}</strong> (${esc(o.sales.mode)})</p></section>
+<p class="small muted" style="margin-top:.75rem">Checkout available now: <strong>${o.sales.can_checkout ? 'yes' : 'no'}</strong> (${esc(o.sales.mode)})</p>
+${!o.sales.can_checkout && o.sales.reason === 'not_yet_open' ? `<p class="notice notice-warn small">Checkout is off because enrollment hasn’t opened yet: it opens ${esc(dt(o.sales.window.opens_at))}. To open it now, clear “Enrollment opens” in <a href="#settings/cohort">Cohort settings</a> and save.</p>` : ''}
+${!o.sales.can_checkout && o.sales.reason === 'enrollment_closed' ? `<p class="notice notice-warn small">Checkout is off because enrollment closed ${esc(dt(o.sales.window.closes_at))}. To reopen it, clear or change “Enrollment closes” in <a href="#settings/cohort">Cohort settings</a> and save.</p>` : ''}
+${!o.sales.can_checkout && o.sales.reason === 'not_ready' && !o.sales.blockers.length ? '<p class="notice notice-warn small">Checkout is off even though the list is clear. Redeploy in Vercel so new settings take effect, then reload this page.</p>' : ''}</section>
 <section class="card"><h2 style="margin-top:0">Configuration</h2><ul class="checklist-admin">
 ${[['Database', cfg.database], ['Supabase Auth', cfg.supabase_auth], ['Private storage', cfg.storage], [`Stripe key (${cfg.stripe_mode})`, ['live', 'test'].includes(cfg.stripe_mode)], ['Stripe webhook secret', cfg.stripe_webhook], [`Email delivery: ${cfg.email_mode}`, cfg.email_mode === 'live' && cfg.resend]]
       .map(([l, ok]) => `<li class="${ok ? 'ok' : ''}">${esc(l)}</li>`).join('')}</ul></section></div>

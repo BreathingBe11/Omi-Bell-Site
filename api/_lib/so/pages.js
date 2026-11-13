@@ -204,7 +204,7 @@ ${header()}
           <li><span class="fact-label">Dates</span> ${e(dates)}</li>
           <li><span class="fact-label">Host</span> Omi Bell</li>
           <li><span class="fact-label">Live calls</span> Wednesdays · Jan 6, 13 &amp; 20</li>
-          <li><span class="fact-label">Access</span> 12 months of materials and recordings</li>
+          <li><span class="fact-label">Access</span> 21 days of active content, 12-month access to all materials, a lifetime of transformation</li>
         </ul>
         <div class="hero-cta">
           ${cta(offer, { id: 'hero-cta' })}

@@ -697,7 +697,7 @@
     const yn = [['yes', 'Yes'], ['no', 'No']];
     step.innerHTML = `<form id="join" class="card" novalidate>
   <h2 style="font-size:1.6rem;margin-top:0">Your application</h2>
-  <p class="muted" style="margin-top:-.25rem">A few quick questions so Omi knows who’s in the room. Most are a dropdown. Your answers are private to Omi and her team.</p>
+  <p class="muted" style="margin-top:-.25rem">A few quick questions so Omi knows who’s in the room. Every question is required; most are a dropdown. Your answers are private to Omi and her team.</p>
   <h3 class="form-sub">About you</h3>
   <div class="grid-2">${input('first_name', 'First name', 'autocomplete="given-name" maxlength="80" required')}${input('last_name', 'Last name', 'autocomplete="family-name" maxlength="80" required')}</div>
   ${input('email', 'Email address', `type="email" autocomplete="email" inputmode="email" maxlength="254" required${signedIn ? ' readonly' : ''}`,
@@ -705,7 +705,7 @@
   <div class="grid-2">${input('phone', 'Phone number', 'type="tel" autocomplete="tel" maxlength="30" required')}${input('postal_code', 'ZIP code', 'autocomplete="postal-code" maxlength="12" required')}</div>
   <h3 class="form-sub">Your business</h3>
   ${input('business_name', 'Business name', 'autocomplete="organization" maxlength="160" required')}
-  ${input('website_url', 'Website <span class="muted small">(optional)</span>', 'type="url" inputmode="url" placeholder="yourbusiness.com" maxlength="300"')}
+  ${input('website_url', 'Website', 'type="url" inputmode="url" placeholder="yourbusiness.com" maxlength="300" required')}
   ${select('business_stage', 'Stage of business', options.business_stage)}
   ${select('revenue_to_date', 'Revenue generated so far (total, since you started)', options.revenue_to_date)}
   ${select('years_in_business', 'How long have you been in business?', options.years_in_business)}
@@ -735,7 +735,7 @@
       const data = collect();
       const fail = (msg, name) => { err.textContent = msg; if (name) form.elements[name].focus(); };
       const labels = { first_name: 'Enter your first name.', last_name: 'Enter your last name.', email: 'Enter your email address.', phone: 'Enter your phone number.',
-        postal_code: 'Enter your ZIP code.', business_name: 'Enter your business name.', business_stage: 'Choose your stage of business.',
+        postal_code: 'Enter your ZIP code.', business_name: 'Enter your business name.', website_url: 'Enter your business website.', business_stage: 'Choose your stage of business.',
         revenue_to_date: 'Choose your revenue so far.', years_in_business: 'Choose how long you’ve been in business.', prior_ops_work: 'Choose yes or no for operations work.',
         has_full_time_staff: 'Choose yes or no for full-time staff.', team_size: 'Choose your team size.', ops_questions: 'Tell us your most pressing questions about operations.' };
       const missing = Object.keys(labels).find(k => !data[k]);

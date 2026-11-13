@@ -46,6 +46,7 @@ test('business owner pays, is enrolled right away and saves a private reflection
   await page.getByLabel('Phone number').fill('(555) 555-0100');
   await page.getByLabel('ZIP code').fill('94612');
   await page.getByLabel('Business name').fill('Analytical Ops');
+  await page.getByLabel('Website', { exact: true }).fill('analytical.example.com');
   await page.getByLabel('Stage of business').selectOption({ label: 'Growing: steady, repeat revenue' });
   await page.getByLabel(/Revenue generated so far/).selectOption({ label: '$100K–$250K' });
   await page.getByLabel('How long have you been in business?').selectOption({ label: '3–5 years' });
