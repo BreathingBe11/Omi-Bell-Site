@@ -1,5 +1,5 @@
 'use strict';
-const { signToken, verifyToken, hashPassword, checkRateLimit, clientIp } = require('./_lib/auth');
+const { signToken, verifyToken, hashPassword, limitLogin, clientIp } = require('./_lib/auth');
 const { getAdminPasswordHash, setAdminPasswordHash, hashFingerprint } = require('./_lib/admin-password');
 
 const RESET_TTL   = 30 * 60 * 1000; // 30 minutes
@@ -11,7 +11,7 @@ const SITE_URL    = 'https://www.omibell.com';
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (!checkRateLimit(clientIp(req))) {
+  if (!(await limitLogin(req, 'admin-reset'))) {
     return res.status(429).json({ error: 'Too many attempts. Try again in 15 minutes.' });
   }
 

@@ -153,7 +153,9 @@ const routes = {
   // Vercel Cron (daily). Vercel sends "Authorization: Bearer $CRON_SECRET".
   'GET cron/reminders': async ({ sql, req, now }) => {
     const secret = process.env.CRON_SECRET;
-    if (!secret || req.headers.authorization !== `Bearer ${secret}`) throw new HttpError(401, 'unauthorized', 'Not allowed.');
+    const given = Buffer.from(String(req.headers.authorization || ''));
+    const want = Buffer.from(`Bearer ${secret || ''}`);
+    if (!secret || given.length !== want.length || !require('crypto').timingSafeEqual(given, want)) throw new HttpError(401, 'unauthorized', 'Not allowed.');
     return sendDueReminders(sql, now, { actor: 'cron' });
   },
 

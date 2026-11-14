@@ -4,7 +4,8 @@ const { createClient } = require('@supabase/supabase-js');
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+  // Server-side key: the resources table stays locked to the public key (it holds submitters' emails).
+  const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
   const { data, error } = await db
     .from('resources')
     .select('id, name, description, link, created_at')
