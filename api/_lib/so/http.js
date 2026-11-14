@@ -91,7 +91,7 @@ function uuid(v, field = 'id') {
 }
 
 function clientIp(req) {
-  return String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+  return String(req.headers['x-real-ip'] || '').trim() || String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()
     || (req.socket && req.socket.remoteAddress) || 'unknown';
 }
 

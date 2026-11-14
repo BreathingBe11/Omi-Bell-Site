@@ -1,5 +1,5 @@
 'use strict';
-const { verifyPassword, signToken, checkRateLimit, clientIp } = require('./_lib/auth');
+const { verifyPassword, signToken, limitLogin, clientIp } = require('./_lib/auth');
 const { getAdminPasswordHash } = require('./_lib/admin-password');
 
 const TOKEN_TTL = 8 * 60 * 60 * 1000; // 8 hours
@@ -7,7 +7,7 @@ const TOKEN_TTL = 8 * 60 * 60 * 1000; // 8 hours
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (!checkRateLimit(clientIp(req))) {
+  if (!(await limitLogin(req, 'admin'))) {
     return res.status(429).json({ error: 'Too many attempts. Try again in 15 minutes.' });
   }
 

@@ -509,7 +509,12 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
   <p class="footer-copy">© 2025 Omi Bell · All rights reserved</p>
 </footer>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/smoothoperators/assets/vendor/supabase-2.106.1.js"></script>
+<script src="/vendor/purify-3.1.7.min.js"></script>
+<script>
+// Post content comes from writers: strip any scripts or event handlers before it reaches the page.
+function clean(html){return window.DOMPurify?DOMPurify.sanitize(String(html==null?'':html)):String(html==null?'':html).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
 <script>
 // Latest posts
 (async()=>{
@@ -518,7 +523,7 @@ footer{background:var(--black);color:var(--white);padding:3rem 5rem;display:flex
   try{
     const{data}=await db.from('posts').select('id,title,excerpt,cover_image,category,date,author_name').eq('published',true).lte('date',new Date().toISOString()).order('date',{ascending:false}).limit(3);
     if(!data||!data.length){grid.innerHTML='<div class="writing-placeholder">New writing coming soon.</div>';return;}
-    grid.innerHTML=data.map(p=>`<a href="/article?id=${p.id}" class="post-card"><div class="post-img">${p.cover_image?`<img src="${p.cover_image}" alt="${p.title||''}" loading="lazy">`:'<div style="height:100%;background:var(--sand)"></div>'}</div><div class="post-body"><span class="post-category">${p.category||'Journal'}</span><h3 class="post-title">${p.title||''}</h3><p class="post-excerpt">${p.excerpt||''}</p><p class="post-meta">${new Date(p.date).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</p></div></a>`).join('');
+    grid.innerHTML=clean(data.map(p=>`<a href="/article?id=${p.id}" class="post-card"><div class="post-img">${p.cover_image?`<img src="${p.cover_image}" alt="${p.title||''}" loading="lazy">`:'<div style="height:100%;background:var(--sand)"></div>'}</div><div class="post-body"><span class="post-category">${p.category||'Journal'}</span><h3 class="post-title">${p.title||''}</h3><p class="post-excerpt">${p.excerpt||''}</p><p class="post-meta">${new Date(p.date).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</p></div></a>`).join(''));
   }catch{grid.innerHTML='<div class="writing-placeholder">New writing coming soon.</div>';}
 })();
 

@@ -74,6 +74,25 @@ function checkRateLimit(ip) {
 
 // --- Admin token helpers ---
 
+// Login limits that hold across all serverless instances (stored in Postgres).
+// Per IP: 5 tries per 15 minutes. Per login type, all IPs together: 200 per hour,
+// so a guessing attack spread over many IPs is still capped. Falls back to the
+// in-memory limit only if the database can't be reached.
+async function limitLogin(req, scope) {
+  const ip = clientIp(req);
+  try {
+    const { getSqlReady } = require('./so/db');
+    const { rateLimit } = require('./so/http');
+    const sql = await getSqlReady();
+    await rateLimit(sql, `login:${scope}:ip:${ip}`, RATE_MAX, RATE_WINDOW / 1000);
+    await rateLimit(sql, `login:${scope}:all`, 200, 3600);
+    return true;
+  } catch (e) {
+    if (e && e.status === 429) return false;
+    return checkRateLimit(`${scope}:${ip}`);
+  }
+}
+
 function getBearer(req) {
   const h = req.headers['authorization'] || '';
   return h.startsWith('Bearer ') ? h.slice(7) : null;
@@ -96,7 +115,9 @@ function verifyWriterToken(req) {
 }
 
 function clientIp(req) {
-  return (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+  // Vercel sets x-real-ip (and overwrites x-forwarded-for) with the visitor's address.
+  return String(req.headers['x-real-ip'] || '').trim()
+    || (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
     || req.socket?.remoteAddress
     || 'unknown';
 }
@@ -104,6 +125,6 @@ function clientIp(req) {
 module.exports = {
   signToken, verifyToken,
   hashPassword, verifyPassword, isHashed,
-  checkRateLimit,
+  checkRateLimit, limitLogin,
   verifyAdminToken, verifyWriterToken, clientIp,
 };
