@@ -152,7 +152,7 @@ function priceDetail(offer, tz, saleName = 'Sale') {
 function fallbackOffer(now) {
   const S = require('./schedule');
   const cohort = { start_date: '2027-01-04', days_count: 21, timezone: 'America/Los_Angeles', unlock_time: '00:00',
-    regular_price_cents: 249900, intro_price_cents: 99700, price_sale_starts_at: '2026-11-27T08:00:00Z', price_cutoff_at: '2026-12-01T08:00:00Z', currency: 'usd' };
+    regular_price_cents: 249900, intro_price_cents: 149700, price_sale_starts_at: '2026-11-27T08:00:00Z', price_cutoff_at: '2026-12-01T08:00:00Z', currency: 'usd' };
   const sched = S.schedule(cohort);
   const p = S.priceAt(cohort, now);
   return {

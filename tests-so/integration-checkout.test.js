@@ -40,7 +40,7 @@ test('continue to payment: no sign-in needed; the form is saved before Stripe op
   const r = await start({ email: '  Robin@Example.com ' });
   assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.equal(r.body.state, 'redirect');
-  assert.equal(r.body.amount_cents, 99700);
+  assert.equal(r.body.amount_cents, 149700);
   const lead = (await h.sql`select * from so_leads where email = 'robin@example.com'`)[0];
   assert.equal(lead.name, 'Robin Reyes');
   assert.equal(lead.status, 'started');
@@ -215,10 +215,10 @@ test('discount codes: BGV997 gives $997 until the cohort starts; wrong, expired 
     assert.equal((await h.api('GET', 'checkout/code?code=BGV997')).body.valid, false);
     await admin('PUT', 'admin/codes/BGV997', { active: true });
 
-    // During a sale that's already $997, the code isn't needed and nobody pays more.
+    // During the $1,497 sale the code is still the better price: $997.
     await h.setCohort({ price_cutoff_at: new Date(Date.now() + 86400000) });
     const sale = await h.api('GET', 'checkout/code?code=BGV997');
-    assert.equal(sale.body.applied, false);
+    assert.equal(sale.body.applied, true);
     assert.equal(sale.body.amount_cents, 99700);
 
     // Once the cohort starts, the code stops working.
