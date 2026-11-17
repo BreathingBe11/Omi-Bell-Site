@@ -142,11 +142,35 @@ async function checkoutSession({ sql, req, now }) {
     const e = await C.loadEnrollment(sql, user.id, cohort.id);
     if (!(e && e.access_state === 'active')) return { state: 'eligibility_required' };
   }
-  return checkoutFor(sql, req, now, user);
+  return checkoutFor(sql, req, now, user, { code: H.body(req).code });
+}
+
+const money = c => `$${(c / 100).toLocaleString('en-US', { minimumFractionDigits: c % 100 ? 2 : 0 })}`;
+const normCode = v => String(v || '').trim().toUpperCase().replace(/\s+/g, '');
+
+// The price for this checkout: the scheduled price, or a code's price when a
+// valid code makes it lower. Codes are checked here, never in the browser.
+async function quoteFor(sql, cohort, now, rawCode) {
+  const base = S.priceAt(cohort, now);
+  const code = normCode(rawCode);
+  if (!code) return { ...base, code: null };
+  const c = /^[A-Z0-9_-]{3,32}$/.test(code)
+    ? (await sql`select * from so_price_codes where code = ${code} and cohort_id = ${cohort.id}`)[0] : null;
+  const until = c && c.valid_until ? new Date(c.valid_until) : S.schedule(cohort).starts_at;
+  if (!c || !c.active || now >= until) throw new HttpError(400, 'invalid_code', 'That code isn’t valid or has expired.');
+  if (c.max_uses) {
+    const used = (await sql`select count(*)::int as n from so_purchases where price_code = ${code} and cohort_id = ${cohort.id}
+                            and paid_at is not null and status in ('paid', 'partially_refunded', 'disputed')`)[0].n;
+    if (used >= c.max_uses) throw new HttpError(400, 'invalid_code', 'That code has been fully used.');
+  }
+  // The current price is already as low (e.g. during a sale): no code needed.
+  if (c.price_cents >= base.amount_cents) return { ...base, code: null, code_not_needed: true, code_label: c.label || null };
+  return { ...base, tier: 'intro', amount_cents: c.price_cents, savings_cents: base.regular_cents - c.price_cents,
+    code: c.code, code_label: c.label || null };
 }
 
 // Shared by signed-in checkout and the public "continue to payment" form.
-async function checkoutFor(sql, req, now, user) {
+async function checkoutFor(sql, req, now, user, { code } = {}) {
   const cohort = await C.loadCohort(sql);
   const enrollment = await C.loadEnrollment(sql, user.id, cohort.id);
   if (enrollment && enrollment.access_state === 'active') return { state: 'already_enrolled' };
@@ -159,6 +183,7 @@ async function checkoutFor(sql, req, now, user) {
   }
   await H.rateLimit(sql, `checkout:${user.id}`, 12, 600);
   if (await seatsFull(sql, cohort, now, user.id)) return { state: 'full' };
+  const price = await quoteFor(sql, cohort, now, code);
 
   for (let attempt = 0; attempt < 3; attempt++) {
     if (attempt > 0) {
@@ -170,9 +195,8 @@ async function checkoutFor(sql, req, now, user) {
                                 and status = any(${INFLIGHT}) limit 1`)[0];
     if (existing) {
       if (existing.status === 'pending') return { state: 'pending' };
-      // Reuse an open checkout unless a sale has started since it was quoted at the regular price.
-      const nowTier = S.priceAt(cohort, now).tier;
-      if (existing.status === 'open' && S.quoteStillValid(existing, now) && !(existing.price_tier === 'regular' && nowTier === 'intro')) {
+      // Reuse an open checkout unless today's quote (a sale, or a code) is lower than what it was quoted at.
+      if (existing.status === 'open' && S.quoteStillValid(existing, now) && existing.amount_cents <= price.amount_cents) {
         return { state: 'redirect', url: existing.checkout_url, reused: true, price_tier: existing.price_tier, amount_cents: existing.amount_cents };
       }
       if (existing.status === 'created' && new Date(existing.expires_at) > now) {
@@ -184,12 +208,11 @@ async function checkoutFor(sql, req, now, user) {
       await retireSession(sql, existing);
       continue;
     }
-    const price = S.priceAt(cohort, now);
     // +60s so the provider's minimum expiry is met despite network latency.
     const expiresAt = new Date(now.getTime() + (cohort.checkout_ttl_minutes * 60 + 60) * 1000);
     const ins = await sql`
-      insert into so_purchases (user_id, cohort_id, status, price_tier, amount_cents, currency, quoted_at, expires_at)
-      values (${user.id}, ${cohort.id}, 'created', ${price.tier}, ${price.amount_cents}, ${price.currency}, ${now}, ${expiresAt})
+      insert into so_purchases (user_id, cohort_id, status, price_tier, amount_cents, currency, quoted_at, expires_at, price_code)
+      values (${user.id}, ${cohort.id}, 'created', ${price.tier}, ${price.amount_cents}, ${price.currency}, ${now}, ${expiresAt}, ${price.code})
       on conflict do nothing returning *`;
     if (!ins[0]) continue; // another click won the race; loop to reuse it
     return finishSession(sql, req, cohort, ins[0], user, now);
@@ -334,7 +357,8 @@ async function notifyOwner(sql, purchase, enrollment) {
     ...(await email.baseVars(sql, cohort, enrollment.user_id)),
     member_name: name, member_email: prof.email || '—', member_phone: i.phone || '—', member_zip: i.postal_code || '—',
     amount: `$${((amount || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: amount % 100 ? 2 : 0 })}`,
-    price_label: purchase.price_tier === 'intro' ? (content.get('pricing.sale_name') || 'sale price') : 'regular price',
+    price_label: purchase.price_code ? `code ${purchase.price_code}`
+      : purchase.price_tier === 'intro' ? (content.get('pricing.sale_name') || 'sale price') : 'regular price',
     business_name: i.business_name || '—', website: i.website_url || '—',
     business_stage: opt('business_stage', i.business_stage), revenue: opt('revenue_to_date', i.revenue_to_date),
     years: opt('years_in_business', i.years_in_business), team_size: opt('team_size', i.team_size),
@@ -505,6 +529,21 @@ const routes = {
   },
   'POST checkout/session': checkoutSession,
   'GET checkout/status': checkoutStatus,
+  // "Apply" on the checkout form: is this code valid, and what would the price be?
+  'GET checkout/code': async ({ sql, req, now, query }) => {
+    await H.rateLimit(sql, `code:${H.clientIp(req)}`, 30, 600);
+    const cohort = await C.loadCohort(sql);
+    try {
+      const q = await quoteFor(sql, cohort, now, query.code);
+      if (q.code_not_needed) return { valid: true, applied: false, amount_cents: q.amount_cents, message: 'Good news: today’s price is already as low as this code.' };
+      if (!q.code) return { valid: false, message: 'Enter a code.' };
+      return { valid: true, applied: true, code: q.code, amount_cents: q.amount_cents, label: q.code_label,
+        message: `Code ${q.code} applied: ${money(q.amount_cents)}.` };
+    } catch (e) {
+      if (e.code === 'invalid_code') return { valid: false, message: e.message };
+      throw e;
+    }
+  },
 };
 
 module.exports = { routes, checkoutFor, offerPayload, seatsTaken, applySession, activatePurchase, processWebhook, handleEvent, sendConfirmation, retireSession };

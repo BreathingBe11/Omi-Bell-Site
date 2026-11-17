@@ -474,3 +474,7 @@ do $$ begin
   end if;
 end $$;
 
+insert into so_price_codes (code, cohort_id, price_cents, label, valid_until, active)
+select 'BGV997', id, 99700, 'BGV community', null, true from so_cohorts where slug = '2027-01'
+on conflict (code) do nothing;
+

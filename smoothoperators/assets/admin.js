@@ -14,7 +14,7 @@
   ];
   const SUBS = {
     members: [['all', 'All members'], ['leads', 'Started checkout'], ['intros', 'Introductions']],
-    sales: [['summary', 'Sales'], ['access', 'Payments & access tools']],
+    sales: [['summary', 'Sales'], ['codes', 'Discount codes'], ['access', 'Payments & access tools']],
     program: [['days', '21 days'], ['announcements', 'Announcements'], ['resources', 'Resources'], ['preview', 'Preview']],
     seat: [['sessions', 'Sessions'], ['challenges', 'Challenges'], ['prep', 'Session prep']],
     settings: [['questions', 'Questions'], ['emails', 'Email log'], ['templates', 'Templates & reminders'], ['cohort', 'Cohort settings'],
@@ -448,6 +448,40 @@ ${purchases.length ? purchases.map(p => `<tr><td>${esc(p.email)}</td><td>${esc(p
       return true;
     } catch (e) { alert(e.message); return false; }
   }
+
+  VIEWS.codes = async main => {
+    const d = await api('GET', 'admin/codes');
+    const edit = canDo('settings');
+    main.innerHTML = `<h1>Discount codes</h1>
+<p class="muted">Buyers type a code on the checkout form to get its price. If today’s price is already lower (for example during a sale), they simply pay today’s price. “Until the cohort starts” means through ${esc(dt(new Date(new Date(d.cohort_starts_at).getTime() - 60000).toISOString()))}.</p>
+<div id="cmsg2" role="status"></div>
+${d.codes.length ? `<div class="table-wrap"><table class="data"><thead><tr><th>Code</th><th>Price</th><th>For</th><th>Works until</th><th>Used</th><th>Status</th>${edit ? '<th><span class="sr-only">Actions</span></th>' : ''}</tr></thead><tbody>
+${d.codes.map(c => `<tr><td><strong class="kbd">${esc(c.code)}</strong></td><td>${money(c.price_cents)}</td><td class="small">${esc(c.label || '—')}</td>
+<td class="small">${c.until_cohort_start ? 'Until the cohort starts' : esc(dt(c.valid_until))}</td><td>${c.uses}${c.max_uses ? ` of ${c.max_uses}` : ''}</td>
+<td>${!c.active ? '<span class="pill">Off</span>' : c.expired ? '<span class="pill">Expired</span>' : '<span class="pill pill-complete">On</span>'}</td>
+${edit ? `<td><button class="btn btn-ghost btn-sm" data-toggle="${esc(c.code)}" data-on="${c.active ? '1' : ''}">${c.active ? 'Turn off' : 'Turn on'}</button></td>` : ''}</tr>`).join('')}</tbody></table></div>`
+      : '<p class="empty">No codes yet.</p>'}
+${edit ? `<form id="new-code" class="card" style="margin-top:1.5rem" novalidate><h2 style="margin-top:0">Add a code</h2>
+<div class="grid-2"><div class="field"><label for="nc-code">Code</label><input id="nc-code" type="text" maxlength="32" placeholder="e.g. BGV997" style="text-transform:uppercase"></div>
+<div class="field"><label for="nc-price">Price with the code (USD)</label><input id="nc-price" type="number" min="1" step="1" placeholder="997"></div></div>
+<div class="grid-2"><div class="field"><label for="nc-label">Who it’s for (optional)</label><input id="nc-label" type="text" maxlength="120" placeholder="e.g. BGV community"></div>
+<div class="field"><label for="nc-max">Max uses (blank = unlimited)</label><input id="nc-max" type="number" min="1" step="1"></div></div>
+<div class="field"><label for="nc-until">Works until (blank = until the cohort starts)</label><input id="nc-until" type="datetime-local"></div>
+<p class="form-error" id="nc-err" role="alert"></p><button class="btn btn-primary">Add code</button></form>` : ''}`;
+    qa('[data-toggle]', main).forEach(b => b.addEventListener('click', async () => {
+      try { await api('PUT', `admin/codes/${encodeURIComponent(b.dataset.toggle)}`, { active: !b.dataset.on }); VIEWS.codes(main); }
+      catch (e) { flash(q('#cmsg2'), e.message, false); }
+    }));
+    const f = q('#new-code');
+    if (f) f.addEventListener('submit', async e => {
+      e.preventDefault();
+      try {
+        await api('POST', 'admin/codes', { code: q('#nc-code').value, price: q('#nc-price').value, label: q('#nc-label').value,
+          max_uses: q('#nc-max').value, valid_until_local: q('#nc-until').value });
+        await VIEWS.codes(main); flash(q('#cmsg2'), 'Code added.', true);
+      } catch (x) { q('#nc-err').textContent = x.message; }
+    });
+  };
 
   VIEWS.leads = async main => {
     const d = await api('GET', 'admin/leads');

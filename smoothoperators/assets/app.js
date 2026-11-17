@@ -679,15 +679,15 @@
 <p>${supportLine(offer.support_email)}</p>`;
       return 'Join';
     }
-    await checkoutForm(step, offer, me);
+    await checkoutForm(step, offer, me, query);
     return 'Join';
   }
 
   // One short form, then straight to Stripe. No sign-in first: the form is
   // saved when they continue, and they set up sign-in after paying.
-  async function checkoutForm(step, offer, me) {
+  async function checkoutForm(step, offer, me, query = {}) {
     const signedIn = !!me.signed_in;
-    const price = SO.money(offer.price.amount_cents);
+    let price = SO.money(offer.price.amount_cents);
     const { options } = await SO.api('GET', 'checkout/form', undefined, { auth: false });
     // Restore what they typed if they come back from Stripe without paying.
     let saved = {};
@@ -695,6 +695,8 @@
     const nameParts = ((me && me.display_name) || '').trim().split(/\s+/);
     const v = { first_name: nameParts[0] || '', last_name: nameParts.slice(1).join(' '), email: (me && me.email) || '', ...saved };
     if (signedIn) v.email = me.email;
+    // Shareable link: /smoothoperators/checkout?code=BGV997 fills in the code.
+    if (query.code && /^[A-Za-z0-9_-]{3,32}$/.test(query.code)) v.code = query.code.toUpperCase();
     const input = (id, label, attrs = '', help = '') => `<div class="field"><label for="f-${id}">${label}</label><input${/type=/.test(attrs) ? '' : ' type="text"'} id="f-${id}" name="${id}" value="${esc(v[id] || '')}" ${attrs}>${help ? `<p class="help">${help}</p>` : ''}</div>`;
     const select = (id, label, opts) => `<div class="field"><label for="f-${id}">${label}</label><select id="f-${id}" name="${id}" required><option value="">Choose one…</option>${opts.map(([val, lab]) => `<option value="${esc(val)}"${String(v[id]) === String(val) ? ' selected' : ''}>${esc(lab)}</option>`).join('')}</select></div>`;
     const yn = [['yes', 'Yes'], ['no', 'No']];
@@ -717,6 +719,10 @@
   ${select('team_size', 'How many people are on your team? Count full-time staff and contractors, not including you.', options.team_size)}
   <div class="field"><label for="f-ops_questions">What are your most pressing questions about operations?</label>
   <textarea id="f-ops_questions" name="ops_questions" maxlength="3000" required style="min-height:6rem">${esc(v.ops_questions || '')}</textarea></div>
+  <div class="field code-field"><label for="f-code">Have a code? <span class="muted small">(optional)</span></label>
+    <div class="code-row"><input type="text" id="f-code" name="code" maxlength="32" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${esc(v.code || '')}">
+    <button class="btn btn-secondary btn-sm" type="button" id="apply-code">Apply</button></div>
+    <p class="help" id="code-msg" role="status"></p></div>
   <div class="hp" aria-hidden="true"><label for="j-company">Company website</label><input id="j-company" type="text" tabindex="-1" autocomplete="off"></div>
   <label class="check"><input type="checkbox" id="j-ok"><span>I own a business with customers and revenue, and I’m enrolling for business purposes.</span></label>
   <div class="notice" style="margin-top:1rem"><p><strong>Refund policy.</strong> ${esc(offer.disclosure.refund_policy || '')}</p></div>
@@ -728,11 +734,28 @@
 </form>`;
     wireSignout(step);
     const form = q('#join', step), err = q('#j-err', form), btn = q('#pay-btn', form);
-    const FIELDS = ['first_name', 'last_name', 'email', 'phone', 'postal_code', 'business_name', 'website_url', 'business_stage', 'revenue_to_date',
+    const FIELDS = ['code', 'first_name', 'last_name', 'email', 'phone', 'postal_code', 'business_name', 'website_url', 'business_stage', 'revenue_to_date',
       'years_in_business', 'prior_ops_work', 'has_full_time_staff', 'team_size', 'ops_questions'];
     const collect = () => Object.fromEntries(FIELDS.map(f => [f, form.elements[f].value.trim()]));
     const remember = () => { try { sessionStorage.setItem('so-checkout-form', JSON.stringify(collect())); } catch { /* ignore */ } };
     form.addEventListener('change', remember);
+    // Discount code: checked on the server; the button shows the price it gives.
+    const codeInput = q('#f-code', form), codeMsg = q('#code-msg', form);
+    const basePrice = price;
+    const applyCode = async () => {
+      const code = codeInput.value.trim();
+      if (!code) { price = basePrice; btn.textContent = `Continue to payment — ${price}`; codeMsg.textContent = ''; codeMsg.className = 'help'; return; }
+      try {
+        const r = await SO.api('GET', `checkout/code?code=${encodeURIComponent(code)}`, undefined, { auth: false });
+        codeMsg.textContent = r.message;
+        codeMsg.className = r.valid ? 'help code-ok' : 'help code-bad';
+        price = r.valid ? SO.money(r.amount_cents) : basePrice;
+      } catch (ex) { codeMsg.textContent = ex.message; codeMsg.className = 'help code-bad'; price = basePrice; }
+      btn.textContent = `Continue to payment — ${price}`;
+    };
+    q('#apply-code', form).addEventListener('click', applyCode);
+    codeInput.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); applyCode(); } });
+    if (codeInput.value.trim()) applyCode();
     form.addEventListener('submit', async e => {
       e.preventDefault();
       const data = collect();

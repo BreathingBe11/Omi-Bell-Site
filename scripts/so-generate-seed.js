@@ -108,4 +108,10 @@ out.push(`do $$ begin
 end $$;
 `);
 
+// v6 (Nov 2026): BGV community code, $997 any time until the cohort starts.
+out.push(`insert into so_price_codes (code, cohort_id, price_cents, label, valid_until, active)
+select 'BGV997', id, 99700, 'BGV community', null, true from so_cohorts where slug = '2027-01'
+on conflict (code) do nothing;
+`);
+
 process.stdout.write(out.join('\n') + '\n');

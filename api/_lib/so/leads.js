@@ -83,7 +83,7 @@ async function startCheckout({ sql, req, now }) {
             on conflict (cohort_id, email) do update set name = excluded.name, user_id = excluded.user_id,
               terms_accepted_at = now(), checkout_count = so_leads.checkout_count + 1, last_checkout_at = now(), updated_at = now()`;
 
-  const out = await payments.checkoutFor(sql, req, now, user);
+  const out = await payments.checkoutFor(sql, req, now, user, { code: b.code });
   // Never reveal enrollment details for an email the visitor hasn't proven they own.
   if (out.state === 'already_enrolled' && !signedIn) {
     return { state: 'already_enrolled', login_url: `${env.BASE_PATH}/login?next=%2Fapp&email=${encodeURIComponent(addr)}` };
