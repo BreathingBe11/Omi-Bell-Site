@@ -307,7 +307,7 @@ test('admin preview uses a simulated clock and writes nothing', async () => {
   const draft = await admin('GET', `admin/preview?view=day&n=12&drafts=1&at=${encodeURIComponent(day10)}`);
   assert.equal(draft.body.day.state, 'locked', 'simulated clock still enforces unlocks');
   const offer = await admin('GET', `admin/preview?view=offer&at=${encodeURIComponent('2026-11-30T12:00:00Z')}`);
-  assert.equal(offer.body.price.amount_cents, 99700);
+  assert.equal(offer.body.price.amount_cents, 149700);
   assert.deepEqual(await counts(), before);
   // Members cannot use it.
   assert.equal((await h.api('GET', `admin/preview?view=home&at=${encodeURIComponent(day10)}`, { token: A.token })).status, 403);
@@ -323,7 +323,7 @@ test('schedule changes show an impact preview, reset owner confirmation, and are
 
   const confirm = await admin('PUT', 'admin/cohort', { confirm_settings: true });
   assert.ok(confirm.body.cohort.settings_confirmed_at);
-  const change = await admin('PUT', 'admin/cohort', { price_cutoff_local: '2026-12-01T00:00', intro_price_cents: 99700 });
+  const change = await admin('PUT', 'admin/cohort', { price_cutoff_local: '2026-12-01T00:00', intro_price_cents: 149700 });
   assert.equal(change.status, 200);
   const unchanged = change.body.timing_changed.length === 0;
   const moved = await admin('PUT', 'admin/cohort', { unlock_time: '05:00' });

@@ -39,7 +39,7 @@ test('business owner pays, is enrolled right away and saves a private reflection
   await expect(page.getByRole('button', { name: 'Send my code' })).toHaveCount(0);
   await expect(page.getByText(/full refund before the cohort begins on January 4, 2027/).first()).toBeVisible();
   expect(await axe(page)).toEqual([]);
-  const pay = page.getByRole('button', { name: 'Continue to payment — $997' });
+  const pay = page.getByRole('button', { name: 'Continue to payment — $1,497' });
   await page.getByLabel('First name').fill('Ada');
   await page.getByLabel('Last name').fill('Lovelace');
   await page.getByLabel('Email address').fill(email);
@@ -61,7 +61,7 @@ test('business owner pays, is enrolled right away and saves a private reflection
   await pay.click();
 
   // Stripe test double's hosted page. The form was saved before Stripe opened.
-  await expect(page.locator('#amount')).toHaveText('99700');
+  await expect(page.locator('#amount')).toHaveText('149700');
   expect((await sql`select status from so_leads where email = ${email}`)[0].status).toBe('started');
   expect((await sql`select revenue_to_date from so_intakes i join so_leads l on l.user_id = i.user_id where l.email = ${email}`)[0].revenue_to_date).toBe('100k_250k');
   await page.locator('#pay').click();
