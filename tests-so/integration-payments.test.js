@@ -26,19 +26,54 @@ test('landing page shows dates, host, server price and test-mode label', async (
   assert.match(html, /January 4–24, 2027/);
   assert.match(html, /Omi Bell/);
   assert.match(html, /Join the Cohort — \$997/);
-  assert.match(html, /Save \$500 through November 30\. Regular enrollment: \$1,497\./);
-  assert.match(html, /11:59 p\.m\. PST on November 30, 2026 \(America\/Los_Angeles\)/);
+  assert.match(html, /Black Friday–Cyber Monday sale: save \$1,502 through November 30\. Regular enrollment: \$2,499\./);
+  assert.match(html, /Sale price ends 11:59 p\.m\. PST on November 30, 2026 \(America\/Los_Angeles\)/);
   assert.match(html, /Test mode\./);
   assert.doesNotMatch(html, /Questions<\/h2>/, 'draft FAQs are not published');
 });
 
 test('after the cutoff the landing page drops the expired offer', async () => {
   await h.setCohort({ price_cutoff_at: new Date(Date.now() - 1000) });
-  const html = await (await fetch(`${h.appBase}/smoothoperators`)).text();
-  assert.match(html, /Join the Cohort — \$1,497/);
-  assert.doesNotMatch(html, /\$997/);
-  assert.doesNotMatch(html, /Save \$500/);
-  await h.setCohort({ price_cutoff_at: new Date('2026-12-01T08:00:00Z') });
+  try {
+    const html = await (await fetch(`${h.appBase}/smoothoperators`)).text();
+    assert.match(html, /Join the Cohort — \$2,499/);
+    assert.doesNotMatch(html, /\$997/);
+    assert.doesNotMatch(html, /Save \$/);
+  } finally {
+    await h.setCohort({ price_cutoff_at: new Date('2026-12-01T08:00:00Z') });
+  }
+});
+
+test('Black Friday–Cyber Monday: $2,499 before, $997 during (stale regular checkouts replaced), $2,499 after', async () => {
+  const day = 86400000;
+  try {
+    // Before the sale: regular price, with the sale announced.
+    await h.setCohort({ price_sale_starts_at: new Date(Date.now() + 5 * day), price_cutoff_at: new Date(Date.now() + 9 * day) });
+    let html = await (await fetch(`${h.appBase}/smoothoperators`)).text();
+    assert.match(html, /Join the Cohort — \$2,499/);
+    assert.match(html, /Black Friday–Cyber Monday sale: \$997 from \w+ \d+ through \w+ \d+ only\./);
+    const early = await h.buyer('early-bird-sale@example.com');
+    const r1 = await h.api('POST', 'checkout/session', { token: early.token, body: {} });
+    assert.equal(r1.body.amount_cents, 249900);
+    assert.equal((await h.api('GET', 'offer')).body.price.sale_upcoming, true);
+    // Sale starts: the same buyer gets a fresh $997 checkout, not the open $2,499 one.
+    await h.setCohort({ price_sale_starts_at: new Date(Date.now() - 1000) });
+    const r2 = await h.api('POST', 'checkout/session', { token: early.token, body: {} });
+    assert.equal(r2.body.amount_cents, 99700);
+    assert.notEqual(r2.body.url, r1.body.url);
+    html = await (await fetch(`${h.appBase}/smoothoperators`)).text();
+    assert.match(html, /Join the Cohort — \$997/);
+    // After Cyber Monday: back to the regular price.
+    await h.setCohort({ price_cutoff_at: new Date(Date.now() - 1000) });
+    const late = await h.buyer('after-sale@example.com');
+    assert.equal((await h.api('POST', 'checkout/session', { token: late.token, body: {} })).body.amount_cents, 249900);
+    // Admin can see and change the sale window.
+    const c = (await h.api('GET', 'admin/cohort', { token: h.adminToken })).body.cohort;
+    assert.ok(c.price_sale_starts_local);
+    assert.equal((await h.api('PUT', 'admin/cohort', { token: h.adminToken, body: { price_sale_starts_local: '2026-12-05T00:00', price_cutoff_local: '2026-12-01T00:00' } })).status, 400, 'sale must start before it ends');
+  } finally {
+    await h.setCohort({ price_sale_starts_at: null, price_cutoff_at: new Date('2026-12-01T08:00:00Z') });
+  }
 });
 
 test('checkout requires a verified signed-in identity', async () => {
@@ -85,11 +120,11 @@ test('intro quote is honoured until its own expiry, then new sessions use the re
   assert.equal(again.body.amount_cents, 99700);
   assert.equal(again.body.reused, true);
 
-  // Once that session reaches expiry, a new session is quoted at $1,497 and the old one is expired at Stripe.
+  // Once that session reaches expiry, a new session is quoted at $2,499 and the old one is expired at Stripe.
   await h.sql`update so_purchases set expires_at = now() + interval '30 seconds' where user_id = ${user.id} and status = 'open'`;
   const fresh = await h.api('POST', 'checkout/session', { token, body: {} });
   assert.notEqual(fresh.body.url, first.body.url);
-  assert.equal(fresh.body.amount_cents, 149700);
+  assert.equal(fresh.body.amount_cents, 249900);
   const oldSessionId = first.body.url.split('/pay/')[1];
   assert.equal(h.mocks.state.sessions.get(oldSessionId).status, 'expired');
   const rows = await h.sql`select status, price_tier from so_purchases where user_id = ${user.id} order by created_at`;
@@ -160,6 +195,15 @@ test('verified payment enrolls exactly once, even with duplicate and repeated we
   assert.match(conf[0].body_text, /all sales are final/);
   assert.doesNotMatch(conf[0].body_text, /review|approv|fit check/i);
   assert.equal(app.body.payment.amount_cents, 99700);
+  // Omi gets one "new client" alert at the support address, with the application details.
+  const ownerTo = require('../api/_lib/so/content').SITE_CONTENT.find(c => c.key === 'support.email').default;
+  const alerts = await h.sql`select to_email, subject, body_text from so_email_outbox where template_key = 'owner_new_member'
+                             and related_id = (select id::text from so_enrollments where user_id = ${user.id})`;
+  assert.equal(alerts.length, 1, 'one alert per new client');
+  assert.equal(alerts[0].to_email, ownerTo);
+  assert.match(alerts[0].subject, /New Smooth Operators client: .+ \(\$997\)/);
+  assert.match(alerts[0].body_text, /Paid: \$997/);
+  assert.match(alerts[0].body_text, /admin#members\/all/);
 });
 
 test('delayed webhook: returning to the success page reconciles with Stripe server-side', async () => {

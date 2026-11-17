@@ -584,6 +584,10 @@ async function sampleVars(sql, cohort) {
     thread_subject: 'Question about my account', thread_link: `${env.siteUrl()}${env.BASE_PATH}/app/help`, call_title: 'Solutions Seat',
     call_time: 'Wednesday, January 6 at 1:00 p.m. PST',
     account_link: `${env.siteUrl()}${env.BASE_PATH}/login?next=%2Fapp&email=jordan%40example.com`,
+    member_name: 'Jordan Rivera', member_email: 'jordan@example.com', member_phone: '(555) 555-0123', member_zip: '90034', amount: '$997',
+    price_label: 'Black Friday–Cyber Monday sale', business_name: 'Rivera Studio', website: 'https://rivera.example.com', business_stage: 'Growing: steady, repeat revenue',
+    revenue: '$100K–$250K', years: '3–5 years', team_size: '3–5 people', ops_questions: 'How do I hand off client onboarding?',
+    admin_link: `${env.siteUrl()}${env.BASE_PATH}/admin#members/all`,
     checkout_link: `${env.siteUrl()}${env.BASE_PATH}/checkout`, unsubscribe_link: `${env.siteUrl()}/api/so/leads/unsubscribe?token=example` };
 }
 

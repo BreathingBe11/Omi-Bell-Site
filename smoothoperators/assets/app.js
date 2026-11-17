@@ -636,8 +636,11 @@
   // ============================================================ checkout
   function offerSummary(o) {
     const p = o.price;
+    const lastMinute = iso => SO.fmtDateTime(new Date(new Date(iso).getTime() - 60000).toISOString(), o.cohort.timezone, { weekday: false });
     const intro = p.intro_active
-      ? `<p class="small muted">Introductory price. Regular enrollment: ${SO.money(p.regular_cents)}. Ends ${esc(SO.fmtDateTime(p.cutoff_at, o.cohort.timezone, { weekday: false }))} (${esc(o.cohort.timezone)}).</p>` : '';
+      ? `<p class="small muted">${esc(o.sale_name || 'Sale')} price. Regular enrollment: ${SO.money(p.regular_cents)}. Sale ends ${esc(lastMinute(p.cutoff_at))}.</p>`
+      : p.sale_upcoming
+        ? `<p class="small muted">${esc(o.sale_name || 'Sale')}: ${SO.money(p.intro_cents)} from ${esc(SO.fmtDateTime(p.sale_starts_at, o.cohort.timezone, { weekday: false }))} through ${esc(lastMinute(p.cutoff_at))}.</p>` : '';
     return `<div class="card stack">
   <p class="eyebrow" style="margin:0">Smooth Operators · Live 21-day cohort</p>
   <p style="margin:0"><span style="font-family:var(--serif);font-size:2.4rem;color:var(--ink);font-weight:600">${SO.money(p.amount_cents)}</span> <span class="muted">USD · one-time payment</span></p>

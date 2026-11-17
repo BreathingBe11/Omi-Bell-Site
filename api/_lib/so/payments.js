@@ -30,6 +30,7 @@ function priceOut(price) {
     tier: price.tier, amount_cents: price.amount_cents, regular_cents: price.regular_cents,
     intro_cents: price.intro_cents, savings_cents: price.savings_cents, intro_active: price.intro_active,
     cutoff_at: price.cutoff_at ? price.cutoff_at.toISOString() : null, currency: price.currency,
+    sale_starts_at: price.sale_starts_at ? price.sale_starts_at.toISOString() : null, sale_upcoming: !!price.sale_upcoming,
   };
 }
 
@@ -66,6 +67,7 @@ async function offerPayload(sql, now, viewerId = null) {
       starts_at: sched.starts_at.toISOString(), days_count: cohort.days_count,
     },
     price: priceOut(S.priceAt(cohort, now)),
+    sale_name: content.get('pricing.sale_name') || 'Sale',
     sales: { mode: readiness.mode, can_checkout: readiness.can_checkout, reason: readiness.reason, test_mode: readiness.test_mode },
     disclosure: {
       refund_policy: content.get('purchase.refund_policy') || null,
@@ -168,7 +170,9 @@ async function checkoutFor(sql, req, now, user) {
                                 and status = any(${INFLIGHT}) limit 1`)[0];
     if (existing) {
       if (existing.status === 'pending') return { state: 'pending' };
-      if (existing.status === 'open' && S.quoteStillValid(existing, now)) {
+      // Reuse an open checkout unless a sale has started since it was quoted at the regular price.
+      const nowTier = S.priceAt(cohort, now).tier;
+      if (existing.status === 'open' && S.quoteStillValid(existing, now) && !(existing.price_tier === 'regular' && nowTier === 'intro')) {
         return { state: 'redirect', url: existing.checkout_url, reused: true, price_tier: existing.price_tier, amount_cents: existing.amount_cents };
       }
       if (existing.status === 'created' && new Date(existing.expires_at) > now) {
@@ -295,6 +299,7 @@ async function activatePurchase(sql, purchase, { paymentIntent, amountTotal, amo
     await require('./leads').markLeadPaid(sql, result.purchase).catch(e => console.error('[so] lead update failed', e.message));
     await enrichPurchase(sql, result.purchase).catch(e => console.error('[so] receipt lookup failed', e.code || e.message));
     await sendConfirmation(sql, result.enrollment).catch(e => console.error('[so] confirmation email error', e.message));
+    await notifyOwner(sql, result.purchase, result.enrollment).catch(e => console.error('[so] owner alert error', e.message));
   }
   return { applied: true, state: 'paid', ...result };
 }
@@ -312,6 +317,35 @@ async function enrichPurchase(sql, purchase) {
 }
 
 // "You’re enrolled" confirmation with what happens next.
+// "New client" alert to Omi. Goes to SO_NOTIFY_EMAIL if set in Vercel,
+// otherwise to the support email address in admin site content.
+async function notifyOwner(sql, purchase, enrollment) {
+  const content = await C.loadContent(sql);
+  const to = (process.env.SO_NOTIFY_EMAIL || content.get('support.email') || '').trim();
+  if (!to) return;
+  const cohort = (await sql`select * from so_cohorts where id = ${enrollment.cohort_id}`)[0];
+  const prof = (await sql`select email, display_name from so_profiles where user_id = ${enrollment.user_id}`)[0] || {};
+  const intakeMod = require('./intake');
+  const i = (await sql`select * from so_intakes where user_id = ${enrollment.user_id} and cohort_id = ${cohort.id}`)[0] || {};
+  const opt = (k, v) => (v ? intakeMod.label(k, v) : '—');
+  const name = [i.first_name, i.last_name].filter(Boolean).join(' ') || prof.display_name || prof.email || 'New member';
+  const amount = purchase.amount_paid_cents ?? purchase.amount_cents;
+  const vars = {
+    ...(await email.baseVars(sql, cohort, enrollment.user_id)),
+    member_name: name, member_email: prof.email || '—', member_phone: i.phone || '—', member_zip: i.postal_code || '—',
+    amount: `$${((amount || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: amount % 100 ? 2 : 0 })}`,
+    price_label: purchase.price_tier === 'intro' ? (content.get('pricing.sale_name') || 'sale price') : 'regular price',
+    business_name: i.business_name || '—', website: i.website_url || '—',
+    business_stage: opt('business_stage', i.business_stage), revenue: opt('revenue_to_date', i.revenue_to_date),
+    years: opt('years_in_business', i.years_in_business), team_size: opt('team_size', i.team_size),
+    ops_questions: i.ops_questions || '—',
+    admin_link: `${env.siteUrl()}${env.BASE_PATH}/admin#members/all`,
+  };
+  const m = await email.enqueue(sql, { key: 'owner_new_member', dedupeKey: `owner-new-member:${enrollment.id}`, to,
+    cohortId: cohort.id, vars, related: { type: 'enrollment', id: enrollment.id }, actor: 'system' });
+  if (m) await email.processOutbox(sql, { ids: [m.id] });
+}
+
 async function sendConfirmation(sql, enrollment) {
   const cohort = (await sql`select * from so_cohorts where id = ${enrollment.cohort_id}`)[0];
   const profile = (await sql`select email from so_profiles where user_id = ${enrollment.user_id}`)[0];

@@ -60,6 +60,7 @@ const SITE_CONTENT = [
   ['testimonial.3.context', '', 'Testimonial 3: context', 'Landing: testimonials'],
   ['enroll.headline', 'Join the cohort', 'Enrollment headline', 'Landing: enrollment'],
   ['enroll.includes', 'A new guided audio every day: breathwork, meditation, or sound healing\nA daily Leadership Journal Prompt\nA daily Business Action Toolkit resource: a practical template or tool, with instructions\nThree live Solutions Seat group coaching calls with Omi Bell\nDirect Q&A with Omi in the platform during the 21-day cohort\n12 months of access to program materials and call recordings', 'What’s included (one per line)', 'Landing: enrollment', true],
+  ['pricing.sale_name', 'Black Friday–Cyber Monday sale', 'Name of the sale price window (shown on the landing page and checkout)', 'Landing: enrollment'],
   ['enroll.footer_cta_note', 'One-time payment. Live cohort; everyone follows the same 21-day calendar.', 'Footer CTA note', 'Landing: enrollment'],
   ['perks.session_discount', '', 'Participant discount on further sessions with Omi (owner to define amount, sessions and expiry; hidden until published)', 'Landing: enrollment', true],
   ['purchase.refund_policy', 'You may request a full refund before the cohort begins on January 4, 2027. Once the cohort begins on January 4, all sales are final and no refunds are available. To request a refund before the start date, email hello@omisworld.com.', 'Refund policy summary shown at checkout (publish before live sales)', 'Purchase & legal', true],
