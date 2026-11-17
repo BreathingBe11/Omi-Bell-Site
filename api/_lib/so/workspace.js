@@ -236,6 +236,72 @@ routes['POST admin/members/:id/delete'] = can(async ({ sql, req, params, admin: 
   return { deleted: true, email: addr };
 }, 'settings');
 
+// --------------------------------------------------------- price codes
+function codeOut(c, uses, cohort) {
+  const until = c.valid_until ? new Date(c.valid_until) : S.schedule(cohort).starts_at;
+  return { code: c.code, price_cents: c.price_cents, label: c.label, active: c.active, max_uses: c.max_uses, uses,
+    valid_until: until.toISOString(), valid_until_local: c.valid_until ? localInput(c.valid_until, cohort.timezone) : '',
+    until_cohort_start: !c.valid_until, expired: new Date() >= until };
+}
+function localInput(d, tz) {
+  const p = T.localParts(new Date(d), tz);
+  const z = n => String(n).padStart(2, '0');
+  return `${p.year}-${z(p.month)}-${z(p.day)}T${z(p.hour)}:${z(p.minute)}`;
+}
+function parseCode(b, cohort, existing) {
+  const out = {};
+  if (!existing) {
+    out.code = String(b.code || '').trim().toUpperCase().replace(/\s+/g, '');
+    if (!/^[A-Z0-9_-]{3,32}$/.test(out.code)) throw new HttpError(400, 'invalid_input', 'Codes are 3–32 letters, numbers, dashes or underscores.');
+  }
+  if (b.price !== undefined || !existing) {
+    const dollars = Number(b.price);
+    if (!Number.isFinite(dollars) || dollars < 1 || dollars > 100000) throw new HttpError(400, 'invalid_input', 'Enter the price in dollars, e.g. 997.');
+    out.price_cents = Math.round(dollars * 100);
+  }
+  if (b.label !== undefined) out.label = H.text(b.label, { max: 120, field: 'Label' }) || null;
+  if (b.valid_until_local !== undefined) {
+    const v = String(b.valid_until_local || '').trim();
+    out.valid_until = v ? T.zonedToUtc(v.slice(0, 10), v.slice(11, 16) || '00:00', cohort.timezone) : null;
+  }
+  if (b.max_uses !== undefined) out.max_uses = b.max_uses === '' || b.max_uses === null ? null : H.int(b.max_uses, { min: 1, max: 100000, field: 'Max uses' });
+  if (b.active !== undefined) out.active = b.active === true;
+  return out;
+}
+
+routes['GET admin/codes'] = can(async ({ sql, query }) => {
+  const cohort = await cohortFor(sql, query);
+  const codes = await sql`select * from so_price_codes where cohort_id = ${cohort.id} order by created_at`;
+  const uses = await sql`select price_code, count(*)::int as n from so_purchases where cohort_id = ${cohort.id} and price_code is not null
+                         and paid_at is not null and status in ('paid', 'partially_refunded', 'disputed') group by 1`;
+  const map = new Map(uses.map(u => [u.price_code, u.n]));
+  return { codes: codes.map(c => codeOut(c, map.get(c.code) || 0, cohort)), cohort_starts_at: S.schedule(cohort).starts_at.toISOString() };
+}, 'view');
+
+routes['POST admin/codes'] = can(async ({ sql, req, query, admin: who }) => {
+  const cohort = await cohortFor(sql, query);
+  const v = parseCode(H.body(req), cohort, null);
+  const rows = await sql`insert into so_price_codes (code, cohort_id, price_cents, label, valid_until, max_uses, active)
+    values (${v.code}, ${cohort.id}, ${v.price_cents}, ${v.label || null}, ${v.valid_until || null}, ${v.max_uses || null}, ${v.active !== false})
+    on conflict (code) do nothing returning *`;
+  if (!rows[0]) throw new HttpError(409, 'exists', 'That code already exists.');
+  await C.audit(sql, who.actor, 'price_code_created', 'price_code', v.code, null, v);
+  return { code: codeOut(rows[0], 0, cohort) };
+}, 'settings');
+
+routes['PUT admin/codes/:code'] = can(async ({ sql, req, query, params, admin: who }) => {
+  const cohort = await cohortFor(sql, query);
+  const code = String(params.code || '').toUpperCase();
+  const before = (await sql`select * from so_price_codes where code = ${code} and cohort_id = ${cohort.id}`)[0];
+  if (!before) throw new HttpError(404, 'not_found', 'Code not found.');
+  const v = parseCode(H.body(req), cohort, before);
+  const n = { ...before, ...v };
+  const rows = await sql`update so_price_codes set price_cents = ${n.price_cents}, label = ${n.label}, valid_until = ${n.valid_until},
+    max_uses = ${n.max_uses}, active = ${n.active}, updated_at = now() where code = ${code} returning *`;
+  await C.audit(sql, who.actor, 'price_code_updated', 'price_code', code, { active: before.active, price_cents: before.price_cents }, v);
+  return { code: codeOut(rows[0], 0, cohort) };
+}, 'settings');
+
 routes['POST admin/refunds/:id/retry'] = can(async ({ sql, params, admin: who }) => {
   const id = H.uuid(params.id, 'refund');
   const a = (await sql`select * from so_refund_attempts where id = ${id}`)[0];

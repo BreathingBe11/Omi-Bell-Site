@@ -630,6 +630,21 @@ create index if not exists so_leads_due_idx on so_leads (cohort_id, status, last
 -- Cyber Monday). Before price_sale_starts_at buyers pay the regular price.
 alter table so_cohorts add column if not exists price_sale_starts_at timestamptz;
 
+-- v6 (Nov 2026): price codes (e.g. a community code for $997 any time until
+-- the cohort starts). The server sets the price; codes are checked there.
+create table if not exists so_price_codes (
+  code         text primary key check (code ~ '^[A-Z0-9_-]{3,32}$'),
+  cohort_id    uuid not null references so_cohorts(id) on delete cascade,
+  price_cents  int  not null check (price_cents > 0),
+  label        text,
+  valid_until  timestamptz,                 -- null = until the cohort starts
+  max_uses     int check (max_uses is null or max_uses > 0),
+  active       boolean not null default true,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+alter table so_purchases add column if not exists price_code text;
+
 -- --------------------------------------------------------------- security
 do $$
 declare t text;
@@ -641,7 +656,7 @@ begin
     'so_webhook_events','so_admin_audit_log','so_events','so_email_log','so_rate_limits','so_intakes',
     'so_intake_versions','so_review_decisions','so_refund_attempts','so_email_templates','so_email_template_versions',
     'so_email_outbox','so_support_threads','so_support_messages','so_admin_notes',
-    'so_journal_notes','so_announcements','so_refund_requests','so_leads']
+    'so_journal_notes','so_announcements','so_refund_requests','so_leads','so_price_codes']
   loop
     execute format('alter table %I enable row level security', t);
     if exists (select 1 from pg_roles where rolname = 'anon') then

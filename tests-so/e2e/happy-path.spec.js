@@ -297,3 +297,21 @@ test('"I already have a code" goes straight to the code box', async ({ page }, i
   await expect(page.locator('#code-intro')).toContainText(`have-${info.project.name}@example.com`);
   await expect(page.getByRole('button', { name: 'Send a new code' })).toBeEnabled();
 });
+
+test('discount code link: ?code=BGV997 fills in the code and the button shows $997', async ({ page }) => {
+  await setPreCohort();
+  await sql`update so_cohorts set price_cutoff_at = now() - interval '1 minute' where is_default`;
+  try {
+    await page.goto(`${base()}/smoothoperators/checkout?code=bgv997`);
+    await expect(page.getByLabel(/Have a code/)).toHaveValue('BGV997');
+    await expect(page.locator('#code-msg')).toContainText('Code BGV997 applied: $997.');
+    await expect(page.getByRole('button', { name: 'Continue to payment — $997' })).toBeVisible();
+    await page.getByLabel(/Have a code/).fill('WRONG1');
+    await page.getByRole('button', { name: 'Apply' }).click();
+    await expect(page.locator('#code-msg')).toContainText('isn’t valid');
+    await expect(page.getByRole('button', { name: 'Continue to payment — $2,499' })).toBeVisible();
+    expect(await axe(page)).toEqual([]);
+  } finally {
+    await sql`update so_cohorts set price_cutoff_at = '2026-12-01T08:00:00Z' where is_default`;
+  }
+});

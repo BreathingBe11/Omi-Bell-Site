@@ -174,3 +174,58 @@ test('admin can fully delete a test member so the email can be reused; real paye
   assert.equal(blocked.status, 409);
   assert.equal((await h.sql`select count(*)::int as n from so_purchases where user_id = ${lid}`)[0].n, 1);
 });
+
+test('discount codes: BGV997 gives $997 until the cohort starts; wrong, expired and used-up codes are refused', async () => {
+  const c = await h.cohort();
+  await h.setCohort({ price_cutoff_at: new Date(Date.now() - 1000) }); // regular $2,499 today
+  try {
+    const ok = await h.api('GET', 'checkout/code?code=bgv997');
+    assert.equal(ok.body.valid, true);
+    assert.equal(ok.body.amount_cents, 99700);
+    assert.equal((await h.api('GET', 'checkout/code?code=NOPE123')).body.valid, false);
+
+    // Opened at $2,499, then the code is applied: a fresh $997 checkout replaces it.
+    const plain = await start({ email: 'bgv-member@example.com', name: 'Bea Gee' });
+    assert.equal(plain.body.amount_cents, 249900);
+    const coded = await start({ email: 'bgv-member@example.com', name: 'Bea Gee', code: ' bgv997 ' });
+    assert.equal(coded.status, 200, JSON.stringify(coded.body));
+    assert.equal(coded.body.amount_cents, 99700);
+    assert.notEqual(coded.body.url, plain.body.url);
+    const call = h.mocks.state.stripeCalls.filter(x => x.path === '/v1/checkout/sessions').at(-1);
+    assert.equal(call.form['line_items[0][price_data][unit_amount]'], '99700');
+    const p = (await h.sql`select price_code, amount_cents from so_purchases where stripe_session_id = ${coded.body.url.split('/pay/')[1]}`)[0];
+    assert.deepEqual([p.price_code, p.amount_cents], ['BGV997', 99700]);
+    assert.equal((await start({ email: 'wrong-code@example.com', code: 'FAKE999' })).status, 400);
+
+    // Pay with it: counted in admin, and Omi's alert names the code.
+    await h.mocks.sendEvent('checkout.session.completed', await h.mocks.completeSession(coded.body.url.split('/pay/')[1]));
+    const list = await admin('GET', 'admin/codes');
+    assert.equal(list.body.codes.find(x => x.code === 'BGV997').uses, 1);
+    const alert = (await h.sql`select body_text from so_email_outbox where template_key = 'owner_new_member' order by created_at desc limit 1`)[0];
+    assert.match(alert.body_text, /Paid: \$997 \(code BGV997\)/);
+
+    // Admin-made code with one use: works once, then "fully used". Turning a code off stops it.
+    assert.equal((await admin('POST', 'admin/codes', { code: 'ONETIME', price: 1500, max_uses: 1 })).status, 200);
+    assert.equal((await admin('POST', 'admin/codes', { code: 'ONETIME', price: 1500 })).status, 409);
+    const once = await start({ email: 'one-time@example.com', code: 'onetime' });
+    assert.equal(once.body.amount_cents, 150000);
+    await h.mocks.sendEvent('checkout.session.completed', await h.mocks.completeSession(once.body.url.split('/pay/')[1]));
+    assert.match((await h.api('GET', 'checkout/code?code=ONETIME')).body.message, /fully used/);
+    await admin('PUT', 'admin/codes/BGV997', { active: false });
+    assert.equal((await h.api('GET', 'checkout/code?code=BGV997')).body.valid, false);
+    await admin('PUT', 'admin/codes/BGV997', { active: true });
+
+    // During a sale that's already $997, the code isn't needed and nobody pays more.
+    await h.setCohort({ price_cutoff_at: new Date(Date.now() + 86400000) });
+    const sale = await h.api('GET', 'checkout/code?code=BGV997');
+    assert.equal(sale.body.applied, false);
+    assert.equal(sale.body.amount_cents, 99700);
+
+    // Once the cohort starts, the code stops working.
+    await h.setLiveDay(1);
+    await h.setCohort({ price_cutoff_at: new Date(Date.now() - 1000) });
+    assert.equal((await h.api('GET', 'checkout/code?code=BGV997')).body.valid, false);
+  } finally {
+    await h.setCohort({ start_date: c.start_date, unlock_time: '00:00', intro_opens_at: c.intro_opens_at, price_cutoff_at: c.price_cutoff_at });
+  }
+});

@@ -667,3 +667,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); outline: 
 /* Bot trap on the checkout form: invisible to people and screen readers. */
 .hp { position: absolute !important; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 .form-sub { font-family: var(--sans); font-size: .72rem; text-transform: uppercase; letter-spacing: .2em; color: var(--teal-deep); font-weight: 500; margin: 1.5rem 0 .8rem; }
+/* Discount code on checkout */
+.code-row { display: flex; gap: .5rem; align-items: stretch; }
+.code-row input { flex: 1; min-width: 0; text-transform: uppercase; letter-spacing: .06em; }
+.field .help.code-ok { color: var(--success); font-weight: 500; }
+.field .help.code-bad { color: var(--danger); }
