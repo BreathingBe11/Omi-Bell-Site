@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Journal Admin — Omi Bell</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/smoothoperators/assets/vendor/supabase-2.106.1.js"></script>
+<script src="/vendor/purify-3.1.7.min.js"></script>
+<script>
+// Post content comes from writers: strip any scripts or event handlers before it reaches the page.
+function clean(html){return window.DOMPurify?DOMPurify.sanitize(String(html==null?'':html)):String(html==null?'':html).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
 <style>
 :root {
   --black:#0A0A0A;--white:#F9F7F4;--teal:#007B8F;--teal-light:#0CB6D4;
@@ -544,13 +549,13 @@ function renderList() {
     d.className = `post-item${p.id === currentId ? ' selected' : ''}${p.status === 'submitted' ? ' submitted-item' : ''}`;
     d.dataset.id = p.id;
     d.onclick = () => openPost(p.id);
-    d.innerHTML = `
+    d.innerHTML = clean(`
       <div class="post-item-title">${p.title || '(Untitled)'}</div>
       <div class="post-item-meta">
         <span class="status-pill ${st.cls}">${st.label}</span>
         ${isGuest ? `<span class="post-item-author">${p.author_name || 'Guest'}</span>` : ''}
         <span>${fmtDate(p.date)}</span>
-      </div>`;
+      </div>`);
     el.appendChild(d);
   });
 }
@@ -576,7 +581,7 @@ async function openPost(id) {
   document.getElementById('fCategory').value = data.category || '';
   document.getElementById('fReadTime').value = data.read_time || '';
   document.getElementById('fCoverImage').value = data.cover_image || '';
-  document.getElementById('rteEditor').innerHTML = data.content || '';
+  document.getElementById('rteEditor').innerHTML = clean(data.content || '');
   setImgPreview(data.cover_image || '');
   document.getElementById('authorDisplay').textContent = data.author_name || ADMIN_NAME;
   if (data.date && data.published && new Date(data.date) > new Date()) {

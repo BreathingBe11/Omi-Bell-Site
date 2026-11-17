@@ -626,6 +626,10 @@ create table if not exists so_leads (
 );
 create index if not exists so_leads_due_idx on so_leads (cohort_id, status, last_checkout_at) where reminder_sent_at is null;
 
+-- v5 (Nov 2026): the lower price can be a sale window (e.g. Black Friday to
+-- Cyber Monday). Before price_sale_starts_at buyers pay the regular price.
+alter table so_cohorts add column if not exists price_sale_starts_at timestamptz;
+
 -- --------------------------------------------------------------- security
 do $$
 declare t text;

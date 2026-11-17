@@ -25,6 +25,9 @@ async function createDatabase() {
     do $$ begin create role authenticated; exception when duplicate_object then null; end $$;`);
   await sql.unsafe(fs.readFileSync(path.join(ROOT, 'supabase/smooth_operators.sql'), 'utf8'));
   await sql.unsafe(fs.readFileSync(path.join(ROOT, 'supabase/smooth_operators_seed.sql'), 'utf8'));
+  // Most tests assume the sale price is on until the cutoff. The sale-window
+  // tests set price_sale_starts_at themselves.
+  await sql`update so_cohorts set price_sale_starts_at = null`;
   return { name, url, sql };
 }
 

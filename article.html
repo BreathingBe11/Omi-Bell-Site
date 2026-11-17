@@ -19,7 +19,12 @@
 <meta name="twitter:image" id="twImage" content="https://omibell.com/og-default.jpg">
 <script type="application/ld+json" id="schemaData"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/smoothoperators/assets/vendor/supabase-2.106.1.js"></script>
+<script src="/vendor/purify-3.1.7.min.js"></script>
+<script>
+// Post content comes from writers: strip any scripts or event handlers before it reaches the page.
+function clean(html){return window.DOMPurify?DOMPurify.sanitize(String(html==null?'':html)):String(html==null?'':html).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
 <style>
 :root {
   --black:#0A0A0A;--white:#F9F7F4;--teal:#007B8F;--teal-light:#0CB6D4;
@@ -148,7 +153,7 @@ async function loadArticle(){
 function renderArticle(p){
   const authorName=p.author_name||'Omi Bell';
   const authorBio=p.author_bio||null;
-  document.getElementById('articleContent').innerHTML=`
+  document.getElementById('articleContent').innerHTML=clean(`
     <div class="article-hero">
       <p class="article-category">${p.category||'Journal'}</p>
       <h1 class="article-title">${p.title||''}</h1>
@@ -176,15 +181,16 @@ function renderArticle(p){
     <div class="article-end">
       <span class="end-rule">End of Article</span>
       <a href="blog.html" class="end-cta">More from the Journal →</a>
-    </div>`;
+    </div>`);
+  document.querySelectorAll('.article-cover img').forEach(i=>i.addEventListener('error',()=>{i.parentElement.style.display='none';}));
 }
 
 function showError(msg){
-  document.getElementById('articleContent').innerHTML=`
+  document.getElementById('articleContent').innerHTML=clean(`
     <div style="text-align:center;padding:8rem 2rem;">
       <h2 style="font-family:'Cormorant Garamond',serif;font-weight:300;font-size:2rem;margin-bottom:1rem;">${msg}</h2>
       <a href="blog.html" style="color:var(--teal);font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;">← Back to Journal</a>
-    </div>`;
+    </div>`);
 }
 loadArticle();
 </script>

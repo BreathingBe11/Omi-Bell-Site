@@ -163,9 +163,10 @@ ${f('unlock_time', 'Daily unlock time', `<input id="unlock_time" type="time" val
 ${f('intro_opens_local', 'Introductions open', loc('intro_opens_local', c.intro_opens_local))}
 ${f('enrollment_opens_local', 'Enrollment opens (blank = open now)', loc('enrollment_opens_local', c.enrollment_opens_local))}
 ${f('enrollment_closes_local', 'Enrollment closes (blank = when the cohort ends)', loc('enrollment_closes_local', c.enrollment_closes_local), 'Late entry: members who join during the cohort see the current day and every earlier released day.')}
-${f('price_cutoff_local', 'Introductory price ends', loc('price_cutoff_local', c.price_cutoff_local), 'The intro price applies to checkouts started before this moment.')}
+${f('price_sale_starts_local', 'Sale price starts (blank = now)', loc('price_sale_starts_local', c.price_sale_starts_local), 'Before this moment buyers pay the regular price.')}
+${f('price_cutoff_local', 'Sale price ends', loc('price_cutoff_local', c.price_cutoff_local), 'The sale price applies to checkouts started before this moment; after it, the regular price.')}
 ${f('regular', 'Regular price (USD)', `<input id="regular" type="number" min="1" step="1" value="${c.regular_price_cents / 100}">`)}
-${f('intro', 'Introductory price (USD, blank = none)', `<input id="intro" type="number" min="1" step="1" value="${c.intro_price_cents ? c.intro_price_cents / 100 : ''}">`)}
+${f('intro', 'Sale price (USD, blank = none)', `<input id="intro" type="number" min="1" step="1" value="${c.intro_price_cents ? c.intro_price_cents / 100 : ''}">`)}
 ${f('ttl', 'Checkout session expiry (minutes)', `<input id="ttl" type="number" min="30" max="1440" value="${c.checkout_ttl_minutes}">`, 'An open checkout keeps its quoted price until it expires (30–1440 minutes, enforced by Stripe). New checkouts after the cutoff use the regular price.')}
 ${f('seat_limit', 'Seat limit (private; blank = no limit)', `<input id="seat_limit" type="number" min="1" value="${c.seat_limit || ''}">`, 'Never shown publicly. When it’s reached, the site just says “All seats are full.”')}
 ${f('join', 'Default call join window (minutes before start)', `<input id="join" type="number" min="0" max="240" value="${c.call_join_window_minutes}">`)}
@@ -188,7 +189,7 @@ ${f('dispute', 'While a payment is disputed', `<select id="dispute">${[['keep', 
     const payload = () => ({
       name: val(form, '#name'), timezone: val(form, '#timezone').trim(), start_date: val(form, '#start_date'), unlock_time: val(form, '#unlock_time'),
       intro_opens_local: val(form, '#intro_opens_local'), enrollment_opens_local: val(form, '#enrollment_opens_local'),
-      enrollment_closes_local: val(form, '#enrollment_closes_local'), price_cutoff_local: val(form, '#price_cutoff_local'),
+      enrollment_closes_local: val(form, '#enrollment_closes_local'), price_cutoff_local: val(form, '#price_cutoff_local'), price_sale_starts_local: val(form, '#price_sale_starts_local'),
       regular_price_cents: Math.round(Number(val(form, '#regular')) * 100),
       intro_price_cents: val(form, '#intro') ? Math.round(Number(val(form, '#intro')) * 100) : null,
       checkout_ttl_minutes: Number(val(form, '#ttl')), call_join_window_minutes: Number(val(form, '#join')),

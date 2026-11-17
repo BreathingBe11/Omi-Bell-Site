@@ -60,10 +60,17 @@ function isDayUnlocked(cohort, dayNumber, now) {
 }
 
 // Server-side price selection. The client never supplies an amount.
+// The lower (sale) price applies from price_sale_starts_at (if set) until
+// price_cutoff_at; the regular price applies before and after that window.
 function priceAt(cohort, now) {
   const cutoff = cohort.price_cutoff_at ? new Date(cohort.price_cutoff_at) : null;
-  const introActive = !!(cohort.intro_price_cents && cutoff && now.getTime() < cutoff.getTime());
+  const starts = cohort.price_sale_starts_at ? new Date(cohort.price_sale_starts_at) : null;
+  const t = now.getTime();
+  const introActive = !!(cohort.intro_price_cents && cutoff && t < cutoff.getTime() && (!starts || t >= starts.getTime()));
+  const saleUpcoming = !!(cohort.intro_price_cents && cutoff && starts && t < starts.getTime());
   return {
+    sale_starts_at: starts,
+    sale_upcoming: saleUpcoming,
     tier: introActive ? 'intro' : 'regular',
     amount_cents: introActive ? cohort.intro_price_cents : cohort.regular_price_cents,
     regular_cents: cohort.regular_price_cents,

@@ -132,12 +132,17 @@ function cta(offer, { id, variant = 'primary' } = {}) {
   return `<a class="btn btn-${variant} btn-lg" href="${B}/checkout" data-so-cta ${id ? `id="${id}"` : ''}>${e(label)}</a>`;
 }
 
-function priceDetail(offer, tz) {
+function priceDetail(offer, tz, saleName = 'Sale') {
   const p = offer.price;
   if (p.intro_active) {
     const dl = deadlineLabel(new Date(p.cutoff_at), tz);
-    return `<p class="price-detail">Save ${money(p.savings_cents)} through ${e(dl.day)}. Regular enrollment: ${money(p.regular_cents)}.</p>
-<p class="price-deadline">Introductory price ends ${e(dl.full)} (${e(tz)}).</p>`;
+    return `<p class="price-detail">${e(saleName)}: save ${money(p.savings_cents)} through ${e(dl.day)}. Regular enrollment: ${money(p.regular_cents)}.</p>
+<p class="price-deadline">Sale price ends ${e(dl.full)} (${e(tz)}).</p>`;
+  }
+  if (p.sale_upcoming) {
+    const from = new Date(p.sale_starts_at).toLocaleDateString('en-US', { timeZone: tz, month: 'long', day: 'numeric' });
+    const dl = deadlineLabel(new Date(p.cutoff_at), tz);
+    return `<p class="price-detail">${e(saleName)}: ${money(p.intro_cents)} from ${e(from)} through ${e(dl.day)} only.</p>`;
   }
   return '';
 }
@@ -147,12 +152,12 @@ function priceDetail(offer, tz) {
 function fallbackOffer(now) {
   const S = require('./schedule');
   const cohort = { start_date: '2027-01-04', days_count: 21, timezone: 'America/Los_Angeles', unlock_time: '00:00',
-    regular_price_cents: 149700, intro_price_cents: 99700, price_cutoff_at: '2026-12-01T08:00:00Z', currency: 'usd' };
+    regular_price_cents: 249900, intro_price_cents: 99700, price_sale_starts_at: '2026-11-27T08:00:00Z', price_cutoff_at: '2026-12-01T08:00:00Z', currency: 'usd' };
   const sched = S.schedule(cohort);
   const p = S.priceAt(cohort, now);
   return {
     cohort: { name: 'Smooth Operators', timezone: cohort.timezone, start_date: sched.start_date, end_date: sched.end_date },
-    price: { ...p, cutoff_at: p.cutoff_at ? p.cutoff_at.toISOString() : null },
+    price: { ...p, cutoff_at: p.cutoff_at ? p.cutoff_at.toISOString() : null, sale_starts_at: p.sale_starts_at ? p.sale_starts_at.toISOString() : null },
     sales: { mode: 'disabled', can_checkout: false, reason: 'not_ready', test_mode: false },
     disclosure: {},
   };
@@ -210,7 +215,7 @@ ${header()}
           ${cta(offer, { id: 'hero-cta' })}
           <a class="text-link" href="#weeks">See the three weeks</a>
         </div>
-        ${offer.sales.can_checkout ? priceDetail(offer, tz) : ''}
+        ${offer.sales.can_checkout ? priceDetail(offer, tz, g('pricing.sale_name')) : ''}
       </div>
       <div class="hero-side">
       ${heroPhoto ? `<img class="hero-photo" src="${e(heroPhoto)}" alt="${e(g('hero.photo_alt'))}" width="560" height="640" fetchpriority="high">` : ''}
@@ -349,7 +354,7 @@ ${testimonials.length ? `
       <p>${e(dates)} · Live cohort · Hosted by Omi Bell</p>
       <ul class="includes">${lines(g('enroll.includes')).map(l => `<li>${e(l)}</li>`).join('')}${perk ? `<li>${e(perk)}</li>` : ''}</ul>
       <div class="enroll-cta">${cta(offer, { variant: 'light', id: 'footer-cta' })}</div>
-      ${offer.sales.can_checkout && offer.price.intro_active ? priceDetail(offer, tz) : ''}
+      ${offer.sales.can_checkout && (offer.price.intro_active || offer.price.sale_upcoming) ? priceDetail(offer, tz, g('pricing.sale_name')) : ''}
       <p class="small">${e(g('enroll.footer_cta_note'))}</p>
       ${disclosures ? `<div class="disclosures small">${disclosures}</div>` : ''}
     </div>

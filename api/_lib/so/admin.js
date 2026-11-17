@@ -53,6 +53,7 @@ function cohortOut(c) {
     enrollment_closes_at: iso(c.enrollment_closes_at), enrollment_closes_local: localStr(c.enrollment_closes_at, tz),
     regular_price_cents: c.regular_price_cents, intro_price_cents: c.intro_price_cents,
     price_cutoff_at: iso(c.price_cutoff_at), price_cutoff_local: localStr(c.price_cutoff_at, tz),
+    price_sale_starts_at: iso(c.price_sale_starts_at), price_sale_starts_local: localStr(c.price_sale_starts_at, tz),
     checkout_ttl_minutes: c.checkout_ttl_minutes,
     access_policy: c.access_policy, access_ends_at: iso(c.access_ends_at), access_ends_local: localStr(c.access_ends_at, tz),
     refund_access_action: c.refund_access_action, dispute_access_action: c.dispute_access_action,
@@ -67,7 +68,7 @@ function cohortOut(c) {
 }
 
 const TIMING_FIELDS = ['start_date', 'timezone', 'unlock_time', 'intro_opens_at', 'enrollment_opens_at', 'enrollment_closes_at',
-  'regular_price_cents', 'intro_price_cents', 'price_cutoff_at', 'checkout_ttl_minutes', 'access_policy', 'access_ends_at', 'days_count', 'seat_limit', 'review_turnaround'];
+  'regular_price_cents', 'intro_price_cents', 'price_sale_starts_at', 'price_cutoff_at', 'checkout_ttl_minutes', 'access_policy', 'access_ends_at', 'days_count', 'seat_limit', 'review_turnaround'];
 
 function parseCohortChanges(current, b) {
   const tz = b.timezone !== undefined ? H.text(b.timezone, { max: 64, field: 'Timezone' }) : current.timezone;
@@ -88,6 +89,7 @@ function parseCohortChanges(current, b) {
     ['intro_opens_local', 'intro_opens_at', 'Introductions open'],
     ['enrollment_opens_local', 'enrollment_opens_at', 'Enrollment opens'],
     ['enrollment_closes_local', 'enrollment_closes_at', 'Enrollment closes'],
+    ['price_sale_starts_local', 'price_sale_starts_at', 'Sale starts'],
     ['price_cutoff_local', 'price_cutoff_at', 'Price cutoff'],
     ['access_ends_local', 'access_ends_at', 'Access ends'],
   ];
@@ -97,6 +99,7 @@ function parseCohortChanges(current, b) {
   if (b.intro_price_cents !== undefined) next.intro_price_cents = H.int(b.intro_price_cents, { min: 100, max: 10000000, field: 'Intro price', nullable: true });
   if (next.intro_price_cents && next.intro_price_cents >= next.regular_price_cents) throw new HttpError(400, 'invalid_input', 'The introductory price must be lower than the regular price.');
   if (next.intro_price_cents && !next.price_cutoff_at) throw new HttpError(400, 'invalid_input', 'An introductory price needs a cutoff time.');
+  if (next.price_sale_starts_at && next.price_cutoff_at && new Date(next.price_sale_starts_at) >= new Date(next.price_cutoff_at)) throw new HttpError(400, 'invalid_input', 'The sale must start before it ends.');
   if (b.checkout_ttl_minutes !== undefined) next.checkout_ttl_minutes = H.int(b.checkout_ttl_minutes, { min: 30, max: 1440, field: 'Checkout expiry' });
   if (b.access_policy !== undefined) next.access_policy = H.oneOf(b.access_policy, ['unset', 'until_date', 'indefinite'], 'Access policy');
   if (next.access_policy === 'until_date' && !next.access_ends_at) throw new HttpError(400, 'invalid_input', 'Choose when access ends.');
@@ -139,7 +142,8 @@ async function impact(sql, before, after, now) {
       fmt(`Final day unlocks (UTC)`, a.schedule.days.at(-1).unlock_at, b.schedule.days.at(-1).unlock_at),
       fmt('Cohort ends (UTC)', a.schedule.ends_at, b.schedule.ends_at),
       fmt('Introductions open (UTC)', a.intro_opens_at, b.intro_opens_at),
-      fmt('Intro price ends (UTC)', a.price_cutoff_at, b.price_cutoff_at),
+      fmt('Sale price starts (UTC)', a.price_sale_starts_at, b.price_sale_starts_at),
+      fmt('Sale price ends (UTC)', a.price_cutoff_at, b.price_cutoff_at),
       fmt('Enrollment closes (UTC)', a.enrollment_closes_at || a.schedule.ends_at, b.enrollment_closes_at || b.schedule.ends_at),
       fmt('Current phase', S.phase(before, now), S.phase(after, now)),
       fmt('Days unlocked right now', String(S.unlockedThrough(before, now)), String(S.unlockedThrough(after, now))),
@@ -174,7 +178,7 @@ routes['PUT admin/cohort'] = admin(async ({ query, sql, req, admin: who, now }) 
       timezone = ${after.timezone}, unlock_time = ${T.toTimeStr(after.unlock_time)},
       intro_opens_at = ${after.intro_opens_at}, enrollment_opens_at = ${after.enrollment_opens_at},
       enrollment_closes_at = ${after.enrollment_closes_at}, regular_price_cents = ${after.regular_price_cents},
-      intro_price_cents = ${after.intro_price_cents}, price_cutoff_at = ${after.price_cutoff_at},
+      intro_price_cents = ${after.intro_price_cents}, price_cutoff_at = ${after.price_cutoff_at}, price_sale_starts_at = ${after.price_sale_starts_at},
       checkout_ttl_minutes = ${after.checkout_ttl_minutes}, access_policy = ${after.access_policy},
       access_ends_at = ${after.access_ends_at}, refund_access_action = ${after.refund_access_action},
       dispute_access_action = ${after.dispute_access_action}, call_join_window_minutes = ${after.call_join_window_minutes},

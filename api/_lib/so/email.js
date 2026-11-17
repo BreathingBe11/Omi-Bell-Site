@@ -37,6 +37,27 @@ What to expect:
 Refunds: you may request a full refund before the cohort begins on January 4, 2027. Once the cohort begins, all sales are final. To request a refund before the start date, email hello@omisworld.com.
 
 {{support_line}}`, ['support_line', 'account_link']],
+  owner_new_member: ['New client alert (to you)', 'transactional',
+    'New Smooth Operators client: {{member_name}} ({{amount}})',
+    `You have a new Smooth Operators client.
+
+Name: {{member_name}}
+Email: {{member_email}}
+Phone: {{member_phone}}
+ZIP: {{member_zip}}
+Paid: {{amount}} ({{price_label}})
+
+Business: {{business_name}}
+Website: {{website}}
+Stage: {{business_stage}}
+Revenue so far: {{revenue}}
+Years in business: {{years}}
+Team size: {{team_size}}
+Most pressing operations questions:
+{{ops_questions}}
+
+Their member card: {{admin_link}}`, ['member_name', 'member_email', 'member_phone', 'member_zip', 'amount', 'price_label', 'business_name',
+      'website', 'business_stage', 'revenue', 'years', 'team_size', 'ops_questions', 'admin_link']],
   checkout_reminder: ['Unfinished checkout reminder (one per person)', 'optional',
     'Your seat in {{cohort_name}} is still open',
     `Hi {{first_name}},

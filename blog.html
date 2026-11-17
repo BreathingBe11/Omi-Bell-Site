@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Journal — Omi Bell</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/smoothoperators/assets/vendor/supabase-2.106.1.js"></script>
+<script src="/vendor/purify-3.1.7.min.js"></script>
+<script>
+// Post content comes from writers: strip any scripts or event handlers before it reaches the page.
+function clean(html){return window.DOMPurify?DOMPurify.sanitize(String(html==null?'':html)):String(html==null?'':html).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
 <style>
 :root{--black:#0A0A0A;--white:#F9F7F4;--teal:#007B8F;--teal-light:#0CB6D4;--sand:#E8E0D4;--sand-dark:#C9BDB0;--card-bg:#FFFFFF;--text-muted:rgba(10,10,10,0.5);}
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -256,26 +261,28 @@ function authorMeta(p){
 function featuredCard(p){
   const a=document.createElement('a');
   a.className='card-featured';a.href=`article.html?id=${p.id}`;
-  a.innerHTML=`<div class="card-img">${imgHtml(p.cover_image,p.title)}</div>
+  a.innerHTML=clean(`<div class="card-img">${imgHtml(p.cover_image,p.title)}</div>
     <div class="card-body">
       <p class="card-category">${p.category||'Journal'}</p>
       <h2 class="card-title">${p.title||''}</h2>
       <p class="card-excerpt">${p.excerpt||''}</p>
       <div class="card-meta">${authorMeta(p)}</div>
-    </div>`;
+    </div>`);
+  a.querySelectorAll('img').forEach(i=>i.addEventListener('error',()=>{i.parentElement.innerHTML='<div class="card-img-placeholder"></div>';}));
   return a;
 }
 
 function regularCard(p){
   const a=document.createElement('a');
   a.className='card-regular';a.href=`article.html?id=${p.id}`;
-  a.innerHTML=`<div class="card-img">${imgHtml(p.cover_image,p.title)}</div>
+  a.innerHTML=clean(`<div class="card-img">${imgHtml(p.cover_image,p.title)}</div>
     <div class="card-body">
       <p class="card-category">${p.category||'Journal'}</p>
       <h3 class="card-title">${p.title||''}</h3>
       <p class="card-excerpt">${p.excerpt||''}</p>
       <div class="card-meta">${authorMeta(p)}</div>
-    </div>`;
+    </div>`);
+  a.querySelectorAll('img').forEach(i=>i.addEventListener('error',()=>{i.parentElement.innerHTML='<div class="card-img-placeholder"></div>';}));
   return a;
 }
 
