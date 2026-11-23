@@ -89,6 +89,7 @@
     [/^\/login$/, viewLogin],
     [/^\/login\/help$/, viewLoginHelp],
     [/^\/checkout$/, viewCheckout],
+    [/^\/special-pricing$/, viewSpecialPricing],
     [/^\/checkout\/success$/, viewSuccess],
     [/^\/app$/, viewToday, { shell: true, nav: '/app' }],
     [/^\/app\/calendar$/, viewCalendar, { shell: true, nav: '/app/calendar' }],
@@ -683,6 +684,73 @@
     return 'Join';
   }
 
+  // The application questions, shared by checkout and the special-pricing form.
+  const APP_FIELDS = ['first_name', 'last_name', 'email', 'phone', 'postal_code', 'business_name', 'website_url', 'business_stage', 'revenue_to_date',
+    'years_in_business', 'prior_ops_work', 'has_full_time_staff', 'team_size', 'ops_questions'];
+  const APP_REQUIRED = { first_name: 'Enter your first name.', last_name: 'Enter your last name.', email: 'Enter your email address.', phone: 'Enter your phone number.',
+    postal_code: 'Enter your ZIP code.', business_name: 'Enter your business name.', website_url: 'Enter your business website.', business_stage: 'Choose your stage of business.',
+    revenue_to_date: 'Choose your revenue so far.', years_in_business: 'Choose how long you’ve been in business.', prior_ops_work: 'Choose yes or no for operations work.',
+    has_full_time_staff: 'Choose yes or no for full-time staff.', team_size: 'Choose your team size.', ops_questions: 'Tell us your most pressing questions about operations.' };
+  function applicationFieldsHtml(v, options, { emailAttrs = '', emailHelp = '' } = {}) {
+    const input = (id, label, attrs = '', help = '') => `<div class="field"><label for="f-${id}">${label}</label><input${/type=/.test(attrs) ? '' : ' type="text"'} id="f-${id}" name="${id}" value="${esc(v[id] || '')}" ${attrs}>${help ? `<p class="help">${help}</p>` : ''}</div>`;
+    const select = (id, label, opts) => `<div class="field"><label for="f-${id}">${label}</label><select id="f-${id}" name="${id}" required><option value="">Choose one…</option>${opts.map(([val, lab]) => `<option value="${esc(val)}"${String(v[id]) === String(val) ? ' selected' : ''}>${esc(lab)}</option>`).join('')}</select></div>`;
+    const yn = [['yes', 'Yes'], ['no', 'No']];
+    return `<h3 class="form-sub">About you</h3>
+  <div class="grid-2">${input('first_name', 'First name', 'autocomplete="given-name" maxlength="80" required')}${input('last_name', 'Last name', 'autocomplete="family-name" maxlength="80" required')}</div>
+  ${input('email', 'Email address', `type="email" autocomplete="email" inputmode="email" maxlength="254" required${emailAttrs}`, emailHelp)}
+  <div class="grid-2">${input('phone', 'Phone number', 'type="tel" autocomplete="tel" maxlength="30" required')}${input('postal_code', 'ZIP code', 'autocomplete="postal-code" maxlength="12" required')}</div>
+  <h3 class="form-sub">Your business</h3>
+  ${input('business_name', 'Business name', 'autocomplete="organization" maxlength="160" required')}
+  ${input('website_url', 'Website', 'type="url" inputmode="url" placeholder="yourbusiness.com" maxlength="300" required')}
+  ${select('business_stage', 'Stage of business', options.business_stage)}
+  ${select('revenue_to_date', 'Revenue generated so far (total, since you started)', options.revenue_to_date)}
+  ${select('years_in_business', 'How long have you been in business?', options.years_in_business)}
+  ${select('prior_ops_work', 'Have you done any operations work before (SOPs, workflows, role descriptions, scorecards)?', yn)}
+  ${select('has_full_time_staff', 'Do you have full-time staff?', yn)}
+  ${select('team_size', 'How many people are on your team? Count full-time staff and contractors, not including you.', options.team_size)}
+  <div class="field"><label for="f-ops_questions">What are your most pressing questions about operations?</label>
+  <textarea id="f-ops_questions" name="ops_questions" maxlength="3000" required style="min-height:6rem">${esc(v.ops_questions || '')}</textarea></div>`;
+  }
+
+  // "Missed the flash sale?" inquiry. Open only after the sale has ended.
+  async function viewSpecialPricing(main) {
+    const r = await SO.api('GET', 'special-pricing', undefined, { auth: false });
+    if (!r.open) {
+      main.innerHTML = `<div class="stack"><h1>Special pricing</h1><p>${esc(r.message)}</p><a class="btn btn-primary" href="${B}/checkout">Join Smooth Operators</a></div>`;
+      return 'Special pricing';
+    }
+    main.innerHTML = `<div class="stack"><h1>Inquire about special pricing</h1>
+<p class="lede">Missed the ${esc(r.sale_price)} flash sale? Tell Omi about you and your business, and why you want to join. She’ll personally review your request and get back to you by email.</p>
+<form id="sp" class="card" novalidate>
+  ${applicationFieldsHtml({}, r.options, { emailHelp: 'Omi will reply to this address.' })}
+  <div class="field"><label for="f-why">Why do you want to join this program?</label>
+  <textarea id="f-why" name="why" maxlength="3000" required style="min-height:7rem"></textarea></div>
+  <div class="hp" aria-hidden="true"><label for="sp-company">Company website</label><input id="sp-company" type="text" tabindex="-1" autocomplete="off"></div>
+  <p class="small muted">By sending this, you agree that Omi may contact you about Smooth Operators. See the <a href="${B}/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>
+  <p class="form-error" id="sp-err" role="alert"></p>
+  <button class="btn btn-primary btn-lg btn-block" type="submit">Send my request</button>
+</form></div>`;
+    const form = q('#sp', main), err = q('#sp-err', form), btn = q('button[type=submit]', form);
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const data = Object.fromEntries([...APP_FIELDS, 'why'].map(f => [f, form.elements[f].value.trim()]));
+      const missing = Object.keys(APP_REQUIRED).find(k => !data[k]);
+      if (missing) { err.textContent = APP_REQUIRED[missing]; form.elements[missing].focus(); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) { err.textContent = 'Enter a valid email address.'; form.elements.email.focus(); return; }
+      if (!data.why) { err.textContent = 'Tell Omi why you want to join.'; form.elements.why.focus(); return; }
+      err.textContent = '';
+      btn.disabled = true; btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Sending…';
+      try {
+        await SO.api('POST', 'special-pricing', { ...data, company_website: q('#sp-company', form).value }, { auth: false });
+        main.innerHTML = `<div class="stack"><h1>Thank you, ${esc(data.first_name)}.</h1>
+<p class="lede">Your request is on its way to Omi. She’ll review it personally and reply to <strong>${esc(data.email)}</strong>.</p>
+<a class="btn btn-secondary" href="${B}">Back to Smooth Operators</a></div>`;
+        focusMain();
+      } catch (ex) { err.textContent = ex.message; btn.disabled = false; btn.textContent = 'Send my request'; }
+    });
+    return 'Special pricing';
+  }
+
   // One short form, then straight to Stripe. No sign-in first: the form is
   // saved when they continue, and they set up sign-in after paying.
   async function checkoutForm(step, offer, me, query = {}) {
@@ -697,28 +765,13 @@
     if (signedIn) v.email = me.email;
     // Shareable link: /smoothoperators/checkout?code=BGV997 fills in the code.
     if (query.code && /^[A-Za-z0-9_-]{3,32}$/.test(query.code)) v.code = query.code.toUpperCase();
-    const input = (id, label, attrs = '', help = '') => `<div class="field"><label for="f-${id}">${label}</label><input${/type=/.test(attrs) ? '' : ' type="text"'} id="f-${id}" name="${id}" value="${esc(v[id] || '')}" ${attrs}>${help ? `<p class="help">${help}</p>` : ''}</div>`;
-    const select = (id, label, opts) => `<div class="field"><label for="f-${id}">${label}</label><select id="f-${id}" name="${id}" required><option value="">Choose one…</option>${opts.map(([val, lab]) => `<option value="${esc(val)}"${String(v[id]) === String(val) ? ' selected' : ''}>${esc(lab)}</option>`).join('')}</select></div>`;
-    const yn = [['yes', 'Yes'], ['no', 'No']];
     step.innerHTML = `<form id="join" class="card" novalidate>
   <h2 style="font-size:1.6rem;margin-top:0">Your application</h2>
   <p class="muted" style="margin-top:-.25rem">A few quick questions so Omi knows who’s in the room. Every question is required; most are a dropdown. Your answers are private to Omi and her team.</p>
-  <h3 class="form-sub">About you</h3>
-  <div class="grid-2">${input('first_name', 'First name', 'autocomplete="given-name" maxlength="80" required')}${input('last_name', 'Last name', 'autocomplete="family-name" maxlength="80" required')}</div>
-  ${input('email', 'Email address', `type="email" autocomplete="email" inputmode="email" maxlength="254" required${signedIn ? ' readonly' : ''}`,
-    signedIn ? 'Signed in. <button class="linklike" type="button" data-signout>Use a different email</button>' : 'Your receipt and account setup link go here, so double-check it.')}
-  <div class="grid-2">${input('phone', 'Phone number', 'type="tel" autocomplete="tel" maxlength="30" required')}${input('postal_code', 'ZIP code', 'autocomplete="postal-code" maxlength="12" required')}</div>
-  <h3 class="form-sub">Your business</h3>
-  ${input('business_name', 'Business name', 'autocomplete="organization" maxlength="160" required')}
-  ${input('website_url', 'Website', 'type="url" inputmode="url" placeholder="yourbusiness.com" maxlength="300" required')}
-  ${select('business_stage', 'Stage of business', options.business_stage)}
-  ${select('revenue_to_date', 'Revenue generated so far (total, since you started)', options.revenue_to_date)}
-  ${select('years_in_business', 'How long have you been in business?', options.years_in_business)}
-  ${select('prior_ops_work', 'Have you done any operations work before (SOPs, workflows, role descriptions, scorecards)?', yn)}
-  ${select('has_full_time_staff', 'Do you have full-time staff?', yn)}
-  ${select('team_size', 'How many people are on your team? Count full-time staff and contractors, not including you.', options.team_size)}
-  <div class="field"><label for="f-ops_questions">What are your most pressing questions about operations?</label>
-  <textarea id="f-ops_questions" name="ops_questions" maxlength="3000" required style="min-height:6rem">${esc(v.ops_questions || '')}</textarea></div>
+  ${applicationFieldsHtml(v, options, {
+    emailAttrs: signedIn ? ' readonly' : '',
+    emailHelp: signedIn ? 'Signed in. <button class="linklike" type="button" data-signout>Use a different email</button>' : 'Your receipt and account setup link go here, so double-check it.',
+  })}
   <div class="field code-field"><label for="f-code">Have a code? <span class="muted small">(optional)</span></label>
     <div class="code-row"><input type="text" id="f-code" name="code" maxlength="32" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${esc(v.code || '')}">
     <button class="btn btn-secondary btn-sm" type="button" id="apply-code">Apply</button></div>
@@ -734,8 +787,7 @@
 </form>`;
     wireSignout(step);
     const form = q('#join', step), err = q('#j-err', form), btn = q('#pay-btn', form);
-    const FIELDS = ['code', 'first_name', 'last_name', 'email', 'phone', 'postal_code', 'business_name', 'website_url', 'business_stage', 'revenue_to_date',
-      'years_in_business', 'prior_ops_work', 'has_full_time_staff', 'team_size', 'ops_questions'];
+    const FIELDS = ['code', ...APP_FIELDS];
     const collect = () => Object.fromEntries(FIELDS.map(f => [f, form.elements[f].value.trim()]));
     const remember = () => { try { sessionStorage.setItem('so-checkout-form', JSON.stringify(collect())); } catch { /* ignore */ } };
     form.addEventListener('change', remember);
@@ -760,10 +812,7 @@
       e.preventDefault();
       const data = collect();
       const fail = (msg, name) => { err.textContent = msg; if (name) form.elements[name].focus(); };
-      const labels = { first_name: 'Enter your first name.', last_name: 'Enter your last name.', email: 'Enter your email address.', phone: 'Enter your phone number.',
-        postal_code: 'Enter your ZIP code.', business_name: 'Enter your business name.', website_url: 'Enter your business website.', business_stage: 'Choose your stage of business.',
-        revenue_to_date: 'Choose your revenue so far.', years_in_business: 'Choose how long you’ve been in business.', prior_ops_work: 'Choose yes or no for operations work.',
-        has_full_time_staff: 'Choose yes or no for full-time staff.', team_size: 'Choose your team size.', ops_questions: 'Tell us your most pressing questions about operations.' };
+      const labels = APP_REQUIRED;
       const missing = Object.keys(labels).find(k => !data[k]);
       if (missing) return fail(labels[missing], missing);
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return fail('Enter a valid email address.', 'email');

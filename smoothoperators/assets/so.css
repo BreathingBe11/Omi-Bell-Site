@@ -672,3 +672,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal); outline: 
 .code-row input { flex: 1; min-width: 0; text-transform: uppercase; letter-spacing: .06em; }
 .field .help.code-ok { color: var(--success); font-weight: 500; }
 .field .help.code-bad { color: var(--danger); }
+/* "Missed the flash sale?" link under the price */
+.price-detail.special-pricing a { font-weight: 600; }
+.band-plum .price-detail.special-pricing a { color: var(--gold-soft); }

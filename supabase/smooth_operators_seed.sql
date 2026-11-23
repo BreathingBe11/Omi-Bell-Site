@@ -4,14 +4,14 @@
 -- Cohort values are the build brief's RECOMMENDED DEFAULTS, not owner-confirmed:
 --   start 2027-01-04 (Jan 4–24), 21 days, America/Los_Angeles, days unlock 00:00 cohort time,
 --   introductions open 2026-12-01 00:00 America/Los_Angeles (08:00 UTC),
---   $2,499 regular; $1,497 Black Friday–Cyber Monday sale (Nov 27, 2026 12:00 a.m. through Nov 30, 2026 11:59 p.m. Pacific),
+--   $2,499 regular; $997 Black Friday–Cyber Monday flash sale (Nov 27, 2026 12:00 a.m. through Nov 30, 2026 11:59 p.m. Pacific),
 --   sales disabled, 12 months of access (Jan 4, 2027 – Jan 3, 2028 Pacific).
 -- The 21 days below are PROVISIONAL draft curriculum (is_sample = true, status = draft).
 
 insert into so_cohorts (slug, name, start_date, days_count, timezone, unlock_time, intro_opens_at,
   regular_price_cents, intro_price_cents, price_sale_starts_at, price_cutoff_at, checkout_ttl_minutes, access_policy, access_ends_at, is_default)
 values ('2027-01', 'Smooth Operators', '2027-01-04', 21, 'America/Los_Angeles', '00:00',
-  '2026-12-01T08:00:00Z', 249900, 149700, '2026-11-27T08:00:00Z', '2026-12-01T08:00:00Z', 60, 'until_date', '2028-01-04T08:00:00Z', true)
+  '2026-12-01T08:00:00Z', 249900, 99700, '2026-11-27T08:00:00Z', '2026-12-01T08:00:00Z', 60, 'until_date', '2028-01-04T08:00:00Z', true)
 on conflict (slug) do nothing;
 
 insert into so_weeks (cohort_id, week_number, pillar, title, assignment)
@@ -478,6 +478,13 @@ do $$ begin
   if not exists (select 1 from so_admin_audit_log where action = 'migration:v7-sale-1497') then
     update so_cohorts set intro_price_cents = 149700, updated_at = now() where slug = '2027-01';
     insert into so_admin_audit_log (actor, action, entity) values ('migration', 'migration:v7-sale-1497', 'cohort');
+  end if;
+end $$;
+
+do $$ begin
+  if not exists (select 1 from so_admin_audit_log where action = 'migration:v8-sale-997') then
+    update so_cohorts set intro_price_cents = 99700, updated_at = now() where slug = '2027-01';
+    insert into so_admin_audit_log (actor, action, entity) values ('migration', 'migration:v8-sale-997', 'cohort');
   end if;
 end $$;
 

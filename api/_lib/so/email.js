@@ -58,6 +58,30 @@ Most pressing operations questions:
 
 Their member card: {{admin_link}}`, ['member_name', 'member_email', 'member_phone', 'member_zip', 'amount', 'price_label', 'business_name',
       'website', 'business_stage', 'revenue', 'years', 'team_size', 'ops_questions', 'admin_link']],
+  owner_inquiry: ['Special pricing request (to you)', 'transactional',
+    'Special pricing request: {{member_name}}',
+    `{{member_name}} asked about special pricing for Smooth Operators.
+
+Why they want to join:
+{{why}}
+
+Email: {{member_email}}
+Phone: {{member_phone}}
+ZIP: {{member_zip}}
+
+Business: {{business_name}}
+Website: {{website}}
+Stage: {{business_stage}}
+Revenue so far: {{revenue}}
+Years in business: {{years}}
+Done operations work before: {{prior_ops}}
+Full-time staff: {{full_time_staff}}
+Team size: {{team_size}}
+Most pressing operations questions:
+{{ops_questions}}
+
+All requests: {{admin_link}}`, ['member_name', 'member_email', 'member_phone', 'member_zip', 'business_name', 'website', 'business_stage',
+      'revenue', 'years', 'prior_ops', 'full_time_staff', 'team_size', 'ops_questions', 'why', 'admin_link']],
   checkout_reminder: ['Unfinished checkout reminder (one per person)', 'optional',
     'Your seat in {{cohort_name}} is still open',
     `Hi {{first_name}},

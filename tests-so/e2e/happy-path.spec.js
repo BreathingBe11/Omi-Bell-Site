@@ -39,7 +39,7 @@ test('business owner pays, is enrolled right away and saves a private reflection
   await expect(page.getByRole('button', { name: 'Send my code' })).toHaveCount(0);
   await expect(page.getByText(/full refund before the cohort begins on January 4, 2027/).first()).toBeVisible();
   expect(await axe(page)).toEqual([]);
-  const pay = page.getByRole('button', { name: 'Continue to payment — $1,497' });
+  const pay = page.getByRole('button', { name: 'Continue to payment — $997' });
   await page.getByLabel('First name').fill('Ada');
   await page.getByLabel('Last name').fill('Lovelace');
   await page.getByLabel('Email address').fill(email);
@@ -61,7 +61,7 @@ test('business owner pays, is enrolled right away and saves a private reflection
   await pay.click();
 
   // Stripe test double's hosted page. The form was saved before Stripe opened.
-  await expect(page.locator('#amount')).toHaveText('149700');
+  await expect(page.locator('#amount')).toHaveText('99700');
   expect((await sql`select status from so_leads where email = ${email}`)[0].status).toBe('started');
   expect((await sql`select revenue_to_date from so_intakes i join so_leads l on l.user_id = i.user_id where l.email = ${email}`)[0].revenue_to_date).toBe('100k_250k');
   await page.locator('#pay').click();
@@ -313,5 +313,37 @@ test('discount code link: ?code=BGV997 fills in the code and the button shows $9
     expect(await axe(page)).toEqual([]);
   } finally {
     await sql`update so_cohorts set price_cutoff_at = '2026-12-01T08:00:00Z' where is_default`;
+  }
+});
+
+test('after the flash sale: landing link to special pricing, form sends the request', async ({ page }, info) => {
+  await setPreCohort();
+  await sql`update so_cohorts set price_sale_starts_at = now() - interval '4 days', price_cutoff_at = now() - interval '1 minute' where is_default`;
+  try {
+    await page.goto(`${base()}/smoothoperators`);
+    await page.getByRole('link', { name: 'Click here to inquire about special pricing.' }).first().click();
+    await expect(page.getByRole('heading', { name: 'Inquire about special pricing' })).toBeVisible();
+    await page.getByLabel('First name').fill('Sam');
+    await page.getByLabel('Last name').fill('Seeker');
+    await page.getByLabel('Email address').fill(`sam-${info.project.name}@example.com`);
+    await page.getByLabel('Phone number').fill('(555) 555-0199');
+    await page.getByLabel('ZIP code').fill('90034');
+    await page.getByLabel('Business name').fill('Seeker Studio');
+    await page.getByLabel('Website', { exact: true }).fill('seeker.example.com');
+    await page.getByLabel('Stage of business').selectOption({ label: 'Growing: steady, repeat revenue' });
+    await page.getByLabel(/Revenue generated so far/).selectOption({ label: '$100K–$250K' });
+    await page.getByLabel('How long have you been in business?').selectOption({ label: '3–5 years' });
+    await page.getByLabel(/operations work before/).selectOption({ label: 'No' });
+    await page.getByLabel('Do you have full-time staff?').selectOption({ label: 'Yes' });
+    await page.getByLabel(/How many people are on your team/).selectOption({ label: '3–5 people' });
+    await page.getByLabel('What are your most pressing questions about operations?').fill('How do I delegate onboarding?');
+    await page.getByRole('button', { name: 'Send my request' }).click();
+    await expect(page.getByRole('alert')).toContainText('Tell Omi why you want to join.');
+    await page.getByLabel('Why do you want to join this program?').fill('I want my business to run without me holding every piece.');
+    expect(await axe(page)).toEqual([]);
+    await page.getByRole('button', { name: 'Send my request' }).click();
+    await expect(page.getByRole('heading', { name: 'Thank you, Sam.' })).toBeVisible();
+  } finally {
+    await sql`update so_cohorts set price_sale_starts_at = null, price_cutoff_at = '2026-12-01T08:00:00Z' where is_default`;
   }
 });
