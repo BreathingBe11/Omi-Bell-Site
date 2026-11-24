@@ -645,6 +645,22 @@ create table if not exists so_price_codes (
 );
 alter table so_purchases add column if not exists price_code text;
 
+-- v8 (Nov 2026): "Missed the flash sale?" special pricing requests (open after
+-- the sale ends). Saved here and emailed to Omi.
+create table if not exists so_inquiries (
+  id          uuid primary key default gen_random_uuid(),
+  cohort_id   uuid not null references so_cohorts(id) on delete cascade,
+  email       text not null,
+  first_name  text not null,
+  last_name   text not null,
+  answers     jsonb not null default '{}'::jsonb,
+  why         text not null,
+  status      text not null default 'new' check (status in ('new', 'contacted', 'closed')),
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+create index if not exists so_inquiries_cohort_idx on so_inquiries (cohort_id, created_at desc);
+
 -- --------------------------------------------------------------- security
 do $$
 declare t text;
@@ -656,7 +672,7 @@ begin
     'so_webhook_events','so_admin_audit_log','so_events','so_email_log','so_rate_limits','so_intakes',
     'so_intake_versions','so_review_decisions','so_refund_attempts','so_email_templates','so_email_template_versions',
     'so_email_outbox','so_support_threads','so_support_messages','so_admin_notes',
-    'so_journal_notes','so_announcements','so_refund_requests','so_leads','so_price_codes']
+    'so_journal_notes','so_announcements','so_refund_requests','so_leads','so_price_codes','so_inquiries']
   loop
     execute format('alter table %I enable row level security', t);
     if exists (select 1 from pg_roles where rolname = 'anon') then

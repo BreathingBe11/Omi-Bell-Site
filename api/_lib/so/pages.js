@@ -144,15 +144,20 @@ function priceDetail(offer, tz, saleName = 'Sale') {
     const dl = deadlineLabel(new Date(p.cutoff_at), tz);
     return `<p class="price-detail">${e(saleName)}: ${money(p.intro_cents)} from ${e(from)} through ${e(dl.day)} only.</p>`;
   }
+  if (saleEnded(p)) {
+    return `<p class="price-detail special-pricing">Missed the ${money(p.intro_cents)} flash sale? <a href="${B}/special-pricing">Click here to inquire about special pricing.</a></p>`;
+  }
   return '';
 }
+// The flash sale window has come and gone (the special pricing form is open).
+const saleEnded = p => !!(p.intro_cents && p.sale_starts_at && p.cutoff_at && !p.intro_active && !p.sale_upcoming);
 
 // Used only if the database can't be reached: the public page still loads
 // (with the default copy and the seeded cohort dates) and checkout stays off.
 function fallbackOffer(now) {
   const S = require('./schedule');
   const cohort = { start_date: '2027-01-04', days_count: 21, timezone: 'America/Los_Angeles', unlock_time: '00:00',
-    regular_price_cents: 249900, intro_price_cents: 149700, price_sale_starts_at: '2026-11-27T08:00:00Z', price_cutoff_at: '2026-12-01T08:00:00Z', currency: 'usd' };
+    regular_price_cents: 249900, intro_price_cents: 99700, price_sale_starts_at: '2026-11-27T08:00:00Z', price_cutoff_at: '2026-12-01T08:00:00Z', currency: 'usd' };
   const sched = S.schedule(cohort);
   const p = S.priceAt(cohort, now);
   return {
@@ -354,7 +359,7 @@ ${testimonials.length ? `
       <p>${e(dates)} · Live cohort · Hosted by Omi Bell</p>
       <ul class="includes">${lines(g('enroll.includes')).map(l => `<li>${e(l)}</li>`).join('')}${perk ? `<li>${e(perk)}</li>` : ''}</ul>
       <div class="enroll-cta">${cta(offer, { variant: 'light', id: 'footer-cta' })}</div>
-      ${offer.sales.can_checkout && (offer.price.intro_active || offer.price.sale_upcoming) ? priceDetail(offer, tz, g('pricing.sale_name')) : ''}
+      ${offer.sales.can_checkout && (offer.price.intro_active || offer.price.sale_upcoming || saleEnded(offer.price)) ? priceDetail(offer, tz, g('pricing.sale_name')) : ''}
       <p class="small">${e(g('enroll.footer_cta_note'))}</p>
       ${disclosures ? `<div class="disclosures small">${disclosures}</div>` : ''}
     </div>

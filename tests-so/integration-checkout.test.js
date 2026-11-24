@@ -40,7 +40,7 @@ test('continue to payment: no sign-in needed; the form is saved before Stripe op
   const r = await start({ email: '  Robin@Example.com ' });
   assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.equal(r.body.state, 'redirect');
-  assert.equal(r.body.amount_cents, 149700);
+  assert.equal(r.body.amount_cents, 99700);
   const lead = (await h.sql`select * from so_leads where email = 'robin@example.com'`)[0];
   assert.equal(lead.name, 'Robin Reyes');
   assert.equal(lead.status, 'started');
@@ -215,10 +215,10 @@ test('discount codes: BGV997 gives $997 until the cohort starts; wrong, expired 
     assert.equal((await h.api('GET', 'checkout/code?code=BGV997')).body.valid, false);
     await admin('PUT', 'admin/codes/BGV997', { active: true });
 
-    // During the $1,497 sale the code is still the better price: $997.
+    // During a $997 sale the code isn't needed and nobody pays more.
     await h.setCohort({ price_cutoff_at: new Date(Date.now() + 86400000) });
     const sale = await h.api('GET', 'checkout/code?code=BGV997');
-    assert.equal(sale.body.applied, true);
+    assert.equal(sale.body.applied, false);
     assert.equal(sale.body.amount_cents, 99700);
 
     // Once the cohort starts, the code stops working.
@@ -227,5 +227,53 @@ test('discount codes: BGV997 gives $997 until the cohort starts; wrong, expired 
     assert.equal((await h.api('GET', 'checkout/code?code=BGV997')).body.valid, false);
   } finally {
     await h.setCohort({ start_date: c.start_date, unlock_time: '00:00', intro_opens_at: c.intro_opens_at, price_cutoff_at: c.price_cutoff_at });
+  }
+});
+
+test('special pricing: hidden until the flash sale ends, then the form saves the request and emails Omi', async () => {
+  const c = await h.cohort();
+  const form = { ...APP, first_name: 'Sam', last_name: 'Seeker', email: 'sam.seeker@example.com',
+    why: 'I missed the sale, and I am ready to stop being the bottleneck in my business.' };
+  try {
+    // During the sale (or before it), the form is closed and the landing page has no link.
+    await h.setCohort({ price_sale_starts_at: new Date(Date.now() - 86400000), price_cutoff_at: new Date(Date.now() + 86400000) });
+    assert.equal((await h.api('GET', 'special-pricing')).body.open, false);
+    assert.equal((await h.api('POST', 'special-pricing', { body: form })).status, 409);
+    assert.doesNotMatch(await (await fetch(`${h.appBase}/smoothoperators`)).text(), /inquire about special pricing/);
+
+    // After Cyber Monday: back to $2,499 with the link, and the form opens.
+    await h.setCohort({ price_cutoff_at: new Date(Date.now() - 1000) });
+    const html = await (await fetch(`${h.appBase}/smoothoperators`)).text();
+    assert.match(html, /Join the Cohort — \$2,499/);
+    assert.match(html, /Missed the \$997 flash sale\? <a href="\/smoothoperators\/special-pricing">Click here to inquire about special pricing\.<\/a>/);
+    const st = await h.api('GET', 'special-pricing');
+    assert.equal(st.body.open, true);
+    assert.equal(st.body.sale_price, '$997');
+    assert.equal((await h.api('POST', 'special-pricing', { body: { ...form, why: '' } })).status, 400, 'why is required');
+    assert.equal((await h.api('POST', 'special-pricing', { body: { ...form, revenue_to_date: '' } })).status, 400, 'application questions required');
+    assert.equal((await h.api('POST', 'special-pricing', { body: { ...form, company_website: 'spam' } })).status, 400);
+    const ok = await h.api('POST', 'special-pricing', { body: form });
+    assert.equal(ok.status, 200, JSON.stringify(ok.body));
+
+    const row = (await h.sql`select * from so_inquiries where email = 'sam.seeker@example.com'`)[0];
+    assert.equal(row.why, form.why);
+    assert.equal(row.answers.business_name, 'Reyes Studio');
+    const ownerTo = require('../api/_lib/so/content').SITE_CONTENT.find(x => x.key === 'support.email').default;
+    const mail = (await h.sql`select to_email, subject, body_text from so_email_outbox where template_key = 'owner_inquiry' and related_id = ${row.id}`)[0];
+    assert.equal(mail.to_email, ownerTo);
+    assert.match(mail.subject, /Special pricing request: Sam Seeker/);
+    assert.match(mail.body_text, /Why they want to join:\nI missed the sale/);
+    assert.match(mail.body_text, /Revenue so far: \$250K–\$500K/);
+
+    const list = await admin('GET', 'admin/inquiries');
+    const item = list.body.inquiries.find(x => x.email === 'sam.seeker@example.com');
+    assert.equal(item.status, 'new');
+    assert.equal(item.answers.revenue, '$250K–$500K');
+    assert.ok((await admin('GET', 'admin/home')).body.attention.some(a => a.kind === 'inquiry'));
+    assert.equal((await admin('PUT', `admin/inquiries/${item.id}`, { status: 'contacted' })).body.inquiry.status, 'contacted');
+    const nobody = await h.mocks.signIn('not-admin@example.com');
+    assert.equal((await h.api('GET', 'admin/inquiries', { token: nobody.token })).status, 403);
+  } finally {
+    await h.setCohort({ price_sale_starts_at: null, price_cutoff_at: c.price_cutoff_at });
   }
 });

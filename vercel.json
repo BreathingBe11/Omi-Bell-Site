@@ -33,7 +33,7 @@
       ]
     },
     {
-      "source": "/smoothoperators/:section(app|admin|checkout|login)(.*)",
+      "source": "/smoothoperators/:section(app|admin|checkout|login|special-pricing)(.*)",
       "headers": [
         {
           "key": "X-Robots-Tag",
@@ -81,6 +81,10 @@
     },
     {
       "source": "/smoothoperators/login/:path*",
+      "destination": "/smoothoperators/app"
+    },
+    {
+      "source": "/smoothoperators/special-pricing",
       "destination": "/smoothoperators/app"
     }
   ],

@@ -13,7 +13,7 @@
     ['seat', 'Solutions Seat'], ['progress', 'Progress'], ['settings', 'Emails & Settings'],
   ];
   const SUBS = {
-    members: [['all', 'All members'], ['leads', 'Started checkout'], ['intros', 'Introductions']],
+    members: [['all', 'All members'], ['leads', 'Started checkout'], ['inquiries', 'Special pricing requests'], ['intros', 'Introductions']],
     sales: [['summary', 'Sales'], ['codes', 'Discount codes'], ['access', 'Payments & access tools']],
     program: [['days', '21 days'], ['announcements', 'Announcements'], ['resources', 'Resources'], ['preview', 'Preview']],
     seat: [['sessions', 'Sessions'], ['challenges', 'Challenges'], ['prep', 'Session prep']],
@@ -95,8 +95,8 @@ ${subs ? `<nav class="admin-subnav" aria-label="${esc(SECTIONS.find(x => x[0] ==
     const pick = q('#cohort-pick');
     if (pick) pick.addEventListener('change', () => { COHORT.id = pick.value; try { sessionStorage.setItem('so_admin_cohort', pick.value); } catch { /* ignore */ } route(); });
     const main = q('#admin-main');
-    const view = VIEWS[subs ? (s === 'members' && sub !== 'intros' && sub !== 'leads' ? 'members' : sub === 'summary' ? 'sales' : sub === 'sessions' ? 'calls' : sub) : s];
-    if (s === 'members' && sub !== 'intros' && sub !== 'leads') ARG = sub;
+    const view = VIEWS[subs ? (s === 'members' && !['intros', 'leads', 'inquiries'].includes(sub) ? 'members' : sub === 'summary' ? 'sales' : sub === 'sessions' ? 'calls' : sub) : s];
+    if (s === 'members' && !['intros', 'leads', 'inquiries'].includes(sub)) ARG = sub;
     try { await view(main); } catch (e) { if (token()) main.innerHTML = `<div class="notice notice-error" role="alert"><p>${esc(e.message)}</p><button class="btn btn-secondary btn-sm" onclick="location.reload()">Try again</button></div>`; }
   }
   let NEWQ = 0;
@@ -448,6 +448,28 @@ ${purchases.length ? purchases.map(p => `<tr><td>${esc(p.email)}</td><td>${esc(p
       return true;
     } catch (e) { alert(e.message); return false; }
   }
+
+  VIEWS.inquiries = async main => {
+    const d = await api('GET', 'admin/inquiries');
+    const pill = s => `<span class="pill ${s === 'new' ? 'pill-live' : s === 'contacted' ? 'pill-progress' : ''}">${s === 'new' ? 'New' : s === 'contacted' ? 'Contacted' : 'Closed'}</span>`;
+    main.innerHTML = `<h1>Special pricing requests <span class="muted" style="font-size:1.2rem">(${d.inquiries.filter(x => x.status === 'new').length} new)</span></h1>
+<p class="muted small">From “Missed the flash sale? Inquire about special pricing.” The form opens after the flash sale ends, and each request is also emailed to you. Reply from your email, then mark it contacted. To offer a price, create a code under <a href="#sales/codes">Sales → Discount codes</a> and send it to them.</p>
+${d.inquiries.length ? `<div class="stack">${d.inquiries.map(r => `<article class="card">
+<div class="row-between"><div><h2 style="margin:0;font-size:1.35rem">${esc(r.name)}</h2>
+<p class="small muted" style="margin:.2rem 0 0"><a href="mailto:${esc(r.email)}">${esc(r.email)}</a> · ${esc(r.answers.phone || '')} · ZIP ${esc(r.answers.zip || '')} · ${esc(dt(r.created_at))}</p></div>${pill(r.status)}</div>
+<p style="margin:.9rem 0 .3rem"><strong>Why they want to join</strong></p><p style="white-space:pre-wrap;margin:0">${esc(r.why)}</p>
+<details class="more"><summary>Business details</summary><dl class="kv">
+<dt>Business</dt><dd>${esc(r.answers.business || '—')}</dd><dt>Website</dt><dd>${esc(r.answers.website || '—')}</dd>
+<dt>Stage</dt><dd>${esc(r.answers.stage || '—')}</dd><dt>Revenue so far</dt><dd>${esc(r.answers.revenue || '—')}</dd>
+<dt>Years in business</dt><dd>${esc(r.answers.years || '—')}</dd><dt>Team size</dt><dd>${esc(r.answers.team || '—')}</dd>
+<dt>Operations work before</dt><dd>${esc(r.answers.prior_ops || '—')}</dd><dt>Full-time staff</dt><dd>${esc(r.answers.staff || '—')}</dd>
+<dt>Pressing operations questions</dt><dd style="white-space:pre-wrap">${esc(r.answers.ops_questions || '—')}</dd></dl></details>
+<div class="row" style="margin-top:.6rem">${['new', 'contacted', 'closed'].filter(s => s !== r.status).map(s => `<button class="btn btn-ghost btn-sm" data-inq="${r.id}" data-st="${s}">Mark ${s}</button>`).join('')}</div>
+</article>`).join('')}</div>` : '<p class="empty">No requests yet. The form opens after the flash sale ends.</p>'}`;
+    qa('[data-inq]', main).forEach(b => b.addEventListener('click', async () => {
+      try { await api('PUT', `admin/inquiries/${b.dataset.inq}`, { status: b.dataset.st }); VIEWS.inquiries(main); } catch (e) { alert(e.message); }
+    }));
+  };
 
   VIEWS.codes = async main => {
     const d = await api('GET', 'admin/codes');

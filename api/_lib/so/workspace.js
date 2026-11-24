@@ -367,6 +367,8 @@ routes['GET admin/home'] = can(async ({ sql, query, now, admin: who }) => {
   const efTotal = ef.reduce((a, r) => a + r.n, 0);
   if (efTotal) add('email', `${efTotal} email${efTotal === 1 ? '' : 's'} failed or bounced${ef.some(r => ['approval', 'rejection'].includes(r.template_key)) ? ', including decision emails' : ''}.`, '#settings/emails/failed', 'high');
   const unpaid = (await sql`select count(*)::int as n from so_leads where cohort_id = ${cohort.id} and status = 'started'`.catch(() => [{ n: 0 }]))[0].n;
+  const inq = (await sql`select count(*)::int as n from so_inquiries where cohort_id = ${cohort.id} and status = 'new'`.catch(() => [{ n: 0 }]))[0].n;
+  if (inq) add('inquiry', `${inq} new special pricing request${inq === 1 ? '' : 's'}.`, '#members/inquiries', 'high');
   if (unpaid) add('leads', `${unpaid} ${unpaid === 1 ? 'person' : 'people'} started checkout but haven’t paid.`, '#members/leads');
   if (newQuestions) add('question', `${newQuestions} new question${newQuestions === 1 ? '' : 's'} from members.`, '#settings/questions');
   // Content readiness for days unlocking within 7 days.
@@ -653,7 +655,8 @@ async function sampleVars(sql, cohort) {
     member_name: 'Jordan Rivera', member_email: 'jordan@example.com', member_phone: '(555) 555-0123', member_zip: '90034', amount: '$997',
     price_label: 'Black Friday–Cyber Monday sale', business_name: 'Rivera Studio', website: 'https://rivera.example.com', business_stage: 'Growing: steady, repeat revenue',
     revenue: '$100K–$250K', years: '3–5 years', team_size: '3–5 people', ops_questions: 'How do I hand off client onboarding?',
-    admin_link: `${env.siteUrl()}${env.BASE_PATH}/admin#members/all`,
+    admin_link: `${env.siteUrl()}${env.BASE_PATH}/admin#members/all`, prior_ops: 'No', full_time_staff: 'Yes',
+    why: 'I’ve built a business I love, and I’m ready to stop being the bottleneck.',
     checkout_link: `${env.siteUrl()}${env.BASE_PATH}/checkout`, unsubscribe_link: `${env.siteUrl()}/api/so/leads/unsubscribe?token=example` };
 }
 

@@ -139,7 +139,80 @@ function page(res, title, body) {
   return H.HANDLED;
 }
 
+// ------------------------------------------------ special pricing inquiries
+// "Missed the flash sale?" Open only once the sale window has ended, until the
+// cohort is over. Each request is saved and emailed to Omi.
+const usd = c => `$${(c / 100).toLocaleString('en-US', { minimumFractionDigits: c % 100 ? 2 : 0 })}`;
+function specialPricing(cohort, now) {
+  const sale = !!(cohort.intro_price_cents && cohort.price_sale_starts_at && cohort.price_cutoff_at);
+  const ended = sale && now >= new Date(cohort.price_cutoff_at);
+  const over = now >= S.schedule(cohort).ends_at;
+  return { open: ended && !over, sale_price: sale ? usd(cohort.intro_price_cents) : null,
+    message: over ? 'This cohort has ended.' : 'Special pricing requests open after the flash sale ends.' };
+}
+
+async function notifyInquiry(sql, cohort, row) {
+  const content = await C.loadContent(sql);
+  const to = (process.env.SO_NOTIFY_EMAIL || content.get('support.email') || '').trim();
+  if (!to) return;
+  const a = row.answers;
+  const opt = (k, v) => (v === true ? 'Yes' : v === false ? 'No' : v ? intake.label(k, v) : '—');
+  const vars = {
+    ...(await email.baseVars(sql, cohort, null)),
+    member_name: `${row.first_name} ${row.last_name}`, member_email: row.email, member_phone: a.phone, member_zip: a.postal_code,
+    business_name: a.business_name, website: a.website_url || '—', business_stage: opt('business_stage', a.business_stage),
+    revenue: opt('revenue_to_date', a.revenue_to_date), years: opt('years_in_business', a.years_in_business), team_size: opt('team_size', a.team_size),
+    prior_ops: opt('', a.prior_ops_work), full_time_staff: opt('', a.has_full_time_staff), ops_questions: a.ops_questions, why: row.why,
+    admin_link: `${env.siteUrl()}${env.BASE_PATH}/admin#members/inquiries`,
+  };
+  const m = await email.enqueue(sql, { key: 'owner_inquiry', dedupeKey: `owner-inquiry:${row.id}`, to, cohortId: cohort.id, vars,
+    related: { type: 'inquiry', id: row.id }, actor: 'system' });
+  if (m) await email.processOutbox(sql, { ids: [m.id] });
+}
+
 const routes = {
+  'GET special-pricing': async ({ sql, now }) => {
+    const cohort = await C.loadCohort(sql);
+    return { ...specialPricing(cohort, now), options: intake.OPTIONS };
+  },
+  'POST special-pricing': async ({ sql, req, now }) => {
+    const b = H.body(req);
+    if (b.company_website) throw new HttpError(400, 'invalid_input', 'Please try again.');
+    const cohort = await C.loadCohort(sql);
+    const sp = specialPricing(cohort, now);
+    if (!sp.open) throw new HttpError(409, 'not_open', sp.message);
+    const app = intake.parseApplication(b);
+    const addr = normEmail(b.email);
+    const why = H.text(b.why, { max: 3000, required: true, field: 'Why you want to join', multiline: true });
+    await H.rateLimit(sql, `inquiry:${H.clientIp(req)}`, 5, 3600);
+    await H.rateLimit(sql, `inquiry-email:${addr}`, 3, 86400);
+    const { first_name, last_name, ...answers } = app;
+    const row = (await sql`insert into so_inquiries (cohort_id, email, first_name, last_name, answers, why)
+      values (${cohort.id}, ${addr}, ${first_name}, ${last_name}, ${sql.json(answers)}, ${why}) returning *`)[0];
+    await notifyInquiry(sql, cohort, row).catch(e => console.error('[so] inquiry alert error', e.message));
+    return { ok: true };
+  },
+  'GET admin/inquiries': async ({ sql, req }) => {
+    await requireAdmin(req, sql, 'view');
+    const cohort = await C.loadCohort(sql);
+    const rows = await sql`select * from so_inquiries where cohort_id = ${cohort.id} order by (status = 'new') desc, created_at desc limit 500`;
+    const opt = (k, v) => (v === true ? 'Yes' : v === false ? 'No' : v ? intake.label(k, v) : null);
+    return {
+      inquiries: rows.map(r => ({ id: r.id, email: r.email, name: `${r.first_name} ${r.last_name}`, status: r.status, created_at: r.created_at, why: r.why,
+        answers: { phone: r.answers.phone, zip: r.answers.postal_code, business: r.answers.business_name, website: r.answers.website_url,
+          stage: opt('business_stage', r.answers.business_stage), revenue: opt('revenue_to_date', r.answers.revenue_to_date),
+          years: opt('years_in_business', r.answers.years_in_business), team: opt('team_size', r.answers.team_size),
+          prior_ops: opt('', r.answers.prior_ops_work), staff: opt('', r.answers.has_full_time_staff), ops_questions: r.answers.ops_questions } })),
+    };
+  },
+  'PUT admin/inquiries/:id': async ({ sql, req, params }) => {
+    await requireAdmin(req, sql, 'support');
+    const status = H.oneOf(H.body(req).status, ['new', 'contacted', 'closed'], 'Status');
+    const rows = await sql`update so_inquiries set status = ${status}, updated_at = now() where id = ${H.uuid(params.id, 'request')} returning id, status`;
+    if (!rows[0]) throw new HttpError(404, 'not_found', 'Request not found.');
+    return { inquiry: rows[0] };
+  },
+
   'POST checkout/start': startCheckout,
   'GET checkout/form': async () => ({ options: intake.OPTIONS }),
 
@@ -184,4 +257,4 @@ const routes = {
   },
 };
 
-module.exports = { routes, markLeadPaid, sendDueReminders, findOrCreateUser };
+module.exports = { routes, markLeadPaid, sendDueReminders, findOrCreateUser, specialPricing };
